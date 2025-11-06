@@ -21,6 +21,16 @@ Your job: **Follow the task-driven workflow to implement the system.**
 * Always use squash merge when merging a feature branch into main.
 * Always pause to ask the user before squash merging. Never assume the user wants Claude to squash merge before asking.
 
+## Code Quality Guidelines
+
+**Follow these guidelines when writing code:**
+
+- [Python Style & Conventions](.claude/commands/references/python_guidelines.md)
+- [Architecture & Design Patterns](.claude/commands/references/python_architecture_patterns.md)
+- [ML/Pipeline Patterns](.claude/commands/references/ml_pipeline_patterns.md) **(CRITICAL - caching, GPU, etc.)**
+- [Testing Guidelines](.claude/commands/references/testing_guidelines.md)
+- [Code Quality Checklist](.claude/commands/references/code_quality_checklist.md)
+
 ## Task-Driven Development Workflow
 
 ### Critical Pattern: Follow Tasks Sequentially
