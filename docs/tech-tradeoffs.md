@@ -227,39 +227,40 @@ for line in results[0]:
 
 ## Speech-to-Text (Transcription)
 
-### Current Choice: OpenAI Whisper (Local, large-v3)
+### Current Choice: faster-whisper (large-v3)
 
 **Why**:
-- **Best-in-class accuracy** (state-of-the-art)
+- **Best-in-class accuracy** (state-of-the-art Whisper model)
+- **4x faster** than standard openai-whisper (CTranslate2 backend)
 - Handles multiple speakers, accents, background noise
 - Free (runs locally)
 - Word-level timestamps (critical for team mention detection)
-- Your M3 Pro has plenty of RAM (36GB) for large model
+- Lower memory usage than standard Whisper
 
 **Trade-offs**:
-- Slower than cloud APIs (~10-15 mins for 90-min video)
-- GPU memory intensive (large model needs ~10GB VRAM)
+- Additional dependency (CTranslate2)
+- Still slower than cloud APIs (~3-4 mins for 90-min video)
 
 **Installation**:
 ```bash
-pip install openai-whisper
+pip install faster-whisper
 ```
 
 **Usage Example**:
 ```python
-import whisper
+from faster_whisper import WhisperModel
 
-model = whisper.load_model("large-v3")
-result = model.transcribe("audio.wav", language="en", word_timestamps=True)
+model = WhisperModel("large-v3", device="auto", compute_type="float16")
+segments, info = model.transcribe("audio.wav", language="en", word_timestamps=True)
 
-for segment in result['segments']:
-    print(f"[{segment['start']:.2f}s -> {segment['end']:.2f}s] {segment['text']}")
+for segment in segments:
+    print(f"[{segment.start:.2f}s -> {segment.end:.2f}s] {segment.text}")
 ```
 
 **Benchmark** (90-min video, M3 Pro):
-- **large-v3**: ~12-15 minutes
-- **medium**: ~6-8 minutes
-- **small**: ~3-5 minutes
+- **large-v3**: ~3-4 minutes
+- **medium**: ~2-3 minutes
+- **small**: ~1-2 minutes
 
 ---
 
@@ -309,44 +310,46 @@ print(transcript.text)
 
 ---
 
-### Alternative 2: Faster-Whisper
+### Alternative 2: OpenAI Whisper (Standard, Local)
 
-**When to use**: If you want local processing but faster than vanilla Whisper
+**⚠️ WARNING: 4x slower than faster-whisper with identical accuracy. Only use if faster-whisper has compatibility issues.**
+
+**When to use**: Only if faster-whisper has compatibility issues on your system
 
 **Pros**:
-- **4-5x faster** than standard Whisper (CTranslate2 backend)
-- Same accuracy
-- Lower memory usage
-- Still free and local
+- Same accuracy as faster-whisper
+- Original implementation (mature, well-tested)
+- No CTranslate2 dependency
 
 **Cons**:
-- Additional dependency
-- Slightly more complex setup
+- **4x slower** (12-15 mins vs. 3-4 mins for 90-min video)
+- Higher memory usage
+- Slower on CPU (no optimised backend)
 
 **Migration Effort**: Very low (1 hour)
 
 **Installation**:
 ```bash
-pip install faster-whisper
+pip install openai-whisper
 ```
 
 **Usage Example**:
 ```python
-from faster_whisper import WhisperModel
+import whisper
 
-model = WhisperModel("large-v3", device="auto", compute_type="float16")
-segments, info = model.transcribe("audio.wav", language="en", word_timestamps=True)
+model = whisper.load_model("large-v3")
+result = model.transcribe("audio.wav", language="en", word_timestamps=True)
 
-for segment in segments:
-    print(f"[{segment.start:.2f}s -> {segment.end:.2f}s] {segment.text}")
+for segment in result['segments']:
+    print(f"[{segment['start']:.2f}s -> {segment['end']:.2f}s] {segment['text']}")
 ```
 
 **Benchmark** (90-min video, M3 Pro):
-- **large-v3**: ~3-4 minutes (vs. 12-15 mins for standard Whisper)
-- **medium**: ~2-3 minutes
-- **small**: ~1-2 minutes
+- **large-v3**: ~12-15 minutes (vs. 3-4 mins for faster-whisper)
+- **medium**: ~6-8 minutes
+- **small**: ~3-5 minutes
 
-**Recommendation**: **Strongly consider switching to faster-whisper** - same accuracy, 4x faster, still local and free.
+**Recommendation**: **Avoid unless faster-whisper doesn't work on your system.**
 
 ---
 
@@ -354,9 +357,9 @@ for segment in segments:
 
 | Option | Accuracy | Speed (90min) | Cost | Local/Cloud | Recommendation |
 |--------|----------|---------------|------|-------------|----------------|
-| **Whisper (local)** | ★★★★★ | 12-15 mins | Free | Local | Current choice |
-| **faster-whisper** | ★★★★★ | 3-4 mins | Free | Local | **Upgrade to this** |
+| **faster-whisper** | ★★★★★ | 3-4 mins | Free | Local | **Current choice** |
 | **Whisper API** | ★★★★★ | 2-3 mins | $0.54/ep | Cloud | If speed > cost |
+| **Whisper (standard)** | ★★★★★ | 12-15 mins | Free | Local | Avoid (4x slower) |
 | **AssemblyAI** | ★★★★☆ | 3-5 mins | $0.75/ep | Cloud | Alternative cloud |
 | **Google Speech** | ★★★☆☆ | 2-4 mins | $0.024/min | Cloud | Avoid (lower accuracy) |
 
@@ -554,23 +557,23 @@ def process(video, output):
 | PySceneDetect | Raw OpenCV | Need more speed, willing to sacrifice subtle transition detection | Low |
 | EasyOCR | PaddleOCR | Speed critical, processing >100 frames | Low |
 | EasyOCR | Tesseract | **Never** (poor accuracy on sports graphics) | N/A |
-| Whisper (local) | faster-whisper | Want 4x speed, keep local/free | Low |
-| Whisper (local) | Whisper API | Speed critical, $5-10 cost acceptable | Very Low |
+| faster-whisper | Whisper API | Speed critical, $5-10 cost acceptable | Very Low |
+| faster-whisper | Whisper (standard) | **Never** (4x slower, no benefit) | N/A |
 | ffmpeg | moviepy | Want pure Python, no system deps | Low |
 | YAML | TOML | Personal preference | Very Low |
 | argparse | Click | CLI becomes complex (>5 subcommands) | Low |
 
 ---
 
-## Recommended Immediate Upgrade
+## Technology Stack Summary
 
-**Switch from `openai-whisper` to `faster-whisper`**:
-- Same accuracy
-- 4x faster (3-4 mins vs. 12-15 mins per episode)
-- Still local and free
-- Minimal code change
-
-**Why**: No downside, significant performance gain. This is a no-brainer upgrade.
+**Current choices** (as of implementation):
+- **Scene Detection**: PySceneDetect (ContentDetector)
+- **OCR**: EasyOCR with GPU acceleration
+- **Transcription**: **faster-whisper** (large-v3)
+- **Video Processing**: ffmpeg + opencv-python
+- **Config**: PyYAML
+- **CLI**: argparse
 
 ---
 

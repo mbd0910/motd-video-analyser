@@ -8,22 +8,7 @@ Testing conventions and coverage expectations for the MOTD Analyser project.
 
 **Use pytest** for all testing.
 
-```bash
-# Install
-pip install pytest pytest-cov pytest-mock
-
-# Run tests
-pytest
-
-# Run with coverage
-pytest --cov=src/motd_analyzer --cov-report=html
-
-# Run specific test file
-pytest tests/test_scene_detection.py
-
-# Run with markers
-pytest -m "not slow"  # Skip slow tests (integration)
-```
+Installation: `pip install pytest pytest-cov pytest-mock`
 
 ---
 
@@ -54,97 +39,45 @@ pytest -m "not slow"  # Skip slow tests (integration)
 ### Critical (Must Have Tests)
 
 **Pipeline orchestration**:
-```python
-def test_pipeline_processes_all_stages():
-    """Pipeline should run scene detection → OCR → transcription → analysis."""
-    pass
-
-def test_pipeline_uses_cache_when_available():
-    """Pipeline should skip stages if cached results exist."""
-    pass
-
-def test_pipeline_continues_after_non_critical_failure():
-    """If OCR fails for one scene, pipeline should continue."""
-    pass
-```
+- Pipeline should run scene detection → OCR → transcription → analysis
+- Pipeline should skip stages if cached results exist
+- If OCR fails for one scene, pipeline should continue
 
 **Cache invalidation**:
-```python
-def test_cache_invalidated_when_config_changes():
-    """Changing config should invalidate cached results."""
-    pass
-
-def test_cache_version_hash_updates_on_config_change():
-    """Cache version hash should change when config changes."""
-    pass
-```
+- Changing config should invalidate cached results
+- Cache version hash should change when config changes
 
 **Team matching**:
-```python
-def test_exact_team_name_match():
-    """Should match exact team names."""
-    pass
-
-def test_fuzzy_team_name_match_with_ocr_errors():
-    """Should match 'ARSEN4L' to 'Arsenal' (OCR mistake)."""
-    pass
-
-def test_no_match_raises_team_not_found_error():
-    """Should raise TeamNotFoundError when no match found."""
-    pass
-```
+- Should match exact team names
+- Should match 'ARSEN4L' to 'Arsenal' (OCR mistake)
+- Should raise TeamNotFoundError when no match found
 
 ---
 
 ### High Priority (Should Have Tests)
 
 **Scene detection configuration**:
-```python
-def test_scene_detection_respects_threshold_config():
-    """Should use threshold from config.yaml."""
-    pass
-
-def test_scene_detection_min_duration_filtering():
-    """Should filter out scenes shorter than min_scene_duration."""
-    pass
-```
+- Should use threshold from config.yaml
+- Should filter out scenes shorter than min_scene_duration
 
 **Transcription caching**:
-```python
-def test_transcription_cached_after_first_run():
-    """Should cache transcript.json and reuse on subsequent calls."""
-    pass
-
-def test_transcription_not_rerun_if_cache_valid():
-    """Should NOT call Whisper if cached transcript exists with matching config."""
-    pass
-```
+- Should cache transcript.json and reuse on subsequent calls
+- Should NOT call Whisper if cached transcript exists with matching config
 
 ---
 
 ### Medium Priority (Nice to Have)
 
 **Utility functions**:
-```python
-def test_video_duration_extraction():
-    """Should extract correct duration from video file metadata."""
-    pass
-
-def test_json_serialization_with_numpy_types():
-    """Should handle numpy.float32 when writing JSON."""
-    pass
-```
+- Should extract correct duration from video file metadata
+- Should handle numpy.float32 when writing JSON
 
 ---
 
 ### Low Priority (Optional)
 
 **Logging**:
-```python
-def test_logger_includes_episode_id_in_context():
-    """Logs should include episode_id for debugging."""
-    pass
-```
+- Logs should include episode_id for debugging
 
 ---
 
@@ -171,22 +104,9 @@ tests/
 
 ### Naming Conventions
 
-```python
-# Test files: test_*.py
-# test_scene_detection.py
-
-# Test functions: test_*
-def test_scene_detector_returns_list_of_dicts():
-    pass
-
-# Test classes (group related tests): Test*
-class TestTeamMatcher:
-    def test_exact_match(self):
-        pass
-
-    def test_fuzzy_match_with_typo(self):
-        pass
-```
+- Test files: `test_*.py` (e.g., `test_scene_detection.py`)
+- Test functions: `test_*` (e.g., `test_scene_detector_returns_list_of_dicts()`)
+- Test classes (group related tests): `Test*` (e.g., `TestTeamMatcher`)
 
 ---
 
@@ -421,38 +341,6 @@ tests/fixtures/
 ├── sample_scenes.json
 ├── sample_transcript.json
 └── premier_league_teams_test.json
-```
-
----
-
-## Running Tests in CI/CD
-
-```yaml
-# .github/workflows/test.yml (example)
-name: Tests
-
-on: [push, pull_request]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.12'
-
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install pytest pytest-cov pytest-mock
-
-      - name: Run tests
-        run: pytest --cov=src/motd_analyzer --cov-report=xml
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@v2
 ```
 
 ---

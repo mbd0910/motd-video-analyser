@@ -71,21 +71,11 @@ def compute_config_hash(config: dict) -> str:
 
 ### Cache File Structure
 
-```json
-{
-  "cache_version": "a3f5c8d2e1b4f9a7",
-  "processed_at": "2025-11-06T14:30:00Z",
-  "config_snapshot": {
-    "model": "large-v3",
-    "language": "en",
-    "device": "auto"
-  },
-  "data": {
-    "text": "Welcome to Match of the Day...",
-    "segments": [...]
-  }
-}
-```
+Include in cached JSON:
+- `cache_version`: Hash of relevant config parameters
+- `processed_at`: Timestamp
+- `config_snapshot`: Snapshot of parameters used (model, language, device)
+- `data`: Actual cached results
 
 ---
 
@@ -324,6 +314,77 @@ class Transcriber:
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 ```
+
+### Apple Silicon (M1/M2/M3/M4) Considerations
+
+**MPS (Metal Performance Shaders) backend** provides GPU acceleration on Apple Silicon.
+
+#### Library Compatibility
+
+| Library | MPS Support | Recommendation |
+|---------|-------------|----------------|
+| **faster-whisper** | Limited (CPU fallback reliable) | Use `device="auto"` - will use CPU if MPS unavailable |
+| **EasyOCR** | Via PyTorch MPS | Set `gpu=True` - auto-detects MPS |
+| **PyTorch** | Full support (1.12+) | Use `device="mps"` when available |
+
+#### Device Detection for Apple Silicon
+
+```python
+import torch
+
+def get_optimal_device() -> str:
+    """Get best device with Apple Silicon fallback handling."""
+    if torch.cuda.is_available():
+        return 'cuda'
+    elif torch.backends.mps.is_available():
+        try:
+            # Test MPS availability (sometimes reported but not functional)
+            torch.zeros(1).to('mps')
+            return 'mps'
+        except Exception:
+            logger.warning("MPS reported available but failed test, falling back to CPU")
+            return 'cpu'
+    else:
+        return 'cpu'
+```
+
+#### Performance Expectations (M3 Pro, 36GB RAM)
+
+- **EasyOCR**: ~200-300ms per frame (GPU) vs ~500-800ms (CPU) - **2-3x speedup**
+- **faster-whisper**: Often CPU-optimised, MPS may not provide speedup - **test both**
+- **PySceneDetect**: CPU-only (no GPU acceleration needed)
+
+#### Memory Management on Unified Memory
+
+Apple Silicon uses **unified memory** (shared between CPU/GPU). Be aware:
+
+```python
+# ⚠️ Apple Silicon: No separate GPU memory to clear
+def cleanup_model(device: str):
+    """Free resources appropriately for device type."""
+    del model
+
+    if device == 'cuda':
+        torch.cuda.empty_cache()
+    elif device == 'mps':
+        # MPS uses unified memory - Python GC handles cleanup
+        import gc
+        gc.collect()
+    # CPU: no special cleanup needed
+```
+
+#### Debugging MPS Issues
+
+```python
+# Enable MPS fallback to CPU on error
+import os
+os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
+
+# Disable MPS entirely if problematic
+os.environ['PYTORCH_MPS_DISABLE'] = '1'
+```
+
+**Recommendation**: Use `device="auto"` for faster-whisper and `gpu=True` for EasyOCR. Both handle Apple Silicon gracefully with CPU fallback.
 
 ---
 

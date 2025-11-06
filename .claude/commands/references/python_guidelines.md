@@ -16,29 +16,11 @@ Follow [PEP 8](https://peps.python.org/pep-0008/) with these project-specific ov
 
 ### Naming Conventions
 
-```python
-# Variables and functions: snake_case
-def calculate_airtime(segment_duration: float) -> float:
-    total_seconds = 0
-
-# Classes: PascalCase
-class SceneDetector:
-    pass
-
-# Constants: UPPER_SNAKE_CASE
-MAX_SCENE_DURATION = 600
-DEFAULT_THRESHOLD = 30.0
-
-# Private/internal: leading underscore
-def _load_cache_version() -> str:
-    pass
-
-# Boolean variables: is/has/can/should prefix
-is_valid = True
-has_teams = False
-can_process = True
-should_cache = True
-```
+- Variables and functions: `snake_case`
+- Classes: `PascalCase`
+- Constants: `UPPER_SNAKE_CASE`
+- Private/internal: leading underscore (`_load_cache_version`)
+- Boolean variables: `is_`/`has_`/`can_`/`should_` prefix
 
 ---
 
@@ -48,55 +30,13 @@ should_cache = True
 
 **Type hints are required** for all public functions and class methods.
 
-```python
-# L BAD: No type hints
-def detect_scenes(video_path, threshold):
-    pass
-
-#  GOOD: Full type hints
-def detect_scenes(video_path: str, threshold: float) -> list[dict[str, Any]]:
-    pass
-
-#  EVEN BETTER: Specific return type
-from typing import TypedDict
-
-class Scene(TypedDict):
-    scene_id: int
-    start_time: str
-    duration_seconds: float
-
-def detect_scenes(video_path: str, threshold: float) -> list[Scene]:
-    pass
-```
-
 ### Type Hint Best Practices
 
-```python
-from typing import Optional, Union, Any
-from pathlib import Path
-
-# Use Optional for nullable values
-def load_config(path: Optional[Path] = None) -> dict:
-    pass
-
-# Avoid bare Any - be specific
-def process_data(data: dict[str, Any]) -> list[str]:  #   Acceptable if truly unknown
-    pass
-
-def process_data(data: dict[str, str | int]) -> list[str]:  #  Better - specific types
-    pass
-
-# Use Path for file paths
-def read_video(video_path: Path) -> bytes:  #  GOOD
-    pass
-
-def read_video(video_path: str) -> bytes:  #   Acceptable but less explicit
-    pass
-
-# Use union types (Python 3.10+)
-def parse_value(value: str | int | float) -> float:  #  GOOD
-    pass
-```
+- Use `Optional[T]` or `T | None` for nullable values
+- Avoid bare `Any` - be specific with `dict[str, str | int]` instead of `dict[str, Any]`
+- Use `Path` for file paths (more explicit than `str`)
+- Use union types: `str | int | float` (Python 3.10+)
+- Use `TypedDict` for structured dictionaries with known keys
 
 ---
 
@@ -181,32 +121,15 @@ class CacheManager:
 
 ### List Comprehensions
 
-```python
-# L BAD: Verbose loop
-team_names = []
-for team in teams:
-    team_names.append(team['name'])
-
-#  GOOD: List comprehension
-team_names = [team['name'] for team in teams]
-
-#  GOOD: With filtering
-valid_teams = [t['name'] for t in teams if t['confidence'] > 0.7]
-```
+Prefer list comprehensions over verbose `for` loops with `.append()`:
+- Simple: `[team['name'] for team in teams]`
+- With filter: `[t['name'] for t in teams if t['confidence'] > 0.7]`
 
 ### Context Managers
 
+Use context managers (`with` statements) for resource management. For custom resources, implement `__enter__` and `__exit__`:
+
 ```python
-# L BAD: Manual file handling
-f = open('video.mp4', 'rb')
-data = f.read()
-f.close()
-
-#  GOOD: Context manager
-with open('video.mp4', 'rb') as f:
-    data = f.read()
-
-#  GOOD: Custom context manager for resources
 class WhisperModel:
     def __enter__(self):
         self.model = load_model("large-v3")
@@ -218,45 +141,17 @@ class WhisperModel:
 
 ### Pathlib Over os.path
 
-```python
-import os
-from pathlib import Path
-
-# L BAD: os.path
-video_dir = os.path.join('data', 'videos')
-if os.path.exists(video_dir):
-    files = os.listdir(video_dir)
-
-#  GOOD: pathlib
-video_dir = Path('data') / 'videos'
-if video_dir.exists():
-    files = list(video_dir.iterdir())
-
-#  GOOD: Pathlib methods
-cache_file = Path('data/cache/episode_001/scenes.json')
-cache_file.parent.mkdir(parents=True, exist_ok=True)  # Create dirs
-with cache_file.open('r') as f:  # Open file
-    data = json.load(f)
-```
+Use `pathlib.Path` instead of `os.path`:
+- Path concatenation: `Path('data') / 'videos'`
+- Create directories: `path.parent.mkdir(parents=True, exist_ok=True)`
+- Check existence: `path.exists()`, `path.is_file()`, `path.is_dir()`
+- List files: `list(path.iterdir())` or `path.glob('*.mp4')`
 
 ### F-Strings for Formatting
 
-```python
-team = "Arsenal"
-score = 3
-
-# L BAD: String concatenation
-message = "Team: " + team + ", Score: " + str(score)
-
-# L BAD: .format()
-message = "Team: {}, Score: {}".format(team, score)
-
-#  GOOD: f-strings
-message = f"Team: {team}, Score: {score}"
-
-#  GOOD: Expressions in f-strings
-message = f"Team: {team.upper()}, Score: {score * 2}"
-```
+Use f-strings (not `.format()` or `+` concatenation):
+- Basic: `f"Team: {team}, Score: {score}"`
+- With expressions: `f"Team: {team.upper()}, Score: {score * 2}"`
 
 ---
 
@@ -264,29 +159,10 @@ message = f"Team: {team.upper()}, Score: {score * 2}"
 
 ### Specific Exceptions
 
-```python
-# L BAD: Bare except
-try:
-    result = process_video(path)
-except:
-    pass
-
-# L BAD: Too broad
-try:
-    result = process_video(path)
-except Exception:
-    pass
-
-#  GOOD: Specific exceptions
-try:
-    result = process_video(path)
-except FileNotFoundError:
-    logger.error(f"Video not found: {path}")
-    return None
-except PermissionError:
-    logger.error(f"Permission denied: {path}")
-    raise
-```
+Catch specific exceptions, not bare `except:` or broad `Exception`:
+- Use `FileNotFoundError`, `ValueError`, `KeyError` instead of `Exception`
+- Log errors with context (video path, episode ID, etc.)
+- Re-raise if you can't handle: `raise`
 
 ### Logging with Context
 
@@ -295,10 +171,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# L BAD: Generic error message
+# BAD: Generic error message
 logger.error("Failed to process video")
 
-#  GOOD: Context included
+# GOOD: Context included
 logger.error(
     f"Failed to process video: {video_path}",
     extra={
@@ -308,7 +184,7 @@ logger.error(
     }
 )
 
-#  GOOD: Exception logging
+# GOOD: Exception logging
 try:
     scenes = detect_scenes(video_path)
 except Exception as e:
@@ -322,7 +198,7 @@ except Exception as e:
 ### Custom Exceptions
 
 ```python
-#  GOOD: Project-specific exceptions
+# GOOD: Project-specific exceptions
 class CacheInvalidError(Exception):
     """Raised when cache version doesn't match config."""
     pass
@@ -368,22 +244,11 @@ from motd_analyzer.pipeline import cache_manager
 
 ### `__all__` for Public API
 
-```python
-# src/motd_analyzer/ocr/__init__.py
-
-from .reader import OCRReader
-from .team_matcher import TeamMatcher
-
-__all__ = ['OCRReader', 'TeamMatcher']
-```
+Define `__all__` in `__init__.py` to explicitly control public exports.
 
 ### Main Guard
 
-```python
-#  GOOD: Protect module-level code
-if __name__ == '__main__':
-    main()
-```
+Use `if __name__ == '__main__':` to protect module-level code execution.
 
 ---
 
@@ -392,7 +257,7 @@ if __name__ == '__main__':
 ### Generators Over Lists (When Appropriate)
 
 ```python
-# L BAD: Loads entire list into memory
+# BAD: Loads entire list into memory
 def read_frames(video_path: Path) -> list[np.ndarray]:
     frames = []
     cap = cv2.VideoCapture(str(video_path))
@@ -403,7 +268,7 @@ def read_frames(video_path: Path) -> list[np.ndarray]:
         frames.append(frame)
     return frames
 
-#  GOOD: Generator for large data
+# GOOD: Generator for large data
 def read_frames(video_path: Path) -> Iterator[np.ndarray]:
     cap = cv2.VideoCapture(str(video_path))
     while True:
@@ -415,17 +280,6 @@ def read_frames(video_path: Path) -> Iterator[np.ndarray]:
 
 ### Avoid Premature Optimisation
 
-```python
-#  GOOD: Start simple
-def calculate_total_airtime(segments: list[dict]) -> float:
-    return sum(s['duration_seconds'] for s in segments)
-
-#   AVOID: Premature optimisation (unless profiling shows bottleneck)
-def calculate_total_airtime_optimized(segments: list[dict]) -> float:
-    # Complex vectorised numpy implementation
-    durations = np.array([s['duration_seconds'] for s in segments])
-    return float(np.sum(durations))
-```
 
 ---
 
@@ -434,11 +288,11 @@ def calculate_total_airtime_optimized(segments: list[dict]) -> float:
 ### faster-whisper Over openai-whisper
 
 ```python
-# L BAD: Standard whisper (4x slower)
+# BAD: Standard whisper (4x slower)
 import whisper
 model = whisper.load_model("large-v3")
 
-#  GOOD: faster-whisper (same accuracy, 4x faster)
+# GOOD: faster-whisper (same accuracy, 4x faster)
 from faster_whisper import WhisperModel
 model = WhisperModel("large-v3", device="auto", compute_type="float16")
 ```
@@ -446,12 +300,12 @@ model = WhisperModel("large-v3", device="auto", compute_type="float16")
 ### EasyOCR GPU Configuration
 
 ```python
-#  GOOD: Enable GPU if available
+# GOOD: Enable GPU if available
 import easyocr
 
 reader = easyocr.Reader(['en'], gpu=True)  # Auto-detects GPU
 
-#  GOOD: Check GPU availability
+# GOOD: Check GPU availability
 import torch
 
 gpu_available = torch.cuda.is_available() or torch.backends.mps.is_available()
@@ -461,7 +315,7 @@ reader = easyocr.Reader(['en'], gpu=gpu_available)
 ### Caching Patterns
 
 ```python
-#  GOOD: Check cache before expensive operation
+# GOOD: Check cache before expensive operation
 def transcribe_video(video_path: Path, cache_dir: Path) -> dict:
     """Transcribe video audio using Whisper."""
     cache_file = cache_dir / f"{video_path.stem}_transcript.json"
@@ -490,12 +344,12 @@ def transcribe_video(video_path: Path, cache_dir: Path) -> dict:
 ### Mutable Default Arguments
 
 ```python
-# L BAD: Mutable default
+# BAD: Mutable default
 def add_team(team: str, team_list: list = []) -> list:
     team_list.append(team)
     return team_list
 
-#  GOOD: None with runtime creation
+# GOOD: None with runtime creation
 def add_team(team: str, team_list: list | None = None) -> list:
     if team_list is None:
         team_list = []
@@ -505,17 +359,9 @@ def add_team(team: str, team_list: list | None = None) -> list:
 
 ### Dictionary Key Access Without Checking
 
-```python
-# L BAD: KeyError risk
-team_name = ocr_result['teams'][0]
-
-#  GOOD: Check first
-if 'teams' in ocr_result and ocr_result['teams']:
-    team_name = ocr_result['teams'][0]
-
-#  GOOD: Use .get() with default
-team_name = ocr_result.get('teams', [])[0] if ocr_result.get('teams') else None
-```
+Use `.get()` with defaults or check keys before access to avoid `KeyError`:
+- `dict.get('key', default_value)`
+- `if 'key' in dict: ...`
 
 ---
 
