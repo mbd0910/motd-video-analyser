@@ -43,11 +43,11 @@ ffmpeg -version
 ```
 
 ## Validation Checklist
-- [ ] Virtual environment created successfully
-- [ ] Virtual environment activated (you should see `(venv)` in your prompt)
-- [ ] pip upgraded to latest version
-- [ ] `python --version` shows 3.12.7
-- [ ] `ffmpeg -version` works
+- [x] Virtual environment created successfully
+- [x] Virtual environment activated (you should see `(venv)` in your prompt)
+- [x] pip upgraded to latest version
+- [x] `python --version` shows 3.12.7
+- [x] `ffmpeg -version` works
 
 ## Estimated Time
 5-10 minutes
