@@ -73,9 +73,10 @@ It's possible steps 6 and 7 will be conducted multiple times.
 8. **Squash Merge** (Only after user confirms code review is complete)
    - Verify all checkboxes in task file are marked `[x]`
    - Verify all commits follow COMMIT_STYLE.md
+   - **Update `docs/tasks/README.md` task status (⏳ → ✅) BEFORE merging**
    - **Ask user explicitly**: "Code review complete. Should I squash merge feature/task-{number}-{slug} into main?"
    - Only merge after explicit "yes"
-   - After merge: Update `docs/tasks/README.md` status if applicable
+   - Squash merge commit will include the README.md status update
 
 ## Important Reminders
 
