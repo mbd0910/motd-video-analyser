@@ -89,8 +89,8 @@ Don't try to complete an epic in one session - split first, then execute.
 
 ### Planned Directory Structure
 ```
-motd-analyzer/
-├── src/motd_analyzer/          # Python package (create in Phase 0)
+motd-video-analyser/
+├── src/motd/                   # Python package (create in Phase 0)
 │   ├── scene_detection/        # PySceneDetect integration
 │   ├── ocr/                    # EasyOCR + team matching
 │   ├── transcription/          # faster-whisper integration
@@ -142,23 +142,23 @@ These commands don't exist yet - you'll build them:
 source venv/bin/activate
 
 # Scene detection (Phase 1)
-python -m motd_analyzer detect-scenes video.mp4 --output scenes.json
+python -m motd detect-scenes video.mp4 --output scenes.json
 
 # Team extraction (Phase 2)
-python -m motd_analyzer extract-teams --scenes scenes.json --output teams.json
+python -m motd extract-teams --scenes scenes.json --output teams.json
 
 # Transcription (Phase 3)
-python -m motd_analyzer transcribe --video video.mp4 --output transcript.json
+python -m motd transcribe --video video.mp4 --output transcript.json
 
 # Full pipeline (Phase 4)
-python -m motd_analyzer process video.mp4 --output analysis.json
+python -m motd process video.mp4 --output analysis.json
 
 # Batch processing (Phase 7)
-python -m motd_analyzer batch data/videos/*.mp4 --output-dir data/output
+python -m motd batch data/videos/*.mp4 --output-dir data/output
 
 # Manual validation (Phase 5)
-python -m motd_analyzer label-scenes scenes.json
-python -m motd_analyzer validate --auto analysis.json --manual manual_labels.json
+python -m motd label-scenes scenes.json
+python -m motd validate --auto analysis.json --manual manual_labels.json
 ```
 
 See `docs/architecture.md` for detailed CLI specifications.
@@ -200,7 +200,7 @@ Use British spelling throughout codebase and docs:
 - optimise (not optimize)
 - visualisation (not visualization)
 
-**Exception**: Python package name is `motd_analyzer` (ASCII-compatible, US spelling is acceptable for code identifiers).
+Python package name is simply `motd` to avoid redundancy with the repository name.
 
 ## Validation Targets (From Planning)
 

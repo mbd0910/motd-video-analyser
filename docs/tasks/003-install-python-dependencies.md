@@ -13,30 +13,30 @@ Create requirements.txt and install all Python dependencies.
 ```bash
 cat > requirements.txt << 'EOF'
 # Core
-opencv-python==4.8.1
-numpy==1.24.3
-pyyaml==6.0.1
+opencv-python==4.12.0.88
+numpy>=2.0.0,<2.4.0
+pyyaml==6.0.3
 
 # Scene Detection
-scenedetect[opencv]==0.6.2
+scenedetect[opencv]==0.6.7.1
 
 # OCR
-easyocr==1.7.0
-torch==2.1.0
+easyocr==1.7.2
+torch==2.9.0
+torchvision==0.20.0
+torchaudio==2.9.0
 
 # Transcription (using faster-whisper for 4x speed improvement)
-faster-whisper==0.9.0
-
-# Alternative: Standard whisper (uncomment if faster-whisper has issues)
-# openai-whisper==20231117
+faster-whisper==1.1.0
+requests>=2.32.0  # Required by faster-whisper
 
 # Testing
-pytest==7.4.3
-pytest-cov==4.1.0
+pytest==8.4.2
+pytest-cov==7.0.0
 
 # Utilities
-python-dateutil==2.8.2
-tqdm==4.66.1
+python-dateutil==2.9.0.post0
+tqdm==4.67.1
 EOF
 ```
 
@@ -69,9 +69,10 @@ python -c "from scenedetect import detect; print('scenedetect: OK')"
 ```
 
 ## Validation Checklist
-- [ ] requirements.txt created
-- [ ] All dependencies installed without errors
-- [ ] All test imports work
+- [x] requirements.txt created
+- [x] All dependencies installed without errors
+- [x] All test imports work
+- [x] PyTorch MPS backend available and working on M3 Mac
 
 ## Estimated Time
 10-15 minutes (mostly waiting for downloads)

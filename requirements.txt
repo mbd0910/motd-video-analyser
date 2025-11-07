@@ -1,0 +1,25 @@
+# Core
+opencv-python==4.12.0.88
+numpy>=2.0.0,<2.4.0
+pyyaml==6.0.3
+
+# Scene Detection
+scenedetect[opencv]==0.6.7.1
+
+# OCR
+easyocr==1.7.2
+torch==2.9.0
+torchvision==0.20.0
+torchaudio==2.9.0
+
+# Transcription (using faster-whisper for 4x speed improvement)
+faster-whisper==1.1.0
+requests>=2.32.0  # Required by faster-whisper
+
+# Testing
+pytest==8.4.2
+pytest-cov==7.0.0
+
+# Utilities
+python-dateutil==2.9.0.post0
+tqdm==4.67.1

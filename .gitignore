@@ -208,3 +208,17 @@ __marimo__/
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# MOTD Analyser Project-Specific
+# Data files (videos are large, cache is temporary, output is generated)
+data/videos/
+data/cache/
+data/output/
+
+# Logs
+logs/
+
+# Model files (EasyOCR, Whisper models are large)
+*.pt
+*.pth
+*.onnx
