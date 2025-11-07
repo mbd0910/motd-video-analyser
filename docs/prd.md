@@ -13,7 +13,7 @@ Build an automated video analysis pipeline to objectively measure potential cove
 
 ### Success Criteria
 - Successfully analyse all 10 MOTD episodes from the 2025/26 season
-- Achieve >90% accuracy on team identification
+- Achieve >95% accuracy on team identification (using fixture-aware matching)
 - Achieve >95% accuracy on timestamp detection
 - Processing time: overnight batch processing acceptable (8-12 hours for 10 episodes)
 - Output data is manually verifiable against source videos
@@ -81,7 +81,8 @@ Build an automated video analysis pipeline to objectively measure potential cove
 **Technical Approach**:
 - Scene detection to identify transitions
 - OCR on scoreboard graphics (top-left corner, bottom-right formation graphics)
-- Validate against known Premier League team list
+- Cross-reference detected teams against fixture data for episode date
+- Validate using known fixtures to improve accuracy and correct OCR errors
 
 ---
 
@@ -138,6 +139,7 @@ Build an automated video analysis pipeline to objectively measure potential cove
   "matches": [
     {
       "running_order": 1,
+      "fixture_id": "2024-08-16-manutd-fulham",
       "teams": ["Manchester United", "Fulham"],
       "home_team": "Manchester United",
       "away_team": "Fulham",
@@ -175,7 +177,8 @@ Build an automated video analysis pipeline to objectively measure potential cove
         "teams": 0.95,
         "timestamp": 0.99,
         "segment_type": 0.85
-      }
+      },
+      "fixture_validated": true
     }
   ],
   "metadata": {
@@ -193,7 +196,7 @@ Build an automated video analysis pipeline to objectively measure potential cove
 ### Data Quality Metrics (Validation Phase)
 These metrics are for **establishing trust** in the pipeline during initial validation (first 1-2 episodes). Once validated, the pipeline should run unattended on remaining episodes.
 
-- **Team Identification Accuracy**: >90% correct team detection from OCR
+- **Team Identification Accuracy**: >95% correct team detection using fixture-aware matching (fixture context provides 5-10% improvement over OCR-only)
 - **Timestamp Accuracy**: >95% accurate scene transition detection (±2 seconds acceptable)
 - **Segment Classification**: >85% correct classification of segment types (studio/highlights/interview/analysis)
 
@@ -304,11 +307,19 @@ These metrics are for **establishing trust** in the pipeline during initial vali
 ### Input Data
 - **Premier League Team Names**: JSON file with full names, abbreviations, 3-letter codes, nicknames
   - Example: `{"full": "Manchester United", "abbrev": "Man Utd", "code": "MUN", "alternates": ["United", "Man United"]}`
+- **Premier League Fixtures**: JSON file with match schedules for the season
+  - Fields: date, home_team, away_team, kickoff_time, final_score (venue optional)
+  - Example: `{"match_id": "2025-08-16-manutd-fulham", "date": "2025-08-16", "home_team": "Manchester United", "away_team": "Fulham", "kickoff": "20:00"}`
+  - Used to validate OCR results and improve accuracy by limiting search space to expected matches
+- **Episode Manifest**: JSON mapping video files to broadcast dates and expected fixtures
+  - Links each episode to specific gameweek fixtures
+  - Includes video source URL for future automation
 - **Video Files**: Local paths to MP4 files
 
 ### Intermediate Data (Cached)
 - **Scene Transitions**: JSON with timestamps of detected transitions
 - **OCR Results**: Raw text extraction from frames
+- **Fixture Matches**: JSON linking detected teams to fixture data
 - **Transcripts**: Full Whisper transcription with timestamps
 - **Manual Labels**: Your validation/corrections for first video
 
@@ -345,25 +356,23 @@ These metrics are for **establishing trust** in the pipeline during initial vali
 
 | Risk | Impact | Likelihood | Mitigation |
 |------|--------|------------|------------|
-| OCR fails on team names | High | Medium | Provide team name list for validation; manual labels for first video |
+| OCR fails on team names | Medium | Medium | Fixture-aware matching corrects OCR errors; manual labels for first video |
 | Scene detection misses transitions | High | Medium | Tune threshold parameters; validate on first video |
 | Whisper transcription inaccurate | Medium | Low | Use largest Whisper model that fits in memory; spot-check transcripts |
 | Processing time too long | Low | Medium | Process overnight; optimise if needed after benchmarking |
 | BBC changes graphics format mid-season | Medium | Low | Modular design allows updating OCR targets without full rewrite |
 | Interview detection fails (studio vs pitchside) | Medium | Medium | Manual labeling for first video; refine classifier based on patterns |
+| Fixture data incorrect or incomplete | Low | Low | Manual data entry allows verification; can override with manual labels |
 
 ---
 
 ## 10. Open Questions
 
-1. **Home/Away Team Order**: Should we care which team is home vs away in the output?
-   - Likely yes for context, but not critical for bias analysis
-
-2. **Multiple Interviews per Match**: If there are 2+ interviews (manager + player), track separately or combine?
+1. **Multiple Interviews per Match**: If there are 2+ interviews (manager + player), track separately or combine?
    - Initial: Combine as single interview segment
 
-3. **Half-Time Analysis**: Some episodes have mid-match studio breaks - include in analysis?
+2. **Half-Time Analysis**: Some episodes have mid-match studio breaks - include in analysis?
    - Initial: Focus on post-match only, flag for future consideration
 
-4. **Team Name Normalization**: How to handle "Man Utd" vs "Manchester United" vs "United"?
+3. **Team Name Normalization**: How to handle "Man Utd" vs "Manchester United" vs "United"?
    - Use canonical name in output, but match all variants in OCR/transcription

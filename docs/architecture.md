@@ -89,6 +89,7 @@ motd-analyzer/
 │   │   │   ├── __init__.py
 │   │   │   ├── reader.py            # EasyOCR integration
 │   │   │   ├── team_matcher.py      # Match OCR text to team names
+│   │   │   ├── fixture_matcher.py   # Match OCR teams to fixture data
 │   │   │   └── regions.py           # Define ROI for scoreboard/formations
 │   │   │
 │   │   ├── transcription/
@@ -124,11 +125,16 @@ motd-analyzer/
 ├── data/
 │   ├── teams/
 │   │   └── premier_league_2025_26.json  # Team names + variations
+│   ├── fixtures/
+│   │   └── premier_league_2025_26.json  # Match schedules for season
+│   ├── episodes/
+│   │   └── episode_manifest.json        # Video-to-fixture mapping
 │   ├── videos/                           # Input videos (gitignored)
 │   ├── cache/                            # Intermediate results (gitignored)
 │   │   └── {episode_id}/
 │   │       ├── scenes.json
 │   │       ├── ocr_results.json
+│   │       ├── fixture_matches.json
 │   │       ├── transcript.json
 │   │       ├── manual_labels.json
 │   │       └── frames/
@@ -215,11 +221,12 @@ For detailed comparisons of alternatives, see [tech-tradeoffs.md](tech-tradeoffs
 
 ### 4.2 OCR Processing
 
-**Purpose**: Extract team names from scoreboard graphics and formation displays
+**Purpose**: Extract team names from scoreboard graphics and validate against known fixtures
 
 **Input**:
 - Key frames from scene detection
-- Config: ROI coordinates, team names list
+- Config: ROI coordinates, team names list, fixtures data
+- Episode date (from manifest)
 
 **Process**:
 1. Load key frame
@@ -228,7 +235,9 @@ For detailed comparisons of alternatives, see [tech-tradeoffs.md](tech-tradeoffs
    - Bottom-right: `[800, 600, 1920, 1080]` (formation graphic - adjust for resolution)
 3. Run EasyOCR on cropped regions
 4. Match extracted text against team name list (fuzzy matching)
-5. If match confidence > 0.7, accept; else flag for manual review
+5. Cross-reference with fixture data for episode date (limits search to 6-8 expected matches)
+6. If fixture match found with confidence > 0.7, boost confidence and use canonical team names
+7. If no fixture match or low confidence, flag for manual review
 
 **Output** (`cache/{episode_id}/ocr_results.json`):
 ```json
@@ -253,6 +262,11 @@ For detailed comparisons of alternatives, see [tech-tradeoffs.md](tech-tradeoffs
     "home": "Arsenal",
     "away": "Chelsea",
     "confidence": 0.92
+  },
+  "fixture_match": {
+    "found": true,
+    "fixture_id": "2024-08-17-arsenal-chelsea",
+    "confidence_boost": 0.15
   }
 }
 ```
@@ -266,7 +280,68 @@ For detailed comparisons of alternatives, see [tech-tradeoffs.md](tech-tradeoffs
 
 ---
 
-### 4.3 Audio Transcription
+### 4.3 Fixture Matching
+
+**Purpose**: Validate OCR results against known fixture data to improve accuracy
+
+**Input**:
+- OCR results with detected teams
+- Fixture data for the season
+- Episode date (from manifest)
+
+**Process**:
+1. Load fixtures for episode date (±1 day tolerance for recording delays)
+2. Extract candidate matches (typically 6-8 fixtures per episode)
+3. For each OCR team pair:
+   - Calculate similarity score against each fixture (using fuzzy matching)
+   - Find best matching fixture
+   - If similarity > 0.7, consider it a match
+4. Apply fixture data to OCR results:
+   - Use canonical team names from fixtures
+   - Add home/away designation
+   - Add fixture_id for traceability
+   - Boost confidence score (+0.10 to +0.20)
+5. Output enriched results with fixture metadata
+
+**Output** (`cache/{episode_id}/fixture_matches.json`):
+```json
+{
+  "episode_date": "2024-08-17",
+  "expected_fixtures": [
+    {
+      "fixture_id": "2024-08-17-arsenal-chelsea",
+      "home_team": "Arsenal",
+      "away_team": "Chelsea"
+    }
+  ],
+  "matches": [
+    {
+      "scene_id": 5,
+      "ocr_teams": ["Arsenal", "Chelsea"],
+      "matched_fixture": "2024-08-17-arsenal-chelsea",
+      "confidence": 0.95,
+      "fixture_validated": true
+    }
+  ],
+  "unmatched_scenes": [],
+  "unexpected_teams": []
+}
+```
+
+**Benefits**:
+- **Improved Accuracy**: Reduces search space from 20 teams to 12-16 teams (6-8 fixtures)
+- **Error Correction**: Partial OCR matches can be resolved (e.g., "Arsen" → "Arsenal")
+- **Metadata Enrichment**: Automatically adds home/away designation without additional OCR
+- **Validation**: Detects unexpected teams that shouldn't appear in this episode
+
+**Error Handling**:
+- If no fixture found for OCR teams → use OCR-only result, lower confidence
+- If multiple fixtures match → log ambiguity, use highest confidence match
+- If fixture expected but not detected → log missing match for investigation
+
+---
+
+### 4.4 Audio Transcription
 
 **Purpose**: Convert speech to text for team mention detection
 
@@ -310,13 +385,14 @@ For detailed comparisons of alternatives, see [tech-tradeoffs.md](tech-tradeoffs
 
 ---
 
-### 4.4 Analysis & Classification
+### 4.5 Analysis & Classification
 
 **Purpose**: Combine all data to classify segments and detect team mentions
 
 **Input**:
 - scenes.json
 - ocr_results.json
+- fixture_matches.json
 - transcript.json
 - Config: classification rules
 
@@ -401,7 +477,7 @@ For detailed comparisons of alternatives, see [tech-tradeoffs.md](tech-tradeoffs
 
 ---
 
-### 4.5 Validation & Manual Override
+### 4.6 Validation & Manual Override
 
 **Purpose**: Allow manual correction and validation of automated results
 
@@ -481,6 +557,13 @@ ocr:
       height: 1080
   confidence_threshold: 0.7    # Minimum confidence for automatic acceptance
 
+# Fixtures
+fixtures:
+  path: data/fixtures/premier_league_2025_26.json
+  use_for_validation: true
+  confidence_boost: 0.15       # How much to boost OCR confidence when fixture matches
+  date_tolerance_days: 1       # Allow ±1 day when matching episode date to fixtures
+
 # Transcription
 transcription:
   model: large-v3              # Whisper model size
@@ -521,6 +604,7 @@ logging:
 data/cache/{episode_id}/
 ├── scenes.json              # Scene transitions + timestamps
 ├── ocr_results.json         # Raw OCR text per scene
+├── fixture_matches.json     # OCR results matched to fixtures
 ├── transcript.json          # Full Whisper transcription
 ├── analysis.json            # Classified segments + team mentions
 ├── manual_labels.json       # Your corrections (if any)
@@ -536,8 +620,9 @@ data/cache/{episode_id}/
 | Change | Invalidates | Re-runs |
 |--------|-------------|---------|
 | Scene detection threshold changed | scenes.json | All downstream stages |
-| OCR region coordinates changed | ocr_results.json | OCR, analysis |
+| OCR region coordinates changed | ocr_results.json | OCR, fixture matching, analysis |
 | Team names list updated | Nothing | Re-run matching only (not OCR) |
+| Fixture data updated | fixture_matches.json | Fixture matching, analysis |
 | Whisper model changed | transcript.json | Transcription, analysis |
 | Classification rules changed | analysis.json | Analysis only |
 

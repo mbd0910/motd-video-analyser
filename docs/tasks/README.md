@@ -12,7 +12,7 @@ This directory contains discrete, actionable tasks for building the MOTD Analyse
 - ⏳ [001-environment-setup.md](001-environment-setup.md) - Set up Python venv and verify ffmpeg
 - ⏳ [002-create-project-structure.md](002-create-project-structure.md) - Create directory structure
 - ⏳ [003-install-python-dependencies.md](003-install-python-dependencies.md) - Install all Python packages
-- ⏳ [004-create-team-names-file.md](004-create-team-names-file.md) - Premier League teams JSON
+- ⏳ [004-create-team-and-fixture-data.md](004-create-team-and-fixture-data.md) - Premier League teams, fixtures, and episode manifest JSON
 - ⏳ [005-create-config-file.md](005-create-config-file.md) - Pipeline configuration YAML
 
 **Estimated Time**: 30-45 minutes
@@ -29,11 +29,11 @@ This directory contains discrete, actionable tasks for building the MOTD Analyse
 ---
 
 ## Phase 2: OCR & Team Detection (Task 009 - Epic)
-- ⏳ [009-ocr-implementation-epic.md](009-ocr-implementation-epic.md) - EasyOCR integration, team matching, CLI, validation
+- ⏳ [009-ocr-implementation-epic.md](009-ocr-implementation-epic.md) - EasyOCR integration, fixture-aware team matching, CLI, validation
 
-**Note**: This is an epic - consider splitting into smaller tasks before starting.
+**Note**: This is an epic - consider splitting into smaller tasks before starting. Fixture-aware matching improves accuracy from ~85-90% to 95%+.
 
-**Estimated Time**: 3-4 hours
+**Estimated Time**: 4-5 hours
 
 ---
 

@@ -217,11 +217,101 @@ for line in results[0]:
 
 ### Comparison Table: OCR Libraries
 
-| Library | Accuracy (MOTD) | Speed (M3 Pro GPU) | Ease of Use | Recommendation |
-|---------|-----------------|---------------------|-------------|----------------|
-| **EasyOCR** | ★★★★★ (95%+) | ★★★☆☆ (200-300ms) | ★★★★★ | **Current Choice** |
-| **PaddleOCR** | ★★★★☆ (90%+) | ★★★★★ (100-150ms) | ★★★☆☆ | Switch if speed critical |
-| **Tesseract** | ★★☆☆☆ (60-70%) | ★★☆☆☆ (500-1000ms) | ★★★☆☆ | Avoid |
+| Library | Accuracy (OCR Only) | Accuracy (with Fixtures) | Speed (M3 Pro GPU) | Ease of Use | Recommendation |
+|---------|---------------------|--------------------------|---------------------|-------------|----------------|
+| **EasyOCR** | ★★★★☆ (85-90%) | ★★★★★ (95-98%) | ★★★☆☆ (200-300ms) | ★★★★★ | **Current Choice** |
+| **PaddleOCR** | ★★★☆☆ (80-85%) | ★★★★☆ (90-95%) | ★★★★★ (100-150ms) | ★★★☆☆ | Switch if speed critical |
+| **Tesseract** | ★★☆☆☆ (60-70%) | ★★★☆☆ (75-80%) | ★★☆☆☆ (500-1000ms) | ★★★☆☆ | Avoid |
+
+**Note**: Fixture-aware matching provides 5-10% accuracy improvement by limiting search space and correcting partial OCR matches.
+
+---
+
+## Fixture Data Management
+
+### Current Choice: Manual JSON Files
+
+**What**: Hand-crafted JSON files containing match schedules, created before processing videos.
+
+**Why Chosen**:
+- **Full Control**: You verify every fixture entry before processing
+- **No Dependencies**: Works offline, no API rate limits or keys needed
+- **Simple**: Just JSON files in `data/fixtures/` and `data/episodes/`
+- **Sufficient for V1**: 10 episodes = ~60-80 matches total, manageable to enter manually
+
+**Pros**:
+- ✅ Zero external dependencies
+- ✅ Fast (no network calls)
+- ✅ Predictable (no API downtime or rate limits)
+- ✅ Educational (forces you to understand the data structure)
+
+**Cons**:
+- ❌ Manual data entry (~30-45 minutes for 10 gameweeks)
+- ❌ Prone to typos (must validate team names match teams.json)
+- ❌ Not scalable for historical analysis (100s of episodes)
+
+**When to Use**: Initial 10-episode analysis, proof-of-concept, learning phase.
+
+---
+
+### Alternative 1: Football-Data.org API
+
+**What**: Free tier football API with fixture data for major leagues.
+
+**Pros**:
+- ✅ Always up-to-date (real-time fixture updates)
+- ✅ Includes scores, venues, referee data
+- ✅ Well-documented REST API
+- ✅ Free tier includes Premier League
+
+**Cons**:
+- ❌ Requires internet connection
+- ❌ API rate limits (10 req/min on free tier)
+- ❌ Adds external dependency (breaks if API changes)
+- ❌ API key management
+
+**When to Use**: Production system, ongoing analysis, when processing many episodes.
+
+**Migration Path**:
+```python
+# Easy to add later - just replace data loading
+def load_fixtures(use_api=False):
+    if use_api:
+        return fetch_from_football_data_api()
+    else:
+        return load_local_json()
+```
+
+---
+
+### Alternative 2: Web Scraping (BBC Sport / Premier League)
+
+**What**: Scrape fixture data from BBC Sport or Premier League websites.
+
+**Pros**:
+- ✅ Free, no API keys
+- ✅ Authoritative source (same data MOTD uses)
+- ✅ Can get historical data easily
+
+**Cons**:
+- ❌ Fragile (breaks if website structure changes)
+- ❌ Ethically questionable without rate limiting
+- ❌ May violate terms of service
+- ❌ More complex code (BeautifulSoup/Selenium)
+
+**When to Use**: Last resort if APIs don't cover your needs.
+
+---
+
+### Comparison Table: Fixture Data Sources
+
+| Source | Setup Time | Accuracy | Maintenance | Scalability | Recommendation |
+|--------|-----------|----------|-------------|-------------|----------------|
+| **Manual JSON** | ⏱️ 30-45 mins | ★★★★★ | Low (1x setup) | ★★☆☆☆ | **V1 Choice** |
+| **Football-Data.org** | ⏱️ 10 mins | ★★★★★ | None | ★★★★★ | Migrate for V2 |
+| **Web Scraping** | ⏱️ 2-3 hours | ★★★★☆ | High (brittle) | ★★★☆☆ | Avoid |
+
+**Decision**: Start with manual JSON, migrate to API when processing >20 episodes or doing ongoing analysis.
 
 ---
 

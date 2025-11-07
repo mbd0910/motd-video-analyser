@@ -210,8 +210,9 @@ Use British spelling throughout codebase and docs:
 - Too many (>200)? Raise threshold
 
 ### After OCR (Task 009)
-- Target: >90% team detection accuracy
-- If failing: Adjust OCR regions, add team name alternates, or consider PaddleOCR
+- Target: >95% team detection accuracy (with fixture-aware matching)
+- Fixture context provides 5-10% accuracy improvement over OCR-only approach
+- If failing: Adjust OCR regions, verify fixture data, add team name alternates, or consider PaddleOCR
 
 ### After Transcription (Task 010)
 - Target: >95% transcription accuracy

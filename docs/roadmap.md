@@ -215,7 +215,65 @@ Create `data/teams/premier_league_2025_26.json`:
 }
 ```
 
-#### 0.6 Create Basic Config
+#### 0.6 Create Fixtures and Episode Manifest Files
+
+Create `data/fixtures/premier_league_2025_26.json`:
+```json
+{
+  "season": "2025-26",
+  "competition": "Premier League",
+  "gameweeks": [
+    {
+      "gameweek": 1,
+      "matches": [
+        {
+          "match_id": "2025-08-16-manutd-fulham",
+          "date": "2025-08-16",
+          "home_team": "Manchester United",
+          "away_team": "Fulham",
+          "kickoff": "20:00",
+          "final_score": {"home": 1, "away": 0}
+        },
+        {
+          "match_id": "2025-08-17-arsenal-wolves",
+          "date": "2025-08-17",
+          "home_team": "Arsenal",
+          "away_team": "Wolverhampton Wanderers",
+          "kickoff": "15:00",
+          "final_score": {"home": 2, "away": 0}
+        }
+        // ... add remaining fixtures for gameweeks you're analyzing
+      ]
+    }
+  ]
+}
+```
+
+Create `data/episodes/episode_manifest.json`:
+```json
+{
+  "episodes": [
+    {
+      "episode_id": "motd-2025-08-17",
+      "video_filename": "MOTD_2025_08_17_S57E01.mp4",
+      "video_source_url": "https://www.bbc.co.uk/iplayer/episode/...",
+      "broadcast_date": "2025-08-17",
+      "gameweek": 1,
+      "expected_matches": [
+        "2025-08-16-manutd-fulham",
+        "2025-08-17-arsenal-wolves"
+        // ... list all match_ids expected in this episode
+      ],
+      "duration": "01:22:45",
+      "notes": "Opening weekend, Season 57 Episode 1"
+    }
+  ]
+}
+```
+
+**Note**: You'll populate these files manually before processing videos. The fixture data limits team detection to expected matches, significantly improving OCR accuracy.
+
+#### 0.7 Create Basic Config
 Create `config/config.yaml`:
 ```yaml
 scene_detection:
@@ -467,7 +525,7 @@ class OCRReader:
         }
 ```
 
-#### 2.2 Implement Team Matcher
+#### 2.2 Implement Team Matcher (Fixture-Aware)
 Create `src/motd_analyzer/ocr/team_matcher.py`:
 ```python
 import json
@@ -479,9 +537,14 @@ class TeamMatcher:
             data = json.load(f)
         self.teams = data['teams']
 
-    def fuzzy_match(self, text, threshold=0.7):
+    def fuzzy_match(self, text, candidate_teams=None, threshold=0.7):
         """
         Match text against known team names (fuzzy matching).
+
+        Args:
+            text: OCR text to match
+            candidate_teams: Optional list of team names to limit search (from fixtures)
+            threshold: Minimum similarity score
 
         Returns:
             List of (team_name, confidence) tuples
@@ -489,7 +552,12 @@ class TeamMatcher:
         matches = []
         text_lower = text.lower()
 
-        for team in self.teams:
+        # If candidate teams provided, only search those (fixture-aware)
+        teams_to_search = self.teams
+        if candidate_teams:
+            teams_to_search = [t for t in self.teams if t['full'] in candidate_teams]
+
+        for team in teams_to_search:
             # Check all name variants
             variants = [team['full'], team['abbrev']] + team['alternates']
 
@@ -534,16 +602,115 @@ class TeamMatcher:
         )
 ```
 
-#### 2.3 Add OCR Command to CLI
+#### 2.3 Implement Fixture Matcher
+Create `src/motd_analyzer/ocr/fixture_matcher.py`:
+```python
+import json
+from datetime import datetime, timedelta
+from difflib import SequenceMatcher
+
+class FixtureMatcher:
+    def __init__(self, fixtures_json_path, episode_manifest_path):
+        with open(fixtures_json_path, 'r') as f:
+            self.fixtures_data = json.load(f)
+        with open(episode_manifest_path, 'r') as f:
+            self.episodes = json.load(f)['episodes']
+
+    def get_expected_fixtures(self, episode_id):
+        """Get expected fixtures for a given episode."""
+        episode = next((e for e in self.episodes if e['episode_id'] == episode_id), None)
+        if not episode:
+            return []
+
+        # Find fixtures by match_id
+        expected_matches = []
+        for gw in self.fixtures_data['gameweeks']:
+            for match in gw['matches']:
+                if match['match_id'] in episode['expected_matches']:
+                    expected_matches.append(match)
+
+        return expected_matches
+
+    def match_to_fixture(self, ocr_teams, expected_fixtures, threshold=0.7):
+        """
+        Match OCR-detected teams to expected fixtures.
+
+        Args:
+            ocr_teams: List of (team_name, confidence) from OCR
+            expected_fixtures: List of fixture dicts
+            threshold: Minimum match confidence
+
+        Returns:
+            {
+                'matched_fixture': fixture dict or None,
+                'confidence': float,
+                'fixture_validated': bool
+            }
+        """
+        if not ocr_teams or len(ocr_teams) < 2:
+            return {'matched_fixture': None, 'confidence': 0.0, 'fixture_validated': False}
+
+        # Get top 2 OCR teams
+        team1, conf1 = ocr_teams[0]
+        team2, conf2 = ocr_teams[1]
+
+        best_match = None
+        best_score = 0.0
+
+        for fixture in expected_fixtures:
+            home = fixture['home_team']
+            away = fixture['away_team']
+
+            # Check if OCR teams match fixture teams (either order)
+            score1 = (SequenceMatcher(None, team1.lower(), home.lower()).ratio() +
+                     SequenceMatcher(None, team2.lower(), away.lower()).ratio()) / 2
+            score2 = (SequenceMatcher(None, team1.lower(), away.lower()).ratio() +
+                     SequenceMatcher(None, team2.lower(), home.lower()).ratio()) / 2
+
+            score = max(score1, score2)
+
+            if score > best_score:
+                best_score = score
+                best_match = fixture
+
+        if best_score >= threshold:
+            return {
+                'matched_fixture': best_match,
+                'confidence': best_score,
+                'fixture_validated': True
+            }
+        else:
+            return {
+                'matched_fixture': None,
+                'confidence': best_score,
+                'fixture_validated': False
+            }
+
+    def get_candidate_teams(self, episode_id):
+        """Get list of team names to search (from expected fixtures)."""
+        fixtures = self.get_expected_fixtures(episode_id)
+        teams = set()
+        for fixture in fixtures:
+            teams.add(fixture['home_team'])
+            teams.add(fixture['away_team'])
+        return list(teams)
+```
+
+#### 2.4 Add OCR Command to CLI (Fixture-Aware)
 Update `__main__.py` to add `ocr` command:
 ```python
-def run_ocr(scenes_json_path, teams_json_path, output_path):
-    """Run OCR on all scene key frames."""
+def run_ocr(scenes_json_path, teams_json_path, fixtures_path, manifest_path, episode_id, output_path):
+    """Run fixture-aware OCR on all scene key frames."""
     with open(scenes_json_path, 'r') as f:
         scenes_data = json.load(f)
 
     reader = OCRReader(gpu=True)
     matcher = TeamMatcher(teams_json_path)
+    fixture_matcher = FixtureMatcher(fixtures_path, manifest_path)
+
+    # Get candidate teams from fixtures (limits search space)
+    candidate_teams = fixture_matcher.get_candidate_teams(episode_id)
+    expected_fixtures = fixture_matcher.get_expected_fixtures(episode_id)
 
     results = []
     for scene in scenes_data['scenes']:
@@ -552,9 +719,12 @@ def run_ocr(scenes_json_path, teams_json_path, output_path):
         # Read OCR
         ocr_results = reader.read_scoreboard_regions(frame_path)
 
-        # Match teams
+        # Match teams (using candidate teams from fixtures)
         all_ocr = ocr_results['scoreboard'] + ocr_results['formation']
-        teams = matcher.extract_teams_from_ocr(all_ocr)
+        teams = matcher.extract_teams_from_ocr(all_ocr, candidate_teams=candidate_teams)
+
+        # Match to fixture
+        fixture_match = fixture_matcher.match_to_fixture(teams, expected_fixtures)
 
         results.append({
             "scene_id": scene['scene_id'],
@@ -563,35 +733,49 @@ def run_ocr(scenes_json_path, teams_json_path, output_path):
                 "scoreboard": [(text, conf) for (_, text, conf) in ocr_results['scoreboard']],
                 "formation": [(text, conf) for (_, text, conf) in ocr_results['formation']]
             },
-            "detected_teams": teams
+            "detected_teams": teams,
+            "fixture_match": fixture_match
         })
 
     with open(output_path, 'w') as f:
-        json.dump({"ocr_results": results}, f, indent=2)
+        json.dump({
+            "episode_id": episode_id,
+            "expected_fixtures": expected_fixtures,
+            "ocr_results": results
+        }, f, indent=2)
 
     print(f"OCR complete. Results saved to {output_path}")
+    print(f"Searched {len(candidate_teams)} teams (from fixtures) instead of 20")
 ```
 
-#### 2.4 Run OCR
+#### 2.5 Run OCR
 ```bash
 python -m motd_analyzer ocr \
-  --scenes data/cache/motd_2024_08_17/scenes.json \
+  --scenes data/cache/motd_2025_08_17/scenes.json \
   --teams data/teams/premier_league_2025_26.json \
-  --output data/cache/motd_2024_08_17/ocr_results.json
+  --fixtures data/fixtures/premier_league_2025_26.json \
+  --manifest data/episodes/episode_manifest.json \
+  --episode-id motd-2025-08-17 \
+  --output data/cache/motd_2025_08_17/ocr_results.json
 ```
 
-#### 2.5 Manual Validation
+#### 2.6 Manual Validation
 1. Open `ocr_results.json`
 2. For each scene, check:
    - Did it detect the right teams?
+   - Did fixture matching work correctly?
    - Are there false positives?
    - Are there missed teams?
 3. Look at frames with low confidence or wrong teams
-4. Adjust OCR regions or team matcher threshold if needed
+4. Verify that `fixture_validated: true` appears for match scenes
+5. Check if unexpected teams appear (should be flagged)
+6. Adjust OCR regions or team matcher threshold if needed
 
 ### Validation Checkpoint
 - [ ] OCR runs on all frames without errors
-- [ ] Team detection accuracy >90% on scenes with visible scoreboards
+- [ ] Team detection accuracy >95% on scenes with visible scoreboards (fixture-aware matching)
+- [ ] Fixture matching correctly identifies expected matches
+- [ ] No unexpected teams detected (all teams are from expected fixtures)
 - [ ] Few false positives (scenes without teams don't incorrectly detect teams)
 - [ ] Team name variations are matched correctly (e.g., "Man Utd" → "Manchester United")
 
