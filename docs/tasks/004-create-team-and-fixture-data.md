@@ -6,228 +6,151 @@ Create JSON files for team names, match fixtures, and episode manifest to enable
 ## Prerequisites
 - [003-install-python-dependencies.md](003-install-python-dependencies.md) completed
 
+## Implementation Decisions
+- **Changed `code` to `codes` array**: Support multiple 3-letter code variations (e.g., Forest: NFO/FOR/NOT)
+- **Removed gameweek grouping**: Flat date-indexed fixture structure (gameweeks not needed for matching)
+- **Removed `video_filename` from manifest**: Keeps manifest focused on metadata, not implementation details
+- **Episode notes describe context**: Not analysis results (which we're trying to discover)
+
 ## Steps
 
-### 1. Create the Team Names JSON
-```bash
-cat > data/teams/premier_league_2025_26.json << 'EOF'
+### 1. Create missing directories
+- [x] Create `data/fixtures/` directory
+- [x] Create `data/episodes/` directory
+
+### 2. Create the Team Names JSON
+- [x] Create `data/teams/premier_league_2025_26.json` with all 20 teams
+- [x] Each team includes `codes` array (plural) with multiple 3-letter variations
+
+Example structure:
+```json
 {
+  "season": "2025-26",
+  "competition": "Premier League",
   "teams": [
     {
       "full": "Arsenal",
       "abbrev": "Arsenal",
-      "code": "ARS",
+      "codes": ["ARS"],
       "alternates": ["The Gunners", "Gunners"]
-    },
-    {
-      "full": "Aston Villa",
-      "abbrev": "Aston Villa",
-      "code": "AVL",
-      "alternates": ["Villa"]
-    },
-    {
-      "full": "Bournemouth",
-      "abbrev": "Bournemouth",
-      "code": "BOU",
-      "alternates": ["The Cherries", "Cherries", "AFC Bournemouth"]
-    },
-    {
-      "full": "Brentford",
-      "abbrev": "Brentford",
-      "code": "BRE",
-      "alternates": ["The Bees", "Bees"]
-    },
-    {
-      "full": "Brighton & Hove Albion",
-      "abbrev": "Brighton",
-      "code": "BHA",
-      "alternates": ["Brighton", "The Seagulls", "Seagulls"]
-    },
-    {
-      "full": "Burnley",
-      "abbrev": "Burnley",
-      "code": "BUR",
-      "alternates": ["The Clarets", "Clarets"]
-    },
-    {
-      "full": "Chelsea",
-      "abbrev": "Chelsea",
-      "code": "CHE",
-      "alternates": ["The Blues", "Blues"]
-    },
-    {
-      "full": "Crystal Palace",
-      "abbrev": "Crystal Palace",
-      "code": "CRY",
-      "alternates": ["Palace", "The Eagles", "Eagles"]
-    },
-    {
-      "full": "Everton",
-      "abbrev": "Everton",
-      "code": "EVE",
-      "alternates": ["The Toffees", "Toffees"]
-    },
-    {
-      "full": "Fulham",
-      "abbrev": "Fulham",
-      "code": "FUL",
-      "alternates": ["The Cottagers", "Cottagers"]
-    },
-    {
-      "full": "Leeds United",
-      "abbrev": "Leeds",
-      "code": "LEE",
-      "alternates": ["Leeds", "The Whites", "Whites", "United"]
-    },
-    {
-      "full": "Liverpool",
-      "abbrev": "Liverpool",
-      "code": "LIV",
-      "alternates": ["The Reds", "Reds"]
-    },
-    {
-      "full": "Manchester City",
-      "abbrev": "Man City",
-      "code": "MCI",
-      "alternates": ["Man City", "City", "The Citizens", "Citizens"]
-    },
-    {
-      "full": "Manchester United",
-      "abbrev": "Man Utd",
-      "code": "MUN",
-      "alternates": ["Man Utd", "Man United", "United", "The Red Devils", "Red Devils"]
-    },
-    {
-      "full": "Newcastle United",
-      "abbrev": "Newcastle",
-      "code": "NEW",
-      "alternates": ["Newcastle", "The Magpies", "Magpies"]
     },
     {
       "full": "Nottingham Forest",
       "abbrev": "Nott'm Forest",
-      "code": "NFO",
-      "alternates": ["Forest", "Nottm Forest", "Notts Forest", "Nott'm Forest"]
+      "codes": ["NFO", "FOR", "NOT"],
+      "alternates": ["Forest", "Nottm Forest", "Notts Forest"]
     },
-    {
-      "full": "Sunderland",
-      "abbrev": "Sunderland",
-      "code": "SUN",
-      "alternates": ["The Black Cats", "Black Cats"]
-    },
-    {
-      "full": "Tottenham Hotspur",
-      "abbrev": "Tottenham",
-      "code": "TOT",
-      "alternates": ["Spurs", "Tottenham", "The Lilywhites", "Hotspur"]
-    },
-    {
-      "full": "West Ham United",
-      "abbrev": "West Ham",
-      "code": "WHU",
-      "alternates": ["West Ham", "The Hammers", "Hammers"]
-    },
-    {
-      "full": "Wolverhampton Wanderers",
-      "abbrev": "Wolves",
-      "code": "WOL",
-      "alternates": ["Wolves", "Wanderers"]
-    }
+    // ... 17 more teams with similar structure
   ]
 }
-EOF
 ```
 
-### 2. Validate JSON
-```bash
-python -c "import json; data = json.load(open('data/teams/premier_league_2025_26.json')); print(f'Loaded {len(data[\"teams\"])} teams')"
-```
-
-Should output: `Loaded 20 teams`
+See [data/teams/premier_league_2025_26.json](../../data/teams/premier_league_2025_26.json) for complete file.
 
 ### 3. Create Fixtures JSON
-Create `data/fixtures/premier_league_2025_26.json` with match schedules for the gameweeks you're analyzing:
-```bash
-cat > data/fixtures/premier_league_2025_26.json << 'EOF'
+- [x] Create `data/fixtures/premier_league_2025_26.json` with flat date-indexed structure
+- [x] Populate with 2025-11-01 fixtures (7 matches)
+
+Example structure (flat, no gameweek grouping):
+```json
 {
   "season": "2025-26",
   "competition": "Premier League",
-  "gameweeks": [
+  "matches": [
     {
-      "gameweek": 1,
-      "matches": [
-        {
-          "match_id": "2025-08-16-manutd-fulham",
-          "date": "2025-08-16",
-          "home_team": "Manchester United",
-          "away_team": "Fulham",
-          "kickoff": "20:00",
-          "final_score": {"home": 1, "away": 0}
-        }
-        // ... add all fixtures for gameweeks you're analyzing
-      ]
-    }
+      "match_id": "2025-11-01-brighton-leeds",
+      "date": "2025-11-01",
+      "home_team": "Brighton & Hove Albion",
+      "away_team": "Leeds United",
+      "kickoff": "15:00",
+      "final_score": {"home": 3, "away": 0}
+    },
+    // ... 6 more matches from 2025-11-01
   ]
 }
-EOF
 ```
 
-**Note**: You'll populate this manually with actual fixture data. You can provide screenshots or copy-paste fixture lists, and I'll help format them into JSON.
+See [data/fixtures/premier_league_2025_26.json](../../data/fixtures/premier_league_2025_26.json) for complete file.
 
 ### 4. Create Episode Manifest
-Create `data/episodes/episode_manifest.json` to map video files to fixtures:
-```bash
-cat > data/episodes/episode_manifest.json << 'EOF'
+- [x] Create `data/episodes/episode_manifest.json` without video_filename or gameweek fields
+- [x] Link episode to 7 expected match IDs from fixtures
+
+Example structure:
+```json
 {
+  "season": "2025-26",
+  "competition": "Premier League",
   "episodes": [
     {
-      "episode_id": "motd-2025-08-17",
-      "video_filename": "MOTD_2025_08_17_S57E01.mp4",
-      "video_source_url": "https://www.bbc.co.uk/iplayer/episode/...",
-      "broadcast_date": "2025-08-17",
-      "gameweek": 1,
+      "episode_id": "motd-2025-11-01",
+      "broadcast_date": "2025-11-01",
+      "video_source_url": "https://www.bbc.co.uk/iplayer/episode/m002ltfz/...",
       "expected_matches": [
-        "2025-08-16-manutd-fulham"
-        // ... list all match_ids expected in this episode
+        "2025-11-01-brighton-leeds",
+        // ... 6 more match IDs
       ],
-      "notes": "Opening weekend"
+      "notes": "Saturday 3pm/5:30pm/8pm fixtures"
     }
   ]
 }
-EOF
 ```
 
+See [data/episodes/episode_manifest.json](../../data/episodes/episode_manifest.json) for complete file.
+
 ### 5. Validate All Files
+- [x] Run comprehensive validation script
+
 ```bash
-python -c "
+python << 'EOF'
 import json
+
 teams = json.load(open('data/teams/premier_league_2025_26.json'))
 fixtures = json.load(open('data/fixtures/premier_league_2025_26.json'))
 episodes = json.load(open('data/episodes/episode_manifest.json'))
-print(f'✓ {len(teams[\"teams\"])} teams loaded')
-print(f'✓ {len(fixtures[\"gameweeks\"])} gameweeks loaded')
-print(f'✓ {len(episodes[\"episodes\"])} episodes loaded')
-"
+
+# Validate structure
+assert all('codes' in t for t in teams['teams']), "All teams must have 'codes' array"
+assert 'gameweeks' not in fixtures, "Fixtures should be flat (no gameweek grouping)"
+assert 'video_filename' not in episodes['episodes'][0], "No video_filename in manifest"
+
+# Validate counts
+print(f'✓ {len(teams["teams"])} teams loaded')
+print(f'✓ {len(fixtures["matches"])} matches loaded')
+print(f'✓ {len(episodes["episodes"])} episodes loaded')
+
+# Cross-validate
+fixture_ids = {m['match_id'] for m in fixtures['matches']}
+episode_ids = set(episodes['episodes'][0]['expected_matches'])
+assert episode_ids.issubset(fixture_ids), "All episode matches exist in fixtures"
+print(f'✓ All validations passed')
+EOF
 ```
 
 ## Validation Checklist
-- [ ] File created at `data/teams/premier_league_2025_26.json`
-- [ ] File created at `data/fixtures/premier_league_2025_26.json`
-- [ ] File created at `data/episodes/episode_manifest.json`
-- [ ] All JSON files are valid (Python can parse them)
-- [ ] All 20 Premier League teams present
-- [ ] Fixtures cover all gameweeks you're analyzing
-- [ ] Episode manifest links video files to correct fixtures
+- [x] Directories created: `data/fixtures/`, `data/episodes/`
+- [x] File created at `data/teams/premier_league_2025_26.json`
+- [x] File created at `data/fixtures/premier_league_2025_26.json`
+- [x] File created at `data/episodes/episode_manifest.json`
+- [x] All JSON files are valid (Python can parse them)
+- [x] All 20 Premier League teams present with `codes` arrays
+- [x] Teams use `codes` (plural) not `code` (singular)
+- [x] Fixtures use flat date-indexed structure (no gameweek grouping)
+- [x] Episode manifest has no `video_filename` or `gameweek` fields
+- [x] Episode manifest links to 7 correct match IDs from fixtures
+- [x] All fixture team names exist in teams JSON
+- [x] Comprehensive validation script passes
 
 ## Estimated Time
 15-20 minutes (including manual fixture entry)
 
 ## Notes
-- **Fixture data enables fixture-aware matching**: OCR searches only 12-16 teams (from expected fixtures) instead of all 20, improving accuracy from ~85-90% to 95%+
-- **Episode manifest enables automation**: The `video_source_url` field allows future integration with yt-dlp for automated downloads
-- You can provide fixture data via screenshots/copy-paste and I'll format it into JSON
-- The `alternates` field includes common variations used in commentary
-- You can add more alternates if you notice OCR/transcription missing teams
+- **`codes` array improvement**: Using plural `codes` instead of singular `code` allows OCR to match multiple 3-letter variations (e.g., Forest can appear as NFO, FOR, or NOT in BBC graphics)
+- **Fixture data enables fixture-aware matching**: OCR searches only 14 teams (from day's fixtures) instead of all 20, improving accuracy from ~85-90% to 95%+
+- **Flat date-indexed fixtures**: No gameweek grouping needed - fixture lookup by broadcast date is sufficient for matching
+- **Episode manifest simplification**: Removed `video_filename` (implementation detail) and `gameweek` (not needed for lookup)
+- **Episode notes are for context**: Describe the broadcast (e.g., "Saturday fixtures"), not analysis results we're discovering
+- **Extensibility**: More fixtures and episodes can be added to these files as needed
 
 ## Future Enhancements
 - Automate fixture data retrieval via Football-Data.org API

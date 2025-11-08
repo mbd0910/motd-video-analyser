@@ -1,0 +1,83 @@
+{
+  "season": "2025-26",
+  "competition": "Premier League",
+  "matches": [
+    {
+      "match_id": "2025-11-01-brighton-leeds",
+      "date": "2025-11-01",
+      "home_team": "Brighton & Hove Albion",
+      "away_team": "Leeds United",
+      "kickoff": "15:00",
+      "final_score": {
+        "home": 3,
+        "away": 0
+      }
+    },
+    {
+      "match_id": "2025-11-01-burnley-arsenal",
+      "date": "2025-11-01",
+      "home_team": "Burnley",
+      "away_team": "Arsenal",
+      "kickoff": "15:00",
+      "final_score": {
+        "home": 0,
+        "away": 2
+      }
+    },
+    {
+      "match_id": "2025-11-01-crystalpalace-brentford",
+      "date": "2025-11-01",
+      "home_team": "Crystal Palace",
+      "away_team": "Brentford",
+      "kickoff": "15:00",
+      "final_score": {
+        "home": 2,
+        "away": 0
+      }
+    },
+    {
+      "match_id": "2025-11-01-fulham-wolves",
+      "date": "2025-11-01",
+      "home_team": "Fulham",
+      "away_team": "Wolverhampton Wanderers",
+      "kickoff": "15:00",
+      "final_score": {
+        "home": 3,
+        "away": 0
+      }
+    },
+    {
+      "match_id": "2025-11-01-forest-manutd",
+      "date": "2025-11-01",
+      "home_team": "Nottingham Forest",
+      "away_team": "Manchester United",
+      "kickoff": "15:00",
+      "final_score": {
+        "home": 2,
+        "away": 2
+      }
+    },
+    {
+      "match_id": "2025-11-01-tottenham-chelsea",
+      "date": "2025-11-01",
+      "home_team": "Tottenham Hotspur",
+      "away_team": "Chelsea",
+      "kickoff": "17:30",
+      "final_score": {
+        "home": 0,
+        "away": 1
+      }
+    },
+    {
+      "match_id": "2025-11-01-liverpool-astonvilla",
+      "date": "2025-11-01",
+      "home_team": "Liverpool",
+      "away_team": "Aston Villa",
+      "kickoff": "20:00",
+      "final_score": {
+        "home": 2,
+        "away": 0
+      }
+    }
+  ]
+}

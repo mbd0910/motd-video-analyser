@@ -1,0 +1,21 @@
+{
+  "season": "2025-26",
+  "competition": "Premier League",
+  "episodes": [
+    {
+      "episode_id": "motd-2025-11-01",
+      "broadcast_date": "2025-11-01",
+      "video_source_url": "https://www.bbc.co.uk/iplayer/episode/m002ltfz/match-of-the-day-202526-01112025",
+      "expected_matches": [
+        "2025-11-01-brighton-leeds",
+        "2025-11-01-burnley-arsenal",
+        "2025-11-01-crystalpalace-brentford",
+        "2025-11-01-fulham-wolves",
+        "2025-11-01-forest-manutd",
+        "2025-11-01-tottenham-chelsea",
+        "2025-11-01-liverpool-astonvilla"
+      ],
+      "notes": "Saturday 3pm/5:30pm/8pm fixtures"
+    }
+  ]
+}

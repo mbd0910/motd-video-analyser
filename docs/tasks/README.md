@@ -12,7 +12,7 @@ This directory contains discrete, actionable tasks for building the MOTD Analyse
 - ✅ [001-environment-setup.md](001-environment-setup.md) - Set up Python venv and verify ffmpeg
 - ✅ [002-create-project-structure.md](002-create-project-structure.md) - Create directory structure
 - ✅ [003-install-python-dependencies.md](003-install-python-dependencies.md) - Install all Python packages
-- ⏳ [004-create-team-and-fixture-data.md](004-create-team-and-fixture-data.md) - Premier League teams, fixtures, and episode manifest JSON
+- ✅ [004-create-team-and-fixture-data.md](004-create-team-and-fixture-data.md) - Premier League teams, fixtures, and episode manifest JSON
 - ⏳ [005-create-config-file.md](005-create-config-file.md) - Pipeline configuration YAML
 
 **Estimated Time**: 30-45 minutes
