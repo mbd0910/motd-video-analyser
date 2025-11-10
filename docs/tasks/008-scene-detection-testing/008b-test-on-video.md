@@ -16,7 +16,7 @@ Run the scene detection CLI on a test MOTD video to validate the implementation 
 
 ### 2. Run Scene Detection
 ```bash
-python -m motd_analyzer detect-scenes data/videos/your_video.mp4 \
+python -m motd detect-scenes data/videos/your_video.mp4 \
   --threshold 30.0 \
   --output data/cache/test/scenes.json
 ```

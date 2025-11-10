@@ -33,11 +33,11 @@ Target accuracy: >85% of major transitions detected with <15% false positives
 
 **If too few scenes (<20) or missing transitions:**
 - Lower threshold: Try 25.0 or 20.0
-- Re-run: `python -m motd_analyzer detect-scenes ... --threshold 25.0`
+- Re-run: `python -m motd detect-scenes ... --threshold 25.0`
 
 **If too many scenes (>200) or excessive false positives:**
 - Raise threshold: Try 35.0 or 40.0
-- Re-run: `python -m motd_analyzer detect-scenes ... --threshold 35.0`
+- Re-run: `python -m motd detect-scenes ... --threshold 35.0`
 
 **Iterate until optimal:**
 - Find threshold that captures major transitions

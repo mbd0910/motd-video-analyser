@@ -9,7 +9,7 @@ scenedetect[opencv]==0.6.7.1
 # OCR
 easyocr==1.7.2
 torch==2.9.0
-torchvision==0.20.0
+torchvision==0.24.0
 torchaudio==2.9.0
 
 # Transcription (using faster-whisper for 4x speed improvement)
@@ -19,6 +19,9 @@ requests>=2.32.0  # Required by faster-whisper
 # Testing
 pytest==8.4.2
 pytest-cov==7.0.0
+
+# CLI
+click==8.1.8
 
 # Utilities
 python-dateutil==2.9.0.post0
