@@ -10,7 +10,7 @@ Create a module to extract key frames at scene transitions for OCR processing.
 
 ### 1. Create the frame extractor module
 ```bash
-cat > src/motd_analyzer/scene_detection/frame_extractor.py << 'EOF'
+cat > src/motd/scene_detection/frame_extractor.py << 'EOF'
 """
 Extract key frames from video at scene transitions.
 These frames will be used for OCR to identify team names.
@@ -150,15 +150,15 @@ EOF
 ### 2. Test the module
 ```bash
 python -c "
-from src.motd_analyzer.scene_detection.frame_extractor import extract_key_frame
+from src.motd.scene_detection.frame_extractor import extract_key_frame
 print('Module imported successfully')
 "
 ```
 
 ## Validation Checklist
-- [ ] File created at `src/motd_analyzer/scene_detection/frame_extractor.py`
-- [ ] Module imports without errors
-- [ ] No syntax errors
+- [x] File created at `src/motd/scene_detection/frame_extractor.py`
+- [x] Module imports without errors
+- [x] No syntax errors
 
 ## Estimated Time
 15-20 minutes

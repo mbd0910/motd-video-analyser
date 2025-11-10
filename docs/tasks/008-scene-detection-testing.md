@@ -22,6 +22,7 @@ Add scene detection command to `src/motd_analyzer/__main__.py`:
 - Accept video path as argument
 - Accept threshold and other config parameters
 - Call detector and frame extractor
+- **Note**: Start with single-frame extraction (`num_frames=1`). The frame extractor supports 1-3 frames per scene (see Task 007, lines 107-146) for cases where scoreboard appears mid-scene, but this adds complexity. Only add multi-frame support to CLI if initial OCR accuracy is <90% in Task 009.
 - Save results to JSON
 
 ### 2. Test on First Video
@@ -49,6 +50,7 @@ If results aren't good:
 - [ ] Key frames extracted successfully
 - [ ] Scene count looks reasonable (40-80 for 90-min video)
 - [ ] Spot-checked scenes match actual transitions
+- [ ] Frame extraction using single frame per scene (multi-frame support deferred to refinement if needed)
 
 ## Estimated Time
 1-2 hours (including waiting for processing and manual review)

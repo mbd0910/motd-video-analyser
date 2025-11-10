@@ -15,7 +15,8 @@ This is a larger epic that you should consider splitting into sub-tasks:
 4. Create OCR CLI command with fixture support
 5. Run on test video frames
 6. Validate team detection accuracy (target: >95% with fixtures)
-7. Tune OCR regions if needed
+7. **If accuracy <90%**: Evaluate multi-frame extraction strategy (see Notes below)
+8. Tune OCR regions if needed
 
 ## Key Deliverables
 
@@ -51,6 +52,8 @@ python -m motd_analyzer extract-teams \
 ## Success Criteria
 - [ ] OCR runs on all frames without errors
 - [ ] Team detection accuracy >95% on frames with visible scoreboards (fixture-aware matching)
+- [ ] If accuracy is 90-95%: Document whether multi-frame extraction was considered (see Notes below)
+- [ ] If accuracy is <90%: Multi-frame extraction evaluated and decision documented
 - [ ] Fixture matching correctly identifies expected matches
 - [ ] No unexpected teams detected (all teams from expected fixtures)
 - [ ] False positives are minimal
@@ -60,10 +63,34 @@ python -m motd_analyzer extract-teams \
 4-5 hours (includes fixture matcher implementation)
 
 ## Notes
+
+### Fixture-Aware Matching Benefits
 - **Fixture-aware matching reduces search space**: Instead of searching all 20 PL teams, OCR searches only ~12-16 teams from expected fixtures (6-8 matches)
 - **Accuracy boost**: Fixture context provides 5-10% accuracy improvement over OCR-only approach
+
+### Multi-Frame Extraction Strategy
+**When to use**: If OCR accuracy is <90% after fixture-aware matching is implemented.
+
+**How it works**: The frame extractor (Task 007) supports extracting 1-3 frames per scene via the `num_frames` parameter. This helps when:
+- Scoreboard appears mid-scene rather than at scene start
+- OCR fails on one frame due to motion blur but succeeds on another
+- You want higher confidence through consensus across multiple frames
+
+**Decision framework**:
+- **Accuracy >95%**: Stay with single frame (default)
+- **Accuracy 90-95%**: Evaluate cost/benefit - multi-frame adds 2-3x processing time
+- **Accuracy <90%**: Try `num_frames=2` or `num_frames=3` before considering alternative OCR engines
+
+**Implementation**: If enabling multi-frame, you'll need to:
+1. Update CLI to pass `num_frames` parameter to frame extractor
+2. Modify OCR reader to handle multiple frames per scene (consensus logic)
+3. Update caching to handle multiple frame files per scene
+
+**Reference**: See Task 007 lines 107-146 for `extract_multiple_frames_per_scene()` implementation.
+
+### Other Tuning Options
 - EasyOCR will download models (~100MB) on first run
-- If accuracy is poor, you may need to:
+- If accuracy remains poor after multi-frame evaluation:
   - Adjust OCR regions in config.yaml
   - Add more team name alternates
   - Verify fixture data matches episode date
