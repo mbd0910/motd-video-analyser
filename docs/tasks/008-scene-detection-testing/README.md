@@ -4,16 +4,17 @@
 Create a CLI command for scene detection and run it on your first MOTD video to validate the approach.
 
 ## Prerequisites
-- [007-implement-frame-extractor.md](007-implement-frame-extractor.md) completed
+- [007-implement-frame-extractor](../completed/007-implement-frame-extractor/README.md) completed
 - At least one MOTD video downloaded to `data/videos/`
 
 ## Epic Overview
-This task combines CLI creation and testing into one epic. Before starting, you may want to split this into smaller tasks:
-1. Create the CLI command structure
-2. Wire up the scene detector and frame extractor
-3. Run on test video
-4. Manually validate results
-5. Tune parameters if needed
+This epic has been split into three subtasks:
+
+1. **[008a-create-cli-command.md](008a-create-cli-command.md)** - Create CLI entry point
+2. **[008b-test-on-video.md](008b-test-on-video.md)** - Run scene detection on test video
+3. **[008c-validate-and-tune.md](008c-validate-and-tune.md)** - Manual validation and tuning
+
+Work through these subtasks sequentially. Each subtask has its own validation checklist.
 
 ## High-Level Steps
 
@@ -58,5 +59,10 @@ If results aren't good:
 ## Reference
 See [roadmap.md Phase 1](../roadmap.md#phase-1-scene-detection-est-4-6-hours) for detailed implementation examples.
 
+## Subtasks
+- [008a-create-cli-command.md](008a-create-cli-command.md)
+- [008b-test-on-video.md](008b-test-on-video.md)
+- [008c-validate-and-tune.md](008c-validate-and-tune.md)
+
 ## Next Task
-[009-ocr-implementation-epic.md](009-ocr-implementation-epic.md)
+[009-ocr-implementation](../009-ocr-implementation/README.md)

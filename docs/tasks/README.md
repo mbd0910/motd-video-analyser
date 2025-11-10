@@ -1,144 +1,219 @@
-# MOTD Analyser - Task List
+# MOTD Analyser - Task Management System
 
-This directory contains discrete, actionable tasks for building the MOTD Analyser. Each task is self-contained with clear objectives, steps, and validation checkpoints.
+This directory contains a structured, folder-based task management system for building the MOTD Analyser project.
 
-## Task Status Legend
-- ✅ Completed
-- 🔄 In Progress
-- ⏳ Not Started
-- ⏭️ Skipped/Optional
+## Quick Links
 
-## Phase 0: Project Setup (Tasks 001-005)
-- ✅ [001-environment-setup.md](001-environment-setup.md) - Set up Python venv and verify ffmpeg
-- ✅ [002-create-project-structure.md](002-create-project-structure.md) - Create directory structure
-- ✅ [003-install-python-dependencies.md](003-install-python-dependencies.md) - Install all Python packages
-- ✅ [004-create-team-and-fixture-data.md](004-create-team-and-fixture-data.md) - Premier League teams, fixtures, and episode manifest JSON
-- ✅ [005-create-config-file.md](005-create-config-file.md) - Pipeline configuration YAML
+- **[BACKLOG.md](BACKLOG.md)** - Complete task inventory with status and time estimates
+- **[task-workflow.md](../../.claude/commands/task-workflow.md)** - Workflow for implementing tasks
 
-**Estimated Time**: 30-45 minutes
+## Task Organization
 
----
+All tasks are organized in a **folder-based structure** for consistency and clarity:
 
-## Phase 1: Scene Detection (Tasks 006-008)
-- ✅ [006-implement-scene-detector.md](006-implement-scene-detector.md) - PySceneDetect integration
-- ✅ [007-implement-frame-extractor.md](007-implement-frame-extractor.md) - Extract key frames
-- ⏳ [008-scene-detection-testing.md](008-scene-detection-testing.md) - CLI + test on first video (Epic)
-
-**Estimated Time**: 2-3 hours
-
----
-
-## Phase 2: OCR & Team Detection (Task 009 - Epic)
-- ⏳ [009-ocr-implementation-epic.md](009-ocr-implementation-epic.md) - EasyOCR integration, fixture-aware team matching, CLI, validation
-
-**Note**: This is an epic - consider splitting into smaller tasks before starting. Fixture-aware matching improves accuracy from ~85-90% to 95%+.
-
-**Estimated Time**: 4-5 hours
-
----
-
-## Phase 3: Audio Transcription (Task 010 - Epic)
-- ⏳ [010-transcription-epic.md](010-transcription-epic.md) - Audio extraction, Whisper integration, CLI, validation
-
-**Note**: This is an epic - consider splitting into smaller tasks before starting.
-
-**Estimated Time**: 2-3 hours (+ 10-15 mins transcription time)
-
----
-
-## Phase 4: Analysis & Classification (Task 011 - Epic)
-- ⏳ [011-analysis-pipeline-epic.md](011-analysis-pipeline-epic.md) - Segment classifier, team mentions, airtime calculator, orchestrator
-
-**Note**: This is the most complex epic - definitely split into smaller tasks before starting.
-
-**Estimated Time**: 4-6 hours
-
----
-
-## Phase 5: Manual Validation Tools (Task 012 - Epic)
-- ⏳ [012-validation-tools-epic.md](012-validation-tools-epic.md) - Manual labeling tool, validation comparator
-
-**Note**: This is an epic - consider splitting into smaller tasks before starting.
-
-**Estimated Time**: 2-3 hours
-
----
-
-## Phase 6: Refinement & Tuning (Task 013)
-- ⏳ [013-refinement-tuning.md](013-refinement-tuning.md) - Tune thresholds, improve accuracy, iterate
-
-**Estimated Time**: 2-4 hours
-
----
-
-## Phase 7: Batch Processing (Task 014 - Epic)
-- ⏳ [014-batch-processing-epic.md](014-batch-processing-epic.md) - Batch CLI, process all 10 videos, spot-check
-
-**Note**: This is an epic - consider splitting into smaller tasks before starting.
-
-**Estimated Time**: 1-2 hours (+ 8-12 hours processing)
-
----
-
-## Phase 8: Documentation (Task 015)
-- ⏳ [015-documentation-blog-prep.md](015-documentation-blog-prep.md) - README, aggregate stats, blog posts
-
-**Estimated Time**: 3-5 hours
-
----
-
-## Total Estimated Time
-- **Active Work**: 19-28 hours
-- **Processing Time**: 8-12 hours (overnight batch)
-- **Calendar Time**: 2-3 weeks (2-3 hours/day)
-
----
-
-## How to Use This Task List
-
-1. **Work sequentially**: Tasks build on each other
-2. **Check off as you go**: Update the status emoji in this README
-3. **Validate at each checkpoint**: Don't skip validation steps
-4. **Adjust estimates**: Your actual time may vary
-
-## Decision Points
-
-### After Task 009 (Scene Detection)
-**Question**: Is scene detection accurate enough (40-80 scenes for 90-min video)?
-- ✅ YES → Continue to Task 010
-- ❌ NO → Tune threshold in config.yaml, re-run task 009
-
-### After Task 013 (OCR)
-**Question**: Is team detection >90% accurate?
-- ✅ YES → Continue to Task 014
-- ❌ NO → Adjust OCR regions in config.yaml, consider PaddleOCR (see [tech-tradeoffs.md](../tech-tradeoffs.md))
-
-### After Task 016 (Transcription)
-**Question**: Is transcription accurate and fast enough?
-- ✅ YES → Continue to Task 017
-- ❌ NO → Already using faster-whisper? Consider smaller model or cloud API
-
-### After Task 021 (Full Pipeline)
-**Question**: Ready for batch processing?
-- ✅ YES → Continue to Task 026
-- ❌ NO → Back to Task 024 for more tuning
-
----
-
-## Notes
-
-- **Minimum Viable Pipeline**: Tasks 001-021 give you a working end-to-end system
-- **Production Ready**: All tasks 001-029 give you a polished, documented system
-- **Extensibility**: After completion, see [roadmap.md](../roadmap.md) for future enhancements
-
----
-
-## Quick Start
-
-```bash
-# Start with Phase 0
-cd /Users/michael/code/motd-video-analyser
-open docs/tasks/001-environment-setup.md
+```
+docs/tasks/
+├── README.md                          # This file - explains the system
+├── BACKLOG.md                         # Task inventory and status tracking
+├── completed/                         # Archive of finished tasks
+│   ├── 001-environment-setup/
+│   │   └── README.md
+│   ├── 002-create-project-structure/
+│   │   └── README.md
+│   └── ...
+├── 008-scene-detection-testing/       # Epic task with subtasks
+│   ├── README.md                      # Epic overview
+│   ├── 008a-create-cli-command.md     # Subtask A
+│   ├── 008b-test-on-video.md          # Subtask B
+│   └── 008c-validate-and-tune.md      # Subtask C
+├── 009-ocr-implementation/            # Another epic
+│   └── README.md
+└── 013-refinement-tuning/             # Standalone task
+    └── README.md
 ```
 
-Good luck! 🚀
+## Task Types
+
+### Standalone Tasks
+Tasks that can be completed in a single implementation session.
+
+**Structure:**
+```
+{number}-{name}/
+└── README.md
+```
+
+**Example:** Task 013 (Refinement & Tuning)
+
+### Epic Tasks
+Larger tasks that are split into multiple discrete subtasks for easier execution.
+
+**Structure:**
+```
+{number}-{name}/
+├── README.md              # Epic overview
+├── {number}a-{name}.md    # Subtask A
+├── {number}b-{name}.md    # Subtask B
+└── {number}c-{name}.md    # Subtask C
+```
+
+**Example:** Task 008 (Scene Detection Testing) has 3 subtasks:
+- 008a: Create CLI command
+- 008b: Test on video
+- 008c: Validate and tune
+
+## Workflow
+
+### Using the Task Workflow Command
+
+The recommended way to work on tasks is using the `/task-workflow` command:
+
+```bash
+/task-workflow 8    # Start task 008
+/task-workflow      # Prompts for task number
+```
+
+This command will:
+1. Read the task from `docs/tasks/{number}-*/README.md`
+2. Check for subtasks and work through them sequentially
+3. Guide you through planning, implementation, and code review
+4. Handle checkboxes and validation checklists
+5. Manage git branches and commits
+
+See [`.claude/commands/task-workflow.md`](../../.claude/commands/task-workflow.md) for complete workflow details.
+
+### Working with Epics
+
+When you encounter an epic:
+
+1. **Read the epic README.md** - Understand the overall objective
+2. **Review subtasks** - Each subtask file (008a, 008b, etc.) has specific steps
+3. **Work sequentially** - Complete subtasks in order (a → b → c)
+4. **Update checkboxes** - Mark items complete in each subtask file as you go
+5. **Validate each subtask** - Don't skip validation checklists
+
+### Working with Standalone Tasks
+
+For standalone tasks:
+
+1. **Read the task README.md** - Single file contains all steps
+2. **Follow the checklist** - Mark items complete as you progress
+3. **Run validation** - Complete the validation checklist before finishing
+
+## File Naming Conventions
+
+### Task Folders
+Format: `{number}-{kebab-case-name}/`
+
+Examples:
+- `008-scene-detection-testing/`
+- `009-ocr-implementation/`
+- `013-refinement-tuning/`
+
+### Subtask Files
+Format: `{number}{letter}-{kebab-case-name}.md`
+
+Examples:
+- `008a-create-cli-command.md`
+- `008b-test-on-video.md`
+- `009a-implement-ocr-reader.md`
+
+## Checkbox Progress Tracking
+
+All task and subtask files use checkboxes to track progress:
+
+```markdown
+## Validation Checklist
+- [ ] CLI command works
+- [x] Scenes JSON generated
+- [ ] Key frames extracted
+```
+
+**Important:**
+- Update checkboxes as you complete work
+- Commit checkbox updates with code changes
+- All checkboxes must be `[x]` before task completion
+
+## Completed Tasks
+
+Finished tasks are moved to `completed/` to keep the main task list clean:
+
+```
+completed/
+├── 001-environment-setup/
+├── 002-create-project-structure/
+└── ...
+```
+
+These are archived for reference but not actively worked on.
+
+## Git Workflow Integration
+
+### Branch Naming
+```bash
+git checkout -b feature/task-{number}-{slug}
+```
+
+Example: `feature/task-008-scene-detection-testing`
+
+### Commit Frequency
+- Commit after completing each subtask
+- Commit after addressing each code review item
+- Follow [COMMIT_STYLE.md](../../COMMIT_STYLE.md) conventions
+
+### Squash Merge
+After code review is complete:
+1. Update `BACKLOG.md` status (⏳ → ✅)
+2. Verify all checkboxes are marked `[x]`
+3. Squash merge into main
+
+See [task-workflow.md](../../.claude/commands/task-workflow.md) step 8 for details.
+
+## Common Patterns
+
+### Starting a New Task
+```bash
+# 1. Check backlog
+open docs/tasks/BACKLOG.md
+
+# 2. Use task-workflow command
+/task-workflow 8
+
+# 3. Or manually:
+open docs/tasks/008-scene-detection-testing/README.md
+git checkout -b feature/task-008-scene-detection-testing
+```
+
+### Splitting an Epic (If Not Already Split)
+If you encounter an epic without subtasks:
+
+1. Read the epic README.md
+2. Identify discrete sub-tasks (3-6 recommended)
+3. Create subtask files (008a, 008b, 008c)
+4. Get user approval before implementation
+5. Work through subtasks sequentially
+
+### Tracking Progress
+- **Individual progress**: Checkboxes in task/subtask files
+- **Overall progress**: Status emojis in BACKLOG.md
+- **Git history**: Commit messages and branch names
+
+## Tips for Success
+
+1. **Work sequentially** - Tasks build on each other
+2. **Validate frequently** - Don't skip validation checklists
+3. **Commit often** - Small, focused commits are better
+4. **Ask for clarity** - If task requirements are unclear, ask before coding
+5. **Reference completed tasks** - Look at tasks 001-007 for examples
+
+## Questions?
+
+- **What tasks exist?** → See [BACKLOG.md](BACKLOG.md)
+- **How do I start a task?** → Use `/task-workflow {number}`
+- **What's the git workflow?** → See [CLAUDE.md](../../CLAUDE.md#general-instructions-for-claude-code)
+- **What's the commit style?** → See [COMMIT_STYLE.md](../../COMMIT_STYLE.md)
+- **How do I work with epics?** → Read epic README.md, then work through subtasks (a → b → c)
+
+---
+
+**Ready to start?** Open [BACKLOG.md](BACKLOG.md) to see available tasks.

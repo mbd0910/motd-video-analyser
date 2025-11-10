@@ -17,32 +17,35 @@ Workflow for implementing number task in docs/tasks folder: plan, execute, code 
 
 ## Instructions for Claude
 
-1. **Get task number and verify file**
+1. **Get task number and verify folder**
    - If provided as argument, use it
    - If not provided, ask user: "Which task number should I work on?"
-   - Verify file exists: `docs/tasks/{number}-*.md`
-   - If not found, list available tasks from `docs/tasks/README.md`
+   - Verify folder exists: `docs/tasks/{number}-*/`
+   - If not found, list available tasks from `docs/tasks/BACKLOG.md`
+   - Read task from `docs/tasks/{number}-*/README.md`
    - Extract title and create slug (kebab-case, 3-4 meaningful words)
 
 2. **Critical Thinking**
    - Plan by thinking hard
-   - Critically assess the plan presented in the docs/tasks/{tasknumber}-description.md file
+   - Critically assess the plan presented in the docs/tasks/{number}-*/README.md file
    - Present task understanding to the user, and any suggested amendments to the plan based on your understanding of the codebase and the project.
 
-2a. **Check if task is an epic (008-015)**
-   - Epics combine multiple sub-tasks and MUST be split before implementation
-   - If epic: Create sub-task breakdown in the task file
-   - Get user approval on sub-task split before proceeding
-   - Example: Task 009 (OCR Epic) → 5 discrete sub-tasks (OCR reader, team matcher, CLI, test run, validation)
+2a. **Check if task has subtasks**
+   - Look for subtask files in the task folder (e.g., `008a-*.md`, `008b-*.md`)
+   - If subtasks exist: Work through them sequentially (a → b → c)
+   - If no subtasks but task is marked as epic: Create subtask breakdown
+   - Get user approval on subtask split before proceeding
+   - Example: Task 008 → 3 subtasks (008a-create-cli, 008b-test, 008c-validate)
 
 PAUSE HERE UNTIL USER IS HAPPY TO CONTINUE
 
 3. **Create branch**
    - `git checkout -b feature/task-{number}-{slug}`
 
-4. **Update Task Markdown File**
-   - If changes to the plan, aggressively edit task markdown file to reflect new plan.
-   - Use todo list style plan so items can be checked off one by one.
+4. **Update Task Files**
+   - If changes to the plan, aggressively edit task README.md to reflect new plan
+   - For subtasks, update the specific subtask file you're working on
+   - Use todo list style plan so items can be checked off one by one
 
 PAUSE HERE UNTIL USER IS HAPPY TO CONTINUE
 
@@ -71,12 +74,15 @@ PAUSE HERE. SUGGEST USER ASKS CODE-REVIEWER TO DO A SECOND ROUND OF CODE REVIEW.
 It's possible steps 6 and 7 will be conducted multiple times.
 
 8. **Squash Merge** (Only after user confirms code review is complete)
-   - Verify all checkboxes in task file are marked `[x]`
+   - Verify all checkboxes in task README.md and subtask files are marked `[x]`
    - Verify all commits follow COMMIT_STYLE.md
-   - **Update `docs/tasks/README.md` task status (⏳ → ✅) BEFORE merging**
+   - **Update `docs/tasks/BACKLOG.md` task status (⏳ → ✅) BEFORE merging**
+   - **Move completed task to archive**: `git mv docs/tasks/{number}-{name}/ docs/tasks/completed/`
+     * This keeps the active task list focused on remaining work
+     * Preserves git history with git mv
    - **Ask user explicitly**: "Code review complete. Should I squash merge feature/task-{number}-{slug} into main?"
    - Only merge after explicit "yes"
-   - Squash merge commit will include the README.md status update
+   - Squash merge commit will include both the BACKLOG.md status update and the folder move
 
 ## Important Reminders
 
@@ -91,6 +97,7 @@ It's possible steps 6 and 7 will be conducted multiple times.
 
 **Task File Updates:**
 - Update checkboxes throughout execution: `- [ ]` → `- [x]`
+- For epics with subtasks: Update checkboxes in individual subtask files
 - Commit task file updates regularly
-- Task file must be 100% complete before squash merge
-- Upon completing a phase, always check checkboxes to ensure progress is accurately reflected in the task markdown file.
+- All subtask files must be 100% complete before squash merge
+- Upon completing a phase, always check checkboxes to ensure progress is accurately reflected in the task files
