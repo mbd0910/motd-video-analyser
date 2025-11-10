@@ -178,7 +178,7 @@ File: `data/teams/premier_league_2025_26.json`
 scoreboard:    # Top-left BBC graphic
   x: 0, y: 0, width: 400, height: 100
 formation:     # Bottom-right formation graphic
-  x: 800, y: 600, width: 1920, height: 1080
+  x: 800, y: 600, width: 1120, height: 480
 ```
 Adjust these if BBC changes graphics or video resolution differs. Check with `ffprobe video.mp4`.
 

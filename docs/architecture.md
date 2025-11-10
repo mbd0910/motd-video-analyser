@@ -232,7 +232,7 @@ For detailed comparisons of alternatives, see [tech-tradeoffs.md](tech-tradeoffs
 1. Load key frame
 2. Crop to regions of interest:
    - Top-left: `[0, 0, 400, 100]` (scoreboard)
-   - Bottom-right: `[800, 600, 1920, 1080]` (formation graphic - adjust for resolution)
+   - Bottom-right: `[800, 600, 1120, 480]` (formation graphic - for 1920x1080 resolution)
 3. Run EasyOCR on cropped regions
 4. Match extracted text against team name list (fuzzy matching)
 5. Cross-reference with fixture data for episode date (limits search to 6-8 expected matches)
