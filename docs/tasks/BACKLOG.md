@@ -19,10 +19,10 @@ This directory contains discrete, actionable tasks for building the MOTD Analyse
 
 ---
 
-## Phase 1: Scene Detection (Tasks 006-008)
+## Phase 1: Scene Detection (Tasks 006-008) ✅
 - ✅ [006-implement-scene-detector](completed/006-implement-scene-detector/) - PySceneDetect integration
 - ✅ [007-implement-frame-extractor](completed/007-implement-frame-extractor/) - Extract key frames
-- ⏳ [008-scene-detection-testing](008-scene-detection-testing/) - CLI + test on first video (Epic with 3 subtasks)
+- ✅ [008-scene-detection-testing](completed/008-scene-detection-testing/) - CLI + test on first video (Epic with 3 subtasks)
 
 **Estimated Time**: 2-3 hours
 

@@ -10,7 +10,7 @@ Implement CLI entry point for scene detection that accepts video input and outpu
 ## Steps
 
 ### 1. Create CLI Module Structure
-Update `src/motd_analyzer/__main__.py` to add the `detect-scenes` command:
+Update `src/motd/__main__.py` to add the `detect-scenes` command:
 - Use argparse or Click for CLI argument parsing
 - Accept video path as required argument
 - Accept optional parameters: threshold, output path, cache directory
@@ -49,16 +49,16 @@ Save scene data to JSON with structure:
 
 ### 5. Test CLI Works
 ```bash
-python -m motd_analyzer detect-scenes --help
+python -m motd detect-scenes --help
 # Should show usage information
 ```
 
 ## Validation Checklist
-- [ ] CLI command registered and accessible
-- [ ] Help text displays correctly
-- [ ] Required and optional arguments work
-- [ ] Error handling for missing video file
-- [ ] Logging output is clear and informative
+- [x] CLI command registered and accessible
+- [x] Help text displays correctly
+- [x] Required and optional arguments work
+- [x] Error handling for missing video file
+- [x] Logging output is clear and informative
 
 ## Estimated Time
 30-45 minutes

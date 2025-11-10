@@ -16,7 +16,7 @@ Run the scene detection CLI on a test MOTD video to validate the implementation 
 
 ### 2. Run Scene Detection
 ```bash
-python -m motd_analyzer detect-scenes data/videos/your_video.mp4 \
+python -m motd detect-scenes data/videos/your_video.mp4 \
   --threshold 30.0 \
   --output data/cache/test/scenes.json
 ```
@@ -41,12 +41,12 @@ Quick visual check:
 - Verify they show different segments (studio, highlights, etc.)
 
 ## Validation Checklist
-- [ ] CLI command ran without errors
-- [ ] scenes.json generated successfully
-- [ ] Key frames extracted to frames/ directory
-- [ ] Scene count is reasonable (not 5, not 500)
-- [ ] Timestamps are sequential
-- [ ] Visual spot-check shows variety of scenes
+- [x] CLI command ran without errors
+- [x] scenes.json generated successfully
+- [x] Key frames extracted to frames/ directory
+- [x] Scene count is reasonable (not 5, not 500)
+- [x] Timestamps are sequential
+- [x] Visual spot-check shows variety of scenes
 
 ## Expected Results
 For a typical 90-minute MOTD episode:

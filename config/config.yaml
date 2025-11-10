@@ -1,6 +1,7 @@
 # Scene Detection Configuration
 scene_detection:
-  threshold: 30.0              # Scene detection sensitivity (lower = more sensitive)
+  detector_type: content       # Detector type: "content" or "adaptive"
+  threshold: 20.0              # Scene detection sensitivity (lower = more sensitive)
   min_scene_duration: 3.0      # Minimum scene length in seconds
 
 # OCR Configuration

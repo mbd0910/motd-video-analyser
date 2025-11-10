@@ -19,7 +19,7 @@ Work through these subtasks sequentially. Each subtask has its own validation ch
 ## High-Level Steps
 
 ### 1. Create CLI Entry Point
-Add scene detection command to `src/motd_analyzer/__main__.py`:
+Add scene detection command to `src/motd/__main__.py`:
 - Accept video path as argument
 - Accept threshold and other config parameters
 - Call detector and frame extractor
@@ -28,7 +28,7 @@ Add scene detection command to `src/motd_analyzer/__main__.py`:
 
 ### 2. Test on First Video
 ```bash
-python -m motd_analyzer detect-scenes data/videos/your_video.mp4 \
+python -m motd detect-scenes data/videos/your_video.mp4 \
   --threshold 30.0 \
   --output data/cache/test/scenes.json
 ```

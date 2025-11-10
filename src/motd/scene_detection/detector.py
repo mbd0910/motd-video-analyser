@@ -9,6 +9,36 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Monkey-patch PySceneDetect to fix NumPy 2.x compatibility
+# Workaround for PySceneDetect 0.6.x with NumPy 2.x
+# Issue: _frame_buffer_size is stored as float, needs to be int for numpy slicing
+try:
+    from packaging import version
+    import scenedetect
+    import numpy as np
+
+    # Only patch if using affected versions (PySceneDetect 0.6.x with NumPy 2.x)
+    pyscenedetect_version = version.parse(scenedetect.__version__)
+    numpy_version = version.parse(np.__version__)
+
+    if pyscenedetect_version.major == 0 and pyscenedetect_version.minor == 6 and numpy_version.major >= 2:
+        import scenedetect.scene_manager
+        original_process_frame = scenedetect.scene_manager.SceneManager._process_frame
+
+        def patched_process_frame(self, *args, **kwargs):
+            # Ensure _frame_buffer_size is an integer before processing
+            if hasattr(self, '_frame_buffer_size'):
+                self._frame_buffer_size = int(self._frame_buffer_size)
+            return original_process_frame(self, *args, **kwargs)
+
+        scenedetect.scene_manager.SceneManager._process_frame = patched_process_frame
+        logger.debug(f"Applied NumPy 2.x compatibility patch for PySceneDetect {scenedetect.__version__}")
+    else:
+        logger.debug(f"NumPy compatibility patch not needed (PySceneDetect {scenedetect.__version__}, NumPy {np.__version__})")
+
+except Exception as e:
+    logger.warning(f"Failed to apply PySceneDetect compatibility patch: {e}. Scene detection may fail with NumPy 2.x.")
+
 
 def detect_scenes(
     video_path: str,
@@ -68,10 +98,12 @@ def detect_scenes(
     logger.info(f"Detected {len(results)} scenes")
 
     # Warn if unusual number of scenes
+    # Note: Empirical testing shows threshold 20.0 produces ~1200 scenes for 84-min video
+    # These warnings indicate likely configuration issues, not normal high scene counts
     if len(results) < 20:
-        logger.warning("Very few scenes detected. Consider lowering threshold.")
-    elif len(results) > 200:
-        logger.warning("Very many scenes detected. Consider raising threshold.")
+        logger.warning("Very few scenes detected (<20). Consider lowering threshold.")
+    elif len(results) > 2000:
+        logger.warning("Very many scenes detected (>2000). Consider raising threshold or checking video quality.")
 
     return results
 
