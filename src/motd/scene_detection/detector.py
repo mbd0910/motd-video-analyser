@@ -7,6 +7,19 @@ from scenedetect import detect, ContentDetector, AdaptiveDetector
 from typing import Any
 import logging
 
+# Monkey-patch PySceneDetect to fix NumPy 2.x compatibility
+# Issue: _frame_buffer_size is stored as float, needs to be int for numpy slicing
+import scenedetect.scene_manager
+original_process_frame = scenedetect.scene_manager.SceneManager._process_frame
+
+def patched_process_frame(self, *args, **kwargs):
+    # Ensure _frame_buffer_size is an integer before processing
+    if hasattr(self, '_frame_buffer_size'):
+        self._frame_buffer_size = int(self._frame_buffer_size)
+    return original_process_frame(self, *args, **kwargs)
+
+scenedetect.scene_manager.SceneManager._process_frame = patched_process_frame
+
 logger = logging.getLogger(__name__)
 
 
