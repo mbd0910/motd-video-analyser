@@ -68,7 +68,24 @@ Manual screenshot here of the advert for tomorrow's show:
 | Match 6: Interviews | 1:11:44 | 1:12:30 | 0:46 | Interviews then back to studio |
 | Match 6: Studio Analysis | 1:12:30 | 1:14:40 | 02:10 | Post-match discussion |
 
-| Outro | XX:XX:XX | XX:XX:XX | ~X min | Credits/next week preview |
+| Match 7: Introduction | 1:14:40 | 1:14:49 | 00:09 | Host introducing match 7 |
+| Match 7: Team warmup and lower screen formation graphics | 1:14:49 | 1:15:26 | 0:35 | Lower key formation graphics for seventh match |
+| Match 7: First half highlights | 1:15:26 | 1:18:23 | 02:57 | First half highlights |
+| Match 7: Second half animation | 1:18:23 | 1:18:24 | 00:01 | Showing second half animation |
+| Match 7: Second half highlights | 1:18:24 | 1:20:45 | 02:21 | Second half highlights |
+| Match 7: Interviews | 1:20:45 | 1:21:50 | 1:05 | Interviews then back to studio |
+| Match 7: Studio Analysis | 1:21:50 | 1:22:57 | 1:07 | Post-match discussion |
+
+| Studio Outro and League Table Review | 1:22:57 | 1:23:34 | 0:37 | N/A |
+
+* docs/screenshots/top_half_league_table.png
+* docs/screenshots/bottom_half_league_table.png
+
+| Outro Montage | 1:23:34 | 
+
+* scene_809.jpg 
+* scene_810.jpg
+* docs/screenshots/end_of_show_graphic.png
 
 ### Key Timecodes
 - **Intro ends / First match starts:** XX:XX:XX
@@ -82,6 +99,7 @@ Manual screenshot here of the advert for tomorrow's show:
 4. Fulham v Wolves - starts at 00:41:49
 5. Spurs v Chelsea - starts at 00:52:48
 6. Brighton v Leeds - starts at 1:04:54
+7. Palace v Brentford - starts at 1:14:40
 
 ---
 
@@ -231,6 +249,8 @@ This isn't always captured perfectly in the auto-extracted frames, but there are
 - scene_591.jpg
 - scene_666.jpg
 - scene_667.jpg
+- scene_729.jpg
+- scene_730.jpg
 
 **Manual screenshot**
 - docs/screenshots/second_half.png
@@ -260,6 +280,7 @@ This is a great indicator that the second half highlights are about to end and w
 - docs/screenshots/fulham_wolves_ft_score.png
 - docs/screenshots/spurs_chelsea_ft_score.png
 - docs/screenshots/brighton_leeds_ft_score.png
+- docs/screenshots/palace_brentford_ft_score.png
 
 ---
 
@@ -291,6 +312,7 @@ Generally a single person (sometimes players interviewed together or with a tran
 - docs/screenshots/thomas_frank.png
 - docs/screenshots/daniel_farke.png
 - docs/screenshots/fabian_hurzeler.png
+- docs/screenshots/maxence_lacroix.png
 
 ---
 
@@ -368,6 +390,10 @@ This is the most regular transition used. "SECOND HALF" text is superimposed on 
 - scene_651.jpg
 - scene_686.jpg
 - scene_687.jpg
+- scene_702.jpg
+- scene_703.jpg
+- scene_750.jpg
+- scene_751.jpg
 
 **Manual screenshot**
 - docs/screenshots/transition_graphics.png
@@ -384,10 +410,11 @@ There doesn't seem to be a transition animation used here. We normally get a zoo
 - Match 4: scene_517.jpg
 - Match 5: scene_630.jpg
 - Match 6: scene_690.jpg
+- Match 7: scene_770.jpg
 
 **VAR During highlights**
 
-This shouldn't be identified as a transition per se, but here are some examples.
+This shouldn't be identified as a transition per se as it'll still be the same game, but here are some examples.
 
 **Auto-extracted frames**
 
@@ -399,7 +426,6 @@ This shouldn't be identified as a transition per se, but here are some examples.
 - scene_456.jpg
 - scene_457.jpg
 - scene_458.jpg
-
 
 ---
 
