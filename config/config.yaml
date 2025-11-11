@@ -13,17 +13,31 @@ ocr:
 
   # Regions of interest (ROI) for OCR - adjust based on video resolution
   # These coordinates are for 1920x1080 video
+  # Multi-tiered strategy: FT scores (primary) > scoreboards (backup) > formations (validation)
   regions:
-    scoreboard:                # Top-left scoreboard graphic
+    ft_score:                  # Lower-middle full-time score graphic (PRIMARY - 90-95% auto-capture)
+      x: 800
+      y: 900
+      width: 320
+      height: 120
+    scoreboard:                # Top-left live scoreboard graphic (SECONDARY - ubiquitous but motion-blurred)
       x: 0
       y: 0
       width: 400
       height: 100
-    formation:                 # Bottom-right formation graphic
+    formation:                 # Bottom-right formation graphic (VALIDATION - manual screenshots)
       x: 800
       y: 600
       width: 1120              # 1920 - 800 = 1120 (extends to right edge)
       height: 480              # 1080 - 600 = 480 (extends to bottom edge)
+
+  # Scene filtering based on Task 009a reconnaissance findings
+  # Target: 810 → 160-240 scenes (70-80% reduction)
+  filtering:
+    skip_intro_seconds: 50           # Skip first 50 seconds (intro + theme song)
+    motd2_interlude_start: 3121      # MOTD 2 interlude start (52:01 = 52*60+1)
+    motd2_interlude_end: 3167        # MOTD 2 interlude end (52:47 = 52*60+47)
+    min_scene_duration: 2.0          # Skip scenes <2 seconds (transitions)
 
 # Transcription Configuration
 transcription:

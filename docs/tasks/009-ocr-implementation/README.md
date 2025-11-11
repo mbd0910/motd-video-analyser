@@ -4,19 +4,59 @@
 Implement fixture-aware OCR to extract team names from video frames and validate them against expected fixtures.
 
 ## Prerequisites
-- [008-scene-detection-testing.md](008-scene-detection-testing.md) completed
-- Key frames extracted from test video
+- Task 008 completed (scene detection + 810 frames extracted from test video)
+- Test data: `data/cache/motd_2025-26_2025-11-01/scenes.json` and frames
+- Fixtures: `data/fixtures/premier_league_2025_26.json` (7 matches for 2025-11-01)
+- Teams: `data/teams/premier_league_2025_26.json` (20 PL teams)
 
-## Epic Overview
-This is a larger epic that you should consider splitting into sub-tasks:
-1. Implement OCR reader module (EasyOCR integration)
-2. Implement team matcher (fuzzy matching against team list, fixture-aware)
-3. Implement fixture matcher (validate OCR against expected fixtures)
-4. Create OCR CLI command with fixture support
-5. Run on test video frames
-6. Validate team detection accuracy (target: >95% with fixtures)
-7. **If accuracy <90%**: Evaluate multi-frame extraction strategy (see Notes below)
-8. Tune OCR regions if needed
+## Epic Subtasks
+
+This epic is split into 7 subtasks:
+
+- [ ] **[009a: Visual Pattern Reconnaissance](009a-visual-pattern-reconnaissance.md)** (1-1.5 hours)
+  - Document MOTD visual patterns by browsing test video and frames
+  - Create episode manifest linking episode to expected fixtures
+  - Identify formation graphics, scoreboards, intro/outro timecodes
+  - Output: `docs/motd_visual_patterns.md` + `data/episodes/episode_manifest.json`
+
+- [ ] **[009b: Implement OCR Reader](009b-implement-ocr-reader.md)** (1-1.5 hours)
+  - Create OCR reader module with EasyOCR
+  - Extract text from scoreboard and formation graphic regions
+  - Test on sample frames from 009a
+  - Output: `src/motd/ocr/reader.py`
+
+- [ ] **[009c: Implement Team Matcher](009c-implement-team-matcher.md)** (1-1.5 hours)
+  - Create fuzzy matching for team names (handles abbreviations, OCR errors)
+  - Support fixture-aware matching (candidate teams from fixtures)
+  - Handle multiple teams in text ("Brighton 2-0 Leeds")
+  - Output: `src/motd/ocr/team_matcher.py`
+
+- [ ] **[009d: Implement Fixture Matcher](009d-implement-fixture-matcher.md)** (1 hour)
+  - Load fixtures and episode manifest
+  - Validate OCR results against expected fixtures
+  - Boost confidence when fixture validates OCR
+  - Flag unexpected teams
+  - Output: `src/motd/ocr/fixture_matcher.py`
+
+- [ ] **[009e: Create OCR CLI Command](009e-create-ocr-cli.md)** (1 hour)
+  - Add `extract-teams` command to CLI
+  - Implement smart scene filtering (skip intro, transitions, studio)
+  - Wire up OCR → team matcher → fixture matcher pipeline
+  - Output structured JSON with results
+  - Output: Updated `src/motd/__main__.py`
+
+- [ ] **[009f: Run OCR on Test Video](009f-run-ocr-on-test-video.md)** (30-45 min + processing)
+  - Execute CLI command on test video
+  - Process filtered scenes (~100-300 of 810)
+  - Collect OCR results
+  - Output: `data/cache/motd_2025-26_2025-11-01/ocr_results.json`
+
+- [ ] **[009g: Validate and Tune](009g-validate-and-tune.md)** (1-1.5 hours + tuning if needed)
+  - Manual validation against 7 expected fixtures
+  - Calculate accuracy metrics (target: >95%)
+  - Analyze failure patterns
+  - Tune if needed: regions, thresholds, multi-frame extraction
+  - Output: Validation documentation with final accuracy
 
 ## Key Deliverables
 
@@ -60,7 +100,19 @@ python -m motd_analyzer extract-teams \
 - [ ] Team name variations matched correctly
 
 ## Estimated Time
-4-5 hours (includes fixture matcher implementation)
+7-9 hours total (revised from original 4-5 hours):
+- 009a: 1-1.5 hours (reconnaissance + episode manifest)
+- 009b: 1-1.5 hours (OCR reader)
+- 009c: 1-1.5 hours (team matcher)
+- 009d: 1 hour (fixture matcher)
+- 009e: 1 hour (CLI command)
+- 009f: 30-45 min + 10-30 min processing
+- 009g: 1-1.5 hours + tuning if needed
+
+**Key learnings from Task 008:**
+- 810 scenes detected (vs expected 40-80) due to low threshold for capturing walkouts
+- Smart filtering needed to reduce processing load
+- Formation graphics during walkouts are high-priority OCR targets
 
 ## Notes
 

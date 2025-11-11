@@ -222,3 +222,6 @@ logs/
 *.pt
 *.pth
 *.onnx
+
+# macOS system files
+.DS_Store
