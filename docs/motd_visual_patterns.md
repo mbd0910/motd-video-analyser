@@ -11,13 +11,26 @@
 ### Overview
 | Segment Type | Start Time | End Time | Duration | Notes |
 |-------------|------------|----------|----------|-------|
-| Intro Sequence | 00:00:00 | XX:XX:XX | ~X min | Standard MOTD intro |
-| Match 1 | XX:XX:XX | XX:XX:XX | ~X min | [Team A] vs [Team B] |
-| Studio Analysis 1 | XX:XX:XX | XX:XX:XX | ~X min | Post-match discussion |
-| Match 2 | XX:XX:XX | XX:XX:XX | ~X min | [Team C] vs [Team D] |
-| Studio Analysis 2 | XX:XX:XX | XX:XX:XX | ~X min | |
-| Match 3 | XX:XX:XX | XX:XX:XX | ~X min | |
-| ... | | | | Continue pattern |
+| Intro Sequence | 00:00:00 | 00:00:50 | 00:50 | Standard MOTD intro. |
+
+| Match 1: Introduction | 00:00:50 | 01:10 | 00:20 | Host introducing match 1 |
+| Match 1: Team walkouts | 01:11 | 01:28 | 0:17 | Teams coming out of the tunnel |
+| Match 1: Whole screen Formation Graphics | 01:29 | 01:50 | 0:21 | Whole screen formation graphics for first match |
+| Match 1: First half highlights | 01:51 | 06:18 | 04:27 | First half highlights |
+| Match 1: Second half animation | 06:18 | 06:20 | 0:02 | Showing second half animation |
+| Match 1: Second half highlights | 06:20 | 10:11 | 4:51 | Second half highlights |
+| Match 1: Interviews | 10:11 | 11:03 | 0:52 | Interviews then back to studio |
+| Match 1: Studio Analysis | 11:04 | 14:25 | 03:21 | Post-match discussion |
+
+| Match 2: Introduction | 00:14:25 | 00:14:36 | 00:11 | Host introducing match 2 |
+| Match 2: Team warmup and lower screen formation graphics | 00:14:36 | 15:11 | 0:35 | Liverpool v Villa |
+| Match 2: First half highlights | 15:11 | 19:42 | 04:31 | First half highlights |
+| Match 2: Second half animation | 19:42 | 19:43 | 00:02 | Showing second half animation |
+| Match 2: Second half highlights | 19:43 | 22:09 | 02:26 | Second half highlights |
+| Match 2: Interviews | 22:09 | 22:57 | 0:48 | Interviews then back to studio
+| Match 2: Studio Analysis | 22:57 | 26:27 | 03:30 | Post-match discussion |
+
+
 | Outro | XX:XX:XX | XX:XX:XX | ~X min | Credits/next week preview |
 
 ### Key Timecodes
@@ -26,8 +39,8 @@
 - **Total episode duration:** XX:XX:XX
 
 ### Running Order (Matches)
-1. [Team A] vs [Team B] - starts at XX:XX:XX
-2. [Team C] vs [Team D] - starts at XX:XX:XX
+1. Liverpool v Aston Villa - starts at 00:00:50
+2. Burnley v Arsenal - starts at 00:14:25
 3. [Team E] vs [Team F] - starts at XX:XX:XX
 4. ... (continue for all matches)
 
@@ -38,27 +51,40 @@
 ### 1. Intro Sequence
 **Visual characteristics:**
 - [Describe what the intro looks like]
-- [Music, graphics, animations]
+- Very distinctive music: we could definitely identify the end of the intro based on the end of the MOTD theme song.
 
-**Duration:** ~XX seconds (typically consistent across episodes)
+**Duration:** 49 seconds. Typically consistent across episodes, but could be rare edge cases I imagine.
 
 **Auto-extracted frames showing intro:**
-- scene_XXX.jpg - [brief description]
-- scene_XXX.jpg - [brief description]
+- scene_001.jpg - 
+- scene_120.jpg - Liverpool team lifting last season's Premier League
+- scene_121.jpg - logos start spinning around
+- scene_122.jpg - logos still spinning around
+- scene_123.jpg - logos still spinning around
+- scene_124.jpg - logos still spinning around
+- scene_125.jpg - host on screen: end of intro
+
 
 **Notes for OCR:**
-- Can skip first ~XX seconds of every episode (no team graphics in intro)
-- Intro is identical week-to-week (could detect and skip automatically)
+- This intro sequence will be identical week-to-week, but there's a possibility that this could be played before or after some other footage should there be something major happening in the football world or in current affairs.
 
 ---
 
-### 2. Formation Graphics
+### 2. Teams walking out and warming up
 **Visual characteristics:**
-- **Location on screen:** [e.g., bottom-right corner, full bottom third, etc.]
+- **Location on screen:** Entire screen
+- This can vary - very dependent on match order (first game might show teams coming out of a tunnel, later games might immediately show players on the pitch)
+- There will always be some sort of pre-match visualisation between the host's introduction. (from the studio) and the actual footage of the game starting - players walking out of the tunnel or players warming up.
+
+---
+
+### 3a. Whole Screen Formation Graphics
+**Visual characteristics:**
+- **Location on screen:** Spanning almost entire screen
 - **Text colour:** [e.g., white, yellow]
-- **Background:** [e.g., semi-transparent dark overlay, team colour gradient]
-- **Font style:** [e.g., BBC Sport font, bold, uppercase]
-- **Additional elements:** [e.g., club badges, player names, formation diagram]
+- **Background:** Yellow
+- **Font style:** BBC Sport Font
+- **Additional elements:** Club names, club badge, head coach, player headshots, recent form, substitutes list
 
 **When they appear:**
 - [e.g., at start of match highlights during team walkout]
@@ -66,9 +92,7 @@
 - **Typical duration visible:** ~X seconds
 
 **Auto-extracted frames showing formation graphics:**
-- scene_XXX.jpg - [Team A] vs [Team B] formation (timestamp XX:XX:XX)
-- scene_XXX.jpg - [Team C] vs [Team D] formation (timestamp XX:XX:XX)
-- scene_XXX.jpg - [another example]
+- scene_XXX.jpg - FAILED TO CAPTURE IN PREVIOUS EPIC
 
 **Text examples visible in graphics:**
 - [e.g., "BRIGHTON & HOVE ALBION" or "Brighton" or "BRIGHTON"]
@@ -77,11 +101,118 @@
 
 **Notes for OCR:**
 - These are the HIGHEST QUALITY frames for team detection
-- Text is static, clear, well-contrasted
+- Text is static, clear, well-call rightontrasted
 - Should prioritise these frames over scoreboard graphics
-- OCR region should focus on [specific area description]
+
+**Manual screenshot**
+- docs/screenshots/aston_villa_whole_screen_formation.png
+- docs/screenshots/liverpool_whole_screen_formation.png
 
 ---
+
+### 3b. Bottom of screen formation graphics
+
+Other games get this lesser treatment, with lineups just being shown at the bottom of the screen
+
+**Visual characteristics:**
+- **Location on screen:** Bottom third of the screen
+- **Text colour:** Black
+- **Background:** Yellow
+- **Font style:** BBC Sport Font
+- **Additional elements:** Formation visualisation in bottom right
+
+**When they appear:**
+- From 2nd match onwards. Once we've gone from the studio to the first half highlights.
+
+**Auto-extracted frames showing formation graphics:**
+- scene_243.jpg
+- scene_246.jpg
+- scene_247.jpg
+
+---
+
+### 4. First half highlights graphics
+
+**Visual characteristics:**
+- **Location on screen:** Whole screen
+- **Text colour:** N/A
+- **Background:** N/A
+- **Font style:** N/A
+- **Additional elements:** N/A
+
+**Auto-extracted frames**
+- scene_132.jpg 
+- scene_133.jpg
+
+---
+
+### 5. Second half indicator
+
+This isn't capture perfectly in the auto-extracted frames, but is hopefully good enough.
+
+**Visual characteristics:**
+- **Location on screen:** Whole screen
+- **Text colour:** N/A
+- **Background:** N/A
+- **Font style:** N/A
+- **Additional elements:** N/A
+
+**Auto-extracted frames**
+- scene_194.jpg 
+- scene_195.jpg
+- scene_288.jpg
+- scene_289.jpg
+
+**Manual screenshot**
+- docs/screenshots/second_half.png
+
+---
+
+### 6. Full Time Score graphics
+
+**Visual characteristics:**
+- **Location on screen:** Lower middle of screen
+- **Text colour:** Black
+- **Background:** Yellow top left, white towards bottom gradient, top right shows Premier League symbol and colours
+- **Font style:** BBC sport font
+- **Additional elements:** N/A
+
+**Auto-extracted frames**
+- scene_219.jpg
+- scene_220.jpg
+- scene_221.jpg
+- scene_312.jpg
+
+**Manual screenshot**
+- docs/screenshots/liverpool_aston_villa_ft_score.png
+
+---
+
+### 7. Post match interview examples
+
+Generally a single person (sometimes players interviewed together or with a translator as well, but much more rare) being interviewed. Can be interspersed with footage from the game showing what they're being questioned about, so the key thing is identifying the transition back to the studio after the interviews.
+
+**Visual characteristics:**
+- **Location on screen:** Whole screen
+- **Text colour:** N/A
+- **Background:** Playeres/managers generally stand in front of a board showing lots of sponsors (company logoes!)
+- **Font style:** N/A
+- **Additional elements:** N/A
+
+**Auto-extracted frames**
+- scene_228.jpg
+- scene_229.jpg
+- scene_233.jpg
+- scene_316.jpg
+
+In Match 2, the Burnley manager was not captured in any of the auto-extracted frames.
+
+**Manual screenshot**
+- docs/screenshots/scott_parker.png
+
+
+---
+
 
 ### 3. Scoreboard Graphics
 **Visual characteristics:**
@@ -142,6 +273,16 @@
 **Studio → Match:**
 - [Describe transition]
 - Auto-extracted frame example: scene_XXX.jpg
+
+**Auto-extracted frames**
+- scene_222.jpg
+- scene_250.jpg
+- scene_251.jpg
+- scene_313.jpg
+- scene_314.jpg
+
+**Manual screenshot**
+- docs/screenshots/transition_graphics.png
 
 **Match Highlights Internal Structure:**
 1. [e.g., Team walkout with formation graphic]
