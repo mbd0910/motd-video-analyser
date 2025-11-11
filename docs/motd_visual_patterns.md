@@ -60,6 +60,13 @@ Manual screenshot here of the advert for tomorrow's show:
 | Match 5: Interviews | 1:00:49 | 1:01:44 | 0:55 | Interviews then back to studio |
 | Match 5: Studio Analysis | 1:01:44 | 1:04:54 | 03:10 | Post-match discussion |
 
+| Match 6: Introduction | 1:04:54 | 1:05:03 | 00:09 | Host introducing match 6 |
+| Match 6: Team warmup and lower screen formation graphics | 1:05:03 | 1:05:46 | 0:43 | Lower key formation graphics for sixth match |
+| Match 6: First half highlights | 1:05:46 | 1:07:54 | 02:08 | First half highlights |
+| Match 6: Second half animation | 1:07:54 | 1:07:55 | 00:01 | Showing second half animation |
+| Match 6: Second half highlights | 1:07:55 | 1:11:44 | 03:49 | Second half highlights |
+| Match 6: Interviews | 1:11:44 | 1:12:30 | 0:46 | Interviews then back to studio |
+| Match 6: Studio Analysis | 1:12:30 | 1:14:40 | 02:10 | Post-match discussion |
 
 | Outro | XX:XX:XX | XX:XX:XX | ~X min | Credits/next week preview |
 
@@ -74,6 +81,7 @@ Manual screenshot here of the advert for tomorrow's show:
 3. Forest vs Manchester United - starts at 00:26:27
 4. Fulham v Wolves - starts at 00:41:49
 5. Spurs v Chelsea - starts at 00:52:48
+6. Brighton v Leeds - starts at 1:04:54
 
 ---
 
@@ -160,10 +168,16 @@ Other games get this lesser treatment, with lineups just being shown at the bott
 - scene_246.jpg
 - scene_247.jpg
 - scene_439.jpg
+- scene_644.jpg
+- scene_645.jpg
+- scene_647.jpg
+- scene_648.jpg
+- scene_649.jpg
 
 These were not captured automatically for match 3
 Only captured for Wolves (not Fulham) in match 4
 Neither captured automatically for match 5
+Brighton's partially captured in match 6
 
 **Manual screenshot**
 - docs/screenshots/forest_lower_screen_formation.png
@@ -215,6 +229,8 @@ This isn't always captured perfectly in the auto-extracted frames, but there are
 - scene_589.jpg
 - scene_590.jpg
 - scene_591.jpg
+- scene_666.jpg
+- scene_667.jpg
 
 **Manual screenshot**
 - docs/screenshots/second_half.png
@@ -243,6 +259,7 @@ This is a great indicator that the second half highlights are about to end and w
 - docs/screenshots/liverpool_aston_villa_ft_score.png
 - docs/screenshots/fulham_wolves_ft_score.png
 - docs/screenshots/spurs_chelsea_ft_score.png
+- docs/screenshots/brighton_leeds_ft_score.png
 
 ---
 
@@ -272,6 +289,8 @@ Generally a single person (sometimes players interviewed together or with a tran
 - docs/screenshots/ryan_sessegnon.png
 - docs/screenshots/enzo_maresca.png
 - docs/screenshots/thomas_frank.png
+- docs/screenshots/daniel_farke.png
+- docs/screenshots/fabian_hurzeler.png
 
 ---
 
@@ -346,6 +365,9 @@ This is the most regular transition used. "SECOND HALF" text is superimposed on 
 - scene_502.jpg
 - scene_503.jpg
 - scene_504.jpg
+- scene_651.jpg
+- scene_686.jpg
+- scene_687.jpg
 
 **Manual screenshot**
 - docs/screenshots/transition_graphics.png
@@ -361,6 +383,7 @@ There doesn't seem to be a transition animation used here. We normally get a zoo
 - Match 3: scene_419.jpg
 - Match 4: scene_517.jpg
 - Match 5: scene_630.jpg
+- Match 6: scene_690.jpg
 
 **VAR During highlights**
 
