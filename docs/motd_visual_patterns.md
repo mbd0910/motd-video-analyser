@@ -38,6 +38,20 @@
 | Match 3: Interviews | 35:25 | 36:39 | 1:14 | Interviews then back to studio |
 | Match 3: Studio Analysis | 36:39 | 41:49 | 05:10 | Post-match discussion |
 
+| Match 4: Introduction | 00:41:49 | 00:41:57 | 00:08 | Host introducing match 4 |
+| Match 4: Team warmup and lower screen formation graphics | 00:41:57 | 00:42:35 | 0:38 | Lower key formation graphics for fourth match |
+| Match 4: First half highlights | 42:35 | 44:38 | 02:03 | First half highlights |
+| Match 4: Second half animation | 44:39 | 44:40 | 00:01 | Showing second half animation |
+| Match 4: Second half highlights | 44:40 | 48:06 | 03:26 | Second half highlights |
+| Match 4: Interviews | 48:06 | 49:45 | 1:39 | Interviews then back to studio |
+| Match 4: Studio Analysis | 49:45 | 51:58 | 02:13 | Post-match discussion |
+
+| MOTD 2 Interlude | 52:01 | 52:47 | 00:46 | MOTD 2 advert and other upcoming football events on the BBC. We want to exclude this ideally |
+
+Manual screenshot here of the advert for tomorrow's show:
+* docs/screenshots/motd_2_details
+* Various other adverts, I can provide more screenshots if required but we'll never really be able to predict the exact format of them
+
 
 
 
@@ -52,7 +66,8 @@
 1. Liverpool v Aston Villa - starts at 00:00:50
 2. Burnley v Arsenal - starts at 00:14:25
 3. Forest vs Manchester United - starts at 00:26:27
-4. ... (continue for all matches)
+4. Fulham v Wolves - starts at 00:41:49
+
 
 ---
 
@@ -138,12 +153,15 @@ Other games get this lesser treatment, with lineups just being shown at the bott
 - scene_243.jpg
 - scene_246.jpg
 - scene_247.jpg
+- scene_439.jpg
 
 These were not captured automatically for match 3
+Only captured for Wolves (not Fulham) in match 4
 
 **Manual screenshot**
 - docs/screenshots/forest_lower_screen_formation.png
 - docs/screenshots/man_utd_lower_screen_formation.png
+- docs/screenshots/fulham_lower_screen_formation.png
 
 ---
 
@@ -164,11 +182,11 @@ These were not captured automatically for match 3
 
 ### 5. Second half indicator
 
-This isn't capture perfectly in the auto-extracted frames, but is hopefully good enough.
+This isn't always captured perfectly in the auto-extracted frames, but there are hopefully enough examples provided and a manual screenshot. It's the classic transition graphic with "SECOND HALF" in huge white text super-imposed on top.
 
 **Visual characteristics:**
 - **Location on screen:** Whole screen
-- **Text colour:** N/A
+- **Text colour:** White
 - **Background:** N/A
 - **Font style:** N/A
 - **Additional elements:** N/A
@@ -180,6 +198,10 @@ This isn't capture perfectly in the auto-extracted frames, but is hopefully good
 - scene_289.jpg
 - scene_357.jpg
 - scene_358.jpg
+- scene_462.jpg
+- scene_463.jpg
+- scene_464.jpg
+- scene_465.jpg
 
 **Manual screenshot**
 - docs/screenshots/second_half.png
@@ -187,6 +209,8 @@ This isn't capture perfectly in the auto-extracted frames, but is hopefully good
 ---
 
 ### 6. Full Time Score graphics
+
+This is a great indicator that the second half highlights are about to end and we'll be transitioning into the interview segment.
 
 **Visual characteristics:**
 - **Location on screen:** Lower middle of screen
@@ -204,6 +228,7 @@ This isn't capture perfectly in the auto-extracted frames, but is hopefully good
 
 **Manual screenshot**
 - docs/screenshots/liverpool_aston_villa_ft_score.png
+- docs/screenshots/fulham_wolves_ft_score.png
 
 ---
 
@@ -216,7 +241,7 @@ Generally a single person (sometimes players interviewed together or with a tran
 - **Text colour:** N/A
 - **Background:** Player/managers generally stand in front of a board showing lots of sponsors (company logoes!)
 - **Font style:** N/A
-- **Additional elements:** When a new player or manager is interviewed, their name is displayed in a box in the bottom left hand corner. If we cut to another player and back to a player we've already heard from, we don't show their name again.
+- **Additional elements:** When a new player or manager is interviewed, their name is displayed in a box in the bottom left hand corner. If we cut to another player and back to a player we've already heard from, we don't show their name again. We've got very few examples of these in the auto-extracted frames.
 
 **Auto-extracted frames**
 - scene_228.jpg
@@ -224,13 +249,14 @@ Generally a single person (sometimes players interviewed together or with a tran
 - scene_233.jpg
 - scene_316.jpg
 - scene_407.jpg
+- scene_506.jpg
 
 In Match 2, the Burnley manager was not captured in any of the auto-extracted frames.
 
 **Manual screenshot**
 - docs/screenshots/scott_parker.png
 - docs/screenshots/callum_hudson_adoi.png
-
+- docs/screenshots/ryan_sessegnon.png
 
 ---
 
@@ -299,6 +325,12 @@ This is the most regular transition used. "SECOND HALF" text is superimposed on 
 - scene_404.jpg
 - scene_405.jpg
 - scene_406.jpg
+- scene_440.jpg
+- scene_441.jpg
+- scene_442.jpg
+- scene_502.jpg
+- scene_503.jpg
+- scene_504.jpg
 
 **Manual screenshot**
 - docs/screenshots/transition_graphics.png
@@ -312,6 +344,23 @@ There doesn't seem to be a transition animation used here. We normally get a zoo
 - Match 1: scene_234.jpg
 - Match 2: scene_320.jpg
 - Match 3: scene_419.jpg
+- Match 4: scene_517.jpg
+
+**VAR During highlights**
+
+This shouldn't be identified as a transition per se, but here are some examples.
+
+**Auto-extracted frames**
+
+- scene_451.jpg
+- scene_452.jpg
+- scene_453.jpg
+- scene_454.jpg
+- scene_455.jpg
+- scene_456.jpg
+- scene_457.jpg
+- scene_458.jpg
+
 
 ---
 
