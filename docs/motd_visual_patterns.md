@@ -23,12 +23,22 @@
 | Match 1: Studio Analysis | 11:04 | 14:25 | 03:21 | Post-match discussion |
 
 | Match 2: Introduction | 00:14:25 | 00:14:36 | 00:11 | Host introducing match 2 |
-| Match 2: Team warmup and lower screen formation graphics | 00:14:36 | 15:11 | 0:35 | Liverpool v Villa |
+| Match 2: Team warmup and lower screen formation graphics | 00:14:36 | 15:11 | 0:35 | Lower key formation graphics for second match |
 | Match 2: First half highlights | 15:11 | 19:42 | 04:31 | First half highlights |
 | Match 2: Second half animation | 19:42 | 19:43 | 00:02 | Showing second half animation |
 | Match 2: Second half highlights | 19:43 | 22:09 | 02:26 | Second half highlights |
-| Match 2: Interviews | 22:09 | 22:57 | 0:48 | Interviews then back to studio
+| Match 2: Interviews | 22:09 | 22:57 | 0:48 | Interviews then back to studio |
 | Match 2: Studio Analysis | 22:57 | 26:27 | 03:30 | Post-match discussion |
+
+| Match 3: Introduction | 00:26:27 | 00:26:38 | 00:11 | Host introducing match 3 |
+| Match 3: Team warmup and lower screen formation graphics | 00:26:38 | 00:27:25 | 0:47 | Lower key formation graphics for third match |
+| Match 3: First half highlights | 27:25 | 29:50 | 02:25 | First half highlights |
+| Match 3: Second half animation | 29:50 | 29:52 | 00:02 | Showing second half animation |
+| Match 3: Second half highlights | 29:52 | 35:25 | 05:33 | Second half highlights |
+| Match 3: Interviews | 35:25 | 36:39 | 1:14 | Interviews then back to studio |
+| Match 3: Studio Analysis | 36:39 | 41:49 | 05:10 | Post-match discussion |
+
+
 
 
 | Outro | XX:XX:XX | XX:XX:XX | ~X min | Credits/next week preview |
@@ -41,7 +51,7 @@
 ### Running Order (Matches)
 1. Liverpool v Aston Villa - starts at 00:00:50
 2. Burnley v Arsenal - starts at 00:14:25
-3. [Team E] vs [Team F] - starts at XX:XX:XX
+3. Forest vs Manchester United - starts at 00:26:27
 4. ... (continue for all matches)
 
 ---
@@ -129,6 +139,12 @@ Other games get this lesser treatment, with lineups just being shown at the bott
 - scene_246.jpg
 - scene_247.jpg
 
+These were not captured automatically for match 3
+
+**Manual screenshot**
+- docs/screenshots/forest_lower_screen_formation.png
+- docs/screenshots/man_utd_lower_screen_formation.png
+
 ---
 
 ### 4. First half highlights graphics
@@ -162,6 +178,8 @@ This isn't capture perfectly in the auto-extracted frames, but is hopefully good
 - scene_195.jpg
 - scene_288.jpg
 - scene_289.jpg
+- scene_357.jpg
+- scene_358.jpg
 
 **Manual screenshot**
 - docs/screenshots/second_half.png
@@ -182,6 +200,7 @@ This isn't capture perfectly in the auto-extracted frames, but is hopefully good
 - scene_220.jpg
 - scene_221.jpg
 - scene_312.jpg
+- scene_401.jpg
 
 **Manual screenshot**
 - docs/screenshots/liverpool_aston_villa_ft_score.png
@@ -195,20 +214,22 @@ Generally a single person (sometimes players interviewed together or with a tran
 **Visual characteristics:**
 - **Location on screen:** Whole screen
 - **Text colour:** N/A
-- **Background:** Playeres/managers generally stand in front of a board showing lots of sponsors (company logoes!)
+- **Background:** Player/managers generally stand in front of a board showing lots of sponsors (company logoes!)
 - **Font style:** N/A
-- **Additional elements:** N/A
+- **Additional elements:** When a new player or manager is interviewed, their name is displayed in a box in the bottom left hand corner. If we cut to another player and back to a player we've already heard from, we don't show their name again.
 
 **Auto-extracted frames**
 - scene_228.jpg
 - scene_229.jpg
 - scene_233.jpg
 - scene_316.jpg
+- scene_407.jpg
 
 In Match 2, the Burnley manager was not captured in any of the auto-extracted frames.
 
 **Manual screenshot**
 - docs/screenshots/scott_parker.png
+- docs/screenshots/callum_hudson_adoi.png
 
 
 ---
@@ -266,13 +287,7 @@ In Match 2, the Burnley manager was not captured in any of the auto-extracted fr
 ### 5. Transition Patterns
 **How MOTD transitions between segments:**
 
-**Match → Studio:**
-- [Describe transition, e.g., fade to black, cut, graphic animation]
-- Auto-extracted frame example: scene_XXX.jpg
-
-**Studio → Match:**
-- [Describe transition]
-- Auto-extracted frame example: scene_XXX.jpg
+This is the most regular transition used. "SECOND HALF" text is superimposed on top to indicate the teams swapping ends and the second half starting.
 
 **Auto-extracted frames**
 - scene_222.jpg
@@ -280,9 +295,25 @@ In Match 2, the Burnley manager was not captured in any of the auto-extracted fr
 - scene_251.jpg
 - scene_313.jpg
 - scene_314.jpg
+- scene_333.jpg
+- scene_404.jpg
+- scene_405.jpg
+- scene_406.jpg
 
 **Manual screenshot**
 - docs/screenshots/transition_graphics.png
+
+**Interviews -> Studio:**
+
+There doesn't seem to be a transition animation used here. We normally get a zoomed out view of the hosts and pundits in the studio, flanked/accompanied by graphics of a couple of key players who featured in the game.
+
+**Auto-extracted frames**
+
+- Match 1: scene_234.jpg
+- Match 2: scene_320.jpg
+- Match 3: scene_419.jpg
+
+---
 
 **Match Highlights Internal Structure:**
 1. [e.g., Team walkout with formation graphic]
