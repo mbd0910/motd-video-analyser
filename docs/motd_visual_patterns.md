@@ -52,7 +52,13 @@ Manual screenshot here of the advert for tomorrow's show:
 * docs/screenshots/motd_2_details
 * Various other adverts, I can provide more screenshots if required but we'll never really be able to predict the exact format of them
 
-
+| Match 5: Introduction | 00:52:47 | 00:52:55 | 00:07 | Host introducing match 5 |
+| Match 5: Team warmup and lower screen formation graphics | 00:52:55 | 00:53:36 | 0:41 | Lower key formation graphics for fifth match |
+| Match 5: First half highlights | 53:36 | 58:14 | 04:38 | First half highlights |
+| Match 5: Second half animation | 58:14 | 58:15 | 00:01 | Showing second half animation |
+| Match 5: Second half highlights | 58:15 | 1:01:49 | 02:34 | Second half highlights |
+| Match 5: Interviews | 1:00:49 | 1:01:44 | 0:55 | Interviews then back to studio |
+| Match 5: Studio Analysis | 1:01:44 | 1:04:54 | 03:10 | Post-match discussion |
 
 
 | Outro | XX:XX:XX | XX:XX:XX | ~X min | Credits/next week preview |
@@ -67,7 +73,7 @@ Manual screenshot here of the advert for tomorrow's show:
 2. Burnley v Arsenal - starts at 00:14:25
 3. Forest vs Manchester United - starts at 00:26:27
 4. Fulham v Wolves - starts at 00:41:49
-
+5. Spurs v Chelsea - starts at 00:52:48
 
 ---
 
@@ -157,11 +163,14 @@ Other games get this lesser treatment, with lineups just being shown at the bott
 
 These were not captured automatically for match 3
 Only captured for Wolves (not Fulham) in match 4
+Neither captured automatically for match 5
 
 **Manual screenshot**
 - docs/screenshots/forest_lower_screen_formation.png
 - docs/screenshots/man_utd_lower_screen_formation.png
 - docs/screenshots/fulham_lower_screen_formation.png
+- docs/screenshots/spurs_lower_screen_formation.png
+- docs/screenshots/chelsea_lower_screen_formation.png
 
 ---
 
@@ -202,6 +211,10 @@ This isn't always captured perfectly in the auto-extracted frames, but there are
 - scene_463.jpg
 - scene_464.jpg
 - scene_465.jpg
+- scene_588.jpg
+- scene_589.jpg
+- scene_590.jpg
+- scene_591.jpg
 
 **Manual screenshot**
 - docs/screenshots/second_half.png
@@ -210,7 +223,7 @@ This isn't always captured perfectly in the auto-extracted frames, but there are
 
 ### 6. Full Time Score graphics
 
-This is a great indicator that the second half highlights are about to end and we'll be transitioning into the interview segment.
+This is a great indicator that the second half highlights are about to end and we'll be transitioning into the interview segment. Not always currently captured by our auto-extracted frames.
 
 **Visual characteristics:**
 - **Location on screen:** Lower middle of screen
@@ -229,12 +242,13 @@ This is a great indicator that the second half highlights are about to end and w
 **Manual screenshot**
 - docs/screenshots/liverpool_aston_villa_ft_score.png
 - docs/screenshots/fulham_wolves_ft_score.png
+- docs/screenshots/spurs_chelsea_ft_score.png
 
 ---
 
 ### 7. Post match interview examples
 
-Generally a single person (sometimes players interviewed together or with a translator as well, but much more rare) being interviewed. Can be interspersed with footage from the game showing what they're being questioned about, so the key thing is identifying the transition back to the studio after the interviews.
+Generally a single person (sometimes players interviewed together or with a translator as well, but much more rare) being interviewed. Can be interspersed with footage from the game showing what they're being questioned about, so the key thing is identifying the transition back to the studio after the interviews. When a new person is interviewed, their name and team is displayed in the bottom left corner.
 
 **Visual characteristics:**
 - **Location on screen:** Whole screen
@@ -250,13 +264,14 @@ Generally a single person (sometimes players interviewed together or with a tran
 - scene_316.jpg
 - scene_407.jpg
 - scene_506.jpg
-
-In Match 2, the Burnley manager was not captured in any of the auto-extracted frames.
+- scene_627.jpg
 
 **Manual screenshot**
 - docs/screenshots/scott_parker.png
 - docs/screenshots/callum_hudson_adoi.png
 - docs/screenshots/ryan_sessegnon.png
+- docs/screenshots/enzo_maresca.png
+- docs/screenshots/thomas_frank.png
 
 ---
 
@@ -345,6 +360,7 @@ There doesn't seem to be a transition animation used here. We normally get a zoo
 - Match 2: scene_320.jpg
 - Match 3: scene_419.jpg
 - Match 4: scene_517.jpg
+- Match 5: scene_630.jpg
 
 **VAR During highlights**
 
