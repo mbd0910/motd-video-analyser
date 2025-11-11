@@ -81,7 +81,7 @@ Manual screenshot here of the advert for tomorrow's show:
 * docs/screenshots/top_half_league_table.png
 * docs/screenshots/bottom_half_league_table.png
 
-| Outro Montage | 1:23:34 | 
+| Outro Montage | 1:23:34 | 1:23:59 | 0:24 | N/A |
 
 * scene_809.jpg 
 * scene_810.jpg
