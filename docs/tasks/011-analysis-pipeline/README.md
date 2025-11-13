@@ -16,6 +16,16 @@ This is the most complex epic - definitely split into sub-tasks:
 5. Run end-to-end on test video
 6. Validate full pipeline output
 
+### Future Enhancement: Theme Song Detection
+Consider adding MOTD theme song detection as part of segment classification:
+- Theme song occurs at predictable boundaries (start, between matches, end)
+- Can use audio fingerprinting (dejavu, auditok) or simpler heuristics
+- Helps identify transition points between segments
+- Alternative: Detect silence periods (20+ seconds without speech)
+- Output: `{"theme_song_timestamps": [0, 352, 1847, ...]}`
+
+This can be added during subtask breakdown or deferred to Task 013 (Tuning).
+
 ## Key Deliverables
 
 ### Segment Classifier (`src/motd_analyzer/analysis/segment_classifier.py`)
