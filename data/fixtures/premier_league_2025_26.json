@@ -1,7 +1,7 @@
 {
   "season": "2025-26",
   "competition": "Premier League",
-  "matches": [
+  "fixtures": [
     {
       "match_id": "2025-11-01-brighton-leeds",
       "date": "2025-11-01",
@@ -76,6 +76,61 @@
       "kickoff": "20:00",
       "final_score": {
         "home": 2,
+        "away": 0
+      }
+    },
+    {
+      "match_id": "2025-11-08-tottenham-manutd",
+      "date": "2025-11-08",
+      "home_team": "Tottenham Hotspur",
+      "away_team": "Manchester United",
+      "kickoff": "12:30",
+      "final_score": {
+        "home": 2,
+        "away": 2
+      }
+    },
+    {
+      "match_id": "2025-11-08-westham-burnley",
+      "date": "2025-11-08",
+      "home_team": "West Ham United",
+      "away_team": "Burnley",
+      "kickoff": "15:00",
+      "final_score": {
+        "home": 3,
+        "away": 2
+      }
+    },
+    {
+      "match_id": "2025-11-08-everton-fulham",
+      "date": "2025-11-08",
+      "home_team": "Everton",
+      "away_team": "Fulham",
+      "kickoff": "15:00",
+      "final_score": {
+        "home": 2,
+        "away": 0
+      }
+    },
+    {
+      "match_id": "2025-11-08-sunderland-arsenal",
+      "date": "2025-11-08",
+      "home_team": "Sunderland",
+      "away_team": "Arsenal",
+      "kickoff": "17:30",
+      "final_score": {
+        "home": 2,
+        "away": 2
+      }
+    },
+    {
+      "match_id": "2025-11-08-chelsea-wolves",
+      "date": "2025-11-08",
+      "home_team": "Chelsea",
+      "away_team": "Wolverhampton Wanderers",
+      "kickoff": "20:00",
+      "final_score": {
+        "home": 3,
         "away": 0
       }
     }

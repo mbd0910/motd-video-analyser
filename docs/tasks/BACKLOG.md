@@ -28,10 +28,17 @@ This directory contains discrete, actionable tasks for building the MOTD Analyse
 
 ---
 
-## Phase 2: OCR & Team Detection (Task 009 - Epic)
-- ⏳ [009-ocr-implementation](009-ocr-implementation/) - EasyOCR integration, fixture-aware team matching, CLI, validation
+## Phase 2: OCR & Team Detection (Task 009 - Epic) ✅
+- ✅ [009-ocr-implementation](009-ocr-implementation/) - EasyOCR integration, fixture-aware team matching, CLI, validation
+  - ✅ 009a: Visual pattern reconnaissance (31 screenshots, strategic pivot to FT graphics)
+  - ✅ 009b: OCR reader implementation with EasyOCR (GPU-accelerated, multi-tiered extraction)
+  - ✅ 009c: Team matcher with fuzzy matching (rapidfuzz, 100% accuracy on test cases)
+  - ✅ 009d: Fixture matcher for validation (confidence boost, 0 false positives)
+  - ✅ 009e: CLI integration (`extract-teams` command with smart filtering)
+  - ✅ 009f: Run on test video and validate accuracy
+  - ✅ 009g: Validation and tuning (100% accuracy achieved, no tuning required)
 
-**Note**: This is an epic - split into smaller subtasks before starting. Fixture-aware matching improves accuracy from ~85-90% to 95%+.
+**Results**: Episode 01.11: 14/14 teams (100%); Episode 08.11: 10/10 teams (100%); 0 false positives; smart filtering reduces scenes by ~50%
 
 **Estimated Time**: 4-5 hours
 

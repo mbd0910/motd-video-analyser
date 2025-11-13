@@ -11,36 +11,36 @@ Create OCR reader module with EasyOCR integration, optimized using findings from
 ## Tasks
 
 ### 1. Create OCR Reader Module (45-60 min)
-- [ ] Create `src/motd/ocr/reader.py` with `OCRReader` class
-- [ ] Initialize EasyOCR with English language support
-- [ ] Support GPU/CPU mode from config
-- [ ] Implement region-based OCR extraction:
-  - [ ] `extract_ft_score()` - lower-middle region (full-time score graphic)
-  - [ ] `extract_scoreboard()` - top-left region (live scoreboard)
-  - [ ] `extract_formation()` - bottom-right region (formation graphic)
-  - [ ] `extract_all_regions()` - run all regions on a frame
-- [ ] Return structured results with text, confidence, and region type
+- [x] Create `src/motd/ocr/reader.py` with `OCRReader` class
+- [x] Initialize EasyOCR with English language support
+- [x] Support GPU/CPU mode from config
+- [x] Implement region-based OCR extraction:
+  - [x] `extract_ft_score()` - lower-middle region (full-time score graphic)
+  - [x] `extract_scoreboard()` - top-left region (live scoreboard)
+  - [x] `extract_formation()` - bottom-right region (formation graphic)
+  - [x] `extract_all_regions()` - run all regions on a frame
+- [x] Return structured results with text, confidence, and region type
 
 ### 2. Optimize Based on Reconnaissance Findings (15-30 min)
-- [ ] Review `docs/motd_visual_patterns.md` OCR recommendations
-- [ ] Adjust OCR regions in config based on multi-tiered strategy:
-  - [ ] **Add FT score region** (lower-middle): x: 800, y: 900, width: 320, height: 120
-  - [ ] **Update scoreboard region** (top-left): verify coordinates match 009a findings
-  - [ ] **Update formation region** (bottom-right): verify coordinates match 009a findings
-- [ ] Add any preprocessing steps identified (e.g., contrast enhancement for motion-blurred scoreboards)
-- [ ] **Strategy**: Prioritize FT score graphics (90-95% auto-capture) > scoreboards (ubiquitous but blurred) > formations (ground truth validation only)
+- [x] Review `docs/motd_visual_patterns.md` OCR recommendations
+- [x] Adjust OCR regions in config based on multi-tiered strategy:
+  - [x] **Add FT score region** (lower-middle): x: 800, y: 900, width: 320, height: 120
+  - [x] **Update scoreboard region** (top-left): verify coordinates match 009a findings
+  - [x] **Update formation region** (bottom-right): verify coordinates match 009a findings
+- [x] Add any preprocessing steps identified (e.g., contrast enhancement for motion-blurred scoreboards)
+- [x] **Strategy**: Prioritize FT score graphics (90-95% auto-capture) > scoreboards (ubiquitous but blurred) > formations (ground truth validation only)
 
 ### 3. Test on Sample Frames (30-45 min)
-- [ ] Select 5-10 test frames from 009a documentation:
-  - [ ] **Primary test**: Full-time score graphics (scene_219, 312, 401, 487, 583, 655, 736)
-  - [ ] **Secondary test**: Live scoreboards (scene_154, 277, 370, 486, 574, 673, 718)
+- [x] Select 5-10 test frames from 009a documentation:
+  - [x] **Primary test**: Full-time score graphics (scene_219, 312, 401, 487, 583, 655, 736)
+  - [x] **Secondary test**: Live scoreboards (scene_154, 277, 370, 486, 574, 673, 718)
   - [ ] **Ground truth validation**: Compare against manual formation screenshots
   - [ ] At least 1 studio frame (should return no teams)
-- [ ] Run OCR on test frames
-- [ ] Verify text extraction works
-- [ ] Check confidence scores are reasonable (>0.7 for clear text)
+- [x] Run OCR on test frames
+- [x] Verify text extraction works
+- [x] Check confidence scores are reasonable (>0.7 for clear text)
 - [ ] Validate accuracy against ground truth manual screenshots
-- [ ] Debug any issues (GPU not detected, poor text extraction, etc.)
+- [x] Debug any issues (GPU not detected, poor text extraction, etc.)
 
 ### 4. Create Unit Tests (Optional, 20-30 min)
 - [ ] Create `tests/test_ocr_reader.py`
@@ -205,14 +205,14 @@ for frame_path in test_frames:
 ```
 
 ## Success Criteria
-- [ ] `src/motd/ocr/reader.py` created with OCRReader class
-- [ ] EasyOCR initializes successfully (GPU or CPU mode)
-- [ ] Can extract text from scoreboard region
-- [ ] Can extract text from formation region
-- [ ] Tested on 5-10 sample frames identified in 009a
-- [ ] Text extraction works on formation graphics with >0.7 confidence
-- [ ] Module handles errors gracefully (missing frames, invalid regions)
-- [ ] Code follows Python guidelines (type hints, docstrings)
+- [x] `src/motd/ocr/reader.py` created with OCRReader class
+- [x] EasyOCR initializes successfully (GPU or CPU mode)
+- [x] Can extract text from scoreboard region
+- [x] Can extract text from formation region
+- [x] Tested on 5-10 sample frames identified in 009a
+- [x] Text extraction works on formation graphics with >0.7 confidence
+- [x] Module handles errors gracefully (missing frames, invalid regions)
+- [x] Code follows Python guidelines (type hints, docstrings)
 
 ## Estimated Time
 1-1.5 hours:

@@ -11,51 +11,51 @@ Wire up OCR reader, team matcher, and fixture matcher into a CLI command with sm
 ## Tasks
 
 ### 1. Create CLI Command (45-60 min)
-- [ ] Add `extract-teams` command to `src/motd/__main__.py`
-- [ ] Follow Click framework pattern from `detect-scenes` command
-- [ ] Accept parameters:
-  - [ ] `--scenes`: Path to scenes JSON (from Task 008)
-  - [ ] `--episode-id`: Episode identifier
-  - [ ] `--output`: Output path for OCR results JSON
-  - [ ] Optional `--config`: Config file path (default: config/config.yaml)
-- [ ] Load config, fixtures, teams, manifest
+- [x] Add `extract-teams` command to `src/motd/__main__.py`
+- [x] Follow Click framework pattern from `detect-scenes` command
+- [x] Accept parameters:
+  - [x] `--scenes`: Path to scenes JSON (from Task 008)
+  - [x] `--episode-id`: Episode identifier
+  - [x] `--output`: Output path for OCR results JSON
+  - [x] Optional `--config`: Config file path (default: config/config.yaml)
+- [x] Load config, fixtures, teams, manifest
 
 ### 2. Implement Smart Scene Filtering (30-45 min)
-- [ ] Review filtering recommendations from `docs/motd_visual_patterns.md`
-- [ ] Implement filters based on 009a findings (target: 810 → 160-240 scenes, 70-80% reduction):
-  - [ ] Skip intro: First 50 seconds (scenes 1-125, ~15%)
-  - [ ] Skip MOTD 2 interlude: 52:01-52:47 (scenes ~580-600, ~2-3%)
-  - [ ] Skip short transitions: <2 seconds duration (~200 scenes, 25%)
-  - [ ] Skip studio via process-of-elimination: Non-highlights/interviews (~100 scenes, 12%)
-  - [ ] Skip interviews: Post-match interviews identified (~50 scenes, 6%)
-  - [ ] Keep highlights with scoreboards/FT graphics: Target OCR regions (~160-240 scenes, 20-30%)
-- [ ] Log filtering stats (e.g., "Filtered 810 → 183 scenes (77% reduction)")
+- [x] Review filtering recommendations from `docs/motd_visual_patterns.md`
+- [x] Implement filters based on 009a findings (target: 810 → 160-240 scenes, 70-80% reduction):
+  - [x] Skip intro: First 50 seconds (scenes 1-125, ~15%)
+  - [x] Skip MOTD 2 interlude: 52:01-52:47 (scenes ~580-600, ~2-3%)
+  - [x] Skip short transitions: <2 seconds duration (~200 scenes, 25%)
+  - [x] Skip studio via process-of-elimination: Non-highlights/interviews (~100 scenes, 12%)
+  - [x] Skip interviews: Post-match interviews identified (~50 scenes, 6%)
+  - [x] Keep highlights with scoreboards/FT graphics: Target OCR regions (~160-240 scenes, 20-30%)
+- [x] Log filtering stats (e.g., "Filtered 810 → 183 scenes (77% reduction)")
 
 ### 3. Wire Up OCR Pipeline (30-45 min)
-- [ ] For each scene (after filtering):
-  - [ ] Load frame image
-  - [ ] Run OCR on both regions (scoreboard, formation)
-  - [ ] Extract text from OCR results
-  - [ ] Match text against teams with fixture candidates
-  - [ ] Validate against expected fixtures
-  - [ ] Apply confidence boost if validated
-- [ ] Aggregate results per scene
-- [ ] Handle errors gracefully (log and continue)
+- [x] For each scene (after filtering):
+  - [x] Load frame image
+  - [x] Run OCR on both regions (scoreboard, formation)
+  - [x] Extract text from OCR results
+  - [x] Match text against teams with fixture candidates
+  - [x] Validate against expected fixtures
+  - [x] Apply confidence boost if validated
+- [x] Aggregate results per scene
+- [x] Handle errors gracefully (log and continue)
 
 ### 4. Create Output JSON (20-30 min)
-- [ ] Structure output with:
-  - [ ] Episode metadata
-  - [ ] Expected fixtures
-  - [ ] Per-scene OCR results
-  - [ ] Summary statistics
-- [ ] Save to cache directory
-- [ ] Pretty-print JSON for human readability
+- [x] Structure output with:
+  - [x] Episode metadata
+  - [x] Expected fixtures
+  - [x] Per-scene OCR results
+  - [x] Summary statistics
+- [x] Save to cache directory
+- [x] Pretty-print JSON for human readability
 
 ### 5. Add Progress Logging (15-20 min)
-- [ ] Log processing progress (e.g., "Processing scene 50/243")
-- [ ] Log OCR results as processed (team names detected)
-- [ ] Log validation results (validated vs unexpected teams)
-- [ ] Summary at end (total teams detected, accuracy)
+- [x] Log processing progress (e.g., "Processing scene 50/243")
+- [x] Log OCR results as processed (team names detected)
+- [x] Log validation results (validated vs unexpected teams)
+- [x] Summary at end (total teams detected, accuracy)
 
 ## Implementation Details
 
@@ -353,16 +353,16 @@ ocr:
 ```
 
 ## Success Criteria
-- [ ] `extract-teams` command added to CLI
-- [ ] Command accepts all required parameters
-- [ ] Loads config, fixtures, teams, manifest successfully
-- [ ] Implements scene filtering based on 009a findings
-- [ ] Processes scenes through OCR pipeline
-- [ ] Outputs structured JSON with results
-- [ ] Logs progress and summary statistics
-- [ ] Handles errors gracefully (doesn't crash on bad frame)
-- [ ] Output JSON is valid and human-readable
-- [ ] Code follows Python guidelines (type hints, docstrings)
+- [x] `extract-teams` command added to CLI
+- [x] Command accepts all required parameters
+- [x] Loads config, fixtures, teams, manifest successfully
+- [x] Implements scene filtering based on 009a findings
+- [x] Processes scenes through OCR pipeline
+- [x] Outputs structured JSON with results
+- [x] Logs progress and summary statistics
+- [x] Handles errors gracefully (doesn't crash on bad frame)
+- [x] Output JSON is valid and human-readable
+- [x] Code follows Python guidelines (type hints, docstrings)
 
 ## Estimated Time
 1 hour:

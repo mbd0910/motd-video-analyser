@@ -3,7 +3,7 @@
   "competition": "Premier League",
   "episodes": [
     {
-      "episode_id": "motd-2025-11-01",
+      "episode_id": "motd_2025-26_2025-11-01",
       "broadcast_date": "2025-11-01",
       "video_source_url": "https://www.bbc.co.uk/iplayer/episode/m002ltfz/match-of-the-day-202526-01112025",
       "expected_matches": [
@@ -16,6 +16,19 @@
         "2025-11-01-liverpool-astonvilla"
       ],
       "notes": "Saturday 3pm/5:30pm/8pm fixtures"
+    },
+    {
+      "episode_id": "motd_2025-26_2025-11-08",
+      "broadcast_date": "2025-11-08",
+      "video_source_url": "https://www.bbc.co.uk/iplayer/episode/m002m3r6/match-of-the-day-202526-08112025",
+      "expected_matches": [
+        "2025-11-08-tottenham-manutd",
+        "2025-11-08-westham-burnley",
+        "2025-11-08-everton-fulham",
+        "2025-11-08-sunderland-arsenal",
+        "2025-11-08-chelsea-wolves"
+      ],
+      "notes": "Saturday 12:30pm/3pm/5:30pm/8pm fixtures"
     }
   ]
 }

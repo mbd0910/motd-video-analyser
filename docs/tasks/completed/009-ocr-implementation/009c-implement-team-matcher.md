@@ -25,34 +25,34 @@ Fuzzy matching handles:
 ## Tasks
 
 ### 1. Create Team Matcher Module (45-60 min)
-- [ ] Create `src/motd/ocr/team_matcher.py` with `TeamMatcher` class
-- [ ] Load team data from JSON file
-- [ ] Build searchable index of team names and alternates
-- [ ] Implement fuzzy matching using `rapidfuzz` or `difflib`
-- [ ] Return matches with confidence scores
+- [x] Create `src/motd/ocr/team_matcher.py` with `TeamMatcher` class
+- [x] Load team data from JSON file
+- [x] Build searchable index of team names and alternates
+- [x] Implement fuzzy matching using `rapidfuzz` or `difflib`
+- [x] Return matches with confidence scores
 
 ### 2. Implement Fixture-Aware Matching (30-45 min)
-- [ ] Add `candidate_teams` parameter to limit search space
-- [ ] When candidates provided (from fixtures), search only those teams
-- [ ] When no candidates provided, search all 20 teams
-- [ ] Boost confidence when match found in candidate list
-- [ ] Return whether match was fixture-validated
+- [x] Add `candidate_teams` parameter to limit search space
+- [x] When candidates provided (from fixtures), search only those teams
+- [x] When no candidates provided, search all 20 teams
+- [x] Boost confidence when match found in candidate list
+- [x] Return whether match was fixture-validated
 
 ### 3. Handle Multiple Teams in Text (20-30 min)
-- [ ] OCR might extract "Brighton 2-0 Leeds" as single text
-- [ ] Implement logic to find multiple team names in one string
-- [ ] Return all matched teams with positions in text
-- [ ] Prioritize longer matches (e.g., "Manchester United" over "Manchester")
+- [x] OCR might extract "Brighton 2-0 Leeds" as single text
+- [x] Implement logic to find multiple team names in one string
+- [x] Return all matched teams with positions in text
+- [x] Prioritize longer matches (e.g., "Manchester United" over "Manchester")
 
 ### 4. Test with Sample OCR Results (30-45 min)
-- [ ] Use OCR results from 009b test frames
-- [ ] Test matching various team name formats:
-  - [ ] Full names: "Manchester United"
-  - [ ] Abbreviations: "Man Utd"
-  - [ ] Nicknames: "Spurs", "Gunners"
-  - [ ] OCR errors: "Br1ghton", "Leed5"
-- [ ] Test fixture-aware matching with 2025-11-01 fixtures
-- [ ] Verify confidence scores are reasonable (>0.8 for good matches)
+- [x] Use OCR results from 009b test frames
+- [x] Test matching various team name formats:
+  - [x] Full names: "Manchester United"
+  - [x] Abbreviations: "Man Utd"
+  - [x] Nicknames: "Spurs", "Gunners"
+  - [x] OCR errors: "Br1ghton", "Leed5"
+- [x] Test fixture-aware matching with 2025-11-01 fixtures
+- [x] Verify confidence scores are reasonable (>0.8 for good matches)
 
 ## Implementation Details
 
@@ -274,16 +274,16 @@ for match in matches:
 ```
 
 ## Success Criteria
-- [ ] `src/motd/ocr/team_matcher.py` created with TeamMatcher class
-- [ ] Loads team data from JSON successfully
-- [ ] Fuzzy matching works for abbreviations (Man Utd → Manchester United)
-- [ ] Fuzzy matching works for nicknames (Spurs → Tottenham Hotspur)
-- [ ] Fuzzy matching handles OCR errors (Br1ghton → Brighton & Hove Albion)
-- [ ] Fixture-aware matching limits search space to candidate teams
-- [ ] Can find multiple teams in one text string
-- [ ] Confidence scores are reasonable (>0.8 for good matches, >0.9 for exact)
-- [ ] Returns fixture_validated flag correctly
-- [ ] Code follows Python guidelines (type hints, docstrings)
+- [x] `src/motd/ocr/team_matcher.py` created with TeamMatcher class
+- [x] Loads team data from JSON successfully
+- [x] Fuzzy matching works for abbreviations (Man Utd → Manchester United)
+- [x] Fuzzy matching works for nicknames (Spurs → Tottenham Hotspur)
+- [x] Fuzzy matching handles OCR errors (Br1ghton → Brighton & Hove Albion)
+- [x] Fixture-aware matching limits search space to candidate teams
+- [x] Can find multiple teams in one text string
+- [x] Confidence scores are reasonable (>0.8 for good matches, >0.9 for exact)
+- [x] Returns fixture_validated flag correctly
+- [x] Code follows Python guidelines (type hints, docstrings)
 
 ## Estimated Time
 1-1.5 hours:

@@ -29,31 +29,31 @@ Create fixture matcher to validate OCR results against expected fixtures for an 
 ## Tasks
 
 ### 1. Create Fixture Matcher Module (45-60 min)
-- [ ] Create `src/motd/ocr/fixture_matcher.py` with `FixtureMatcher` class
-- [ ] Load fixtures data from JSON
-- [ ] Load episode manifest from JSON
-- [ ] Get expected fixtures for given episode_id
-- [ ] Extract expected teams from fixtures (home + away)
-- [ ] Provide candidate teams list for team matcher
+- [x] Create `src/motd/ocr/fixture_matcher.py` with `FixtureMatcher` class
+- [x] Load fixtures data from JSON
+- [x] Load episode manifest from JSON
+- [x] Get expected fixtures for given episode_id
+- [x] Extract expected teams from fixtures (home + away)
+- [x] Provide candidate teams list for team matcher
 
 ### 2. Implement Match Validation (30-45 min)
-- [ ] Validate OCR-detected teams against expected teams
-- [ ] Boost confidence when team is expected
-- [ ] Flag teams not in expected fixtures
-- [ ] Identify likely fixture from detected teams (if home + away both found)
+- [x] Validate OCR-detected teams against expected teams
+- [x] Boost confidence when team is expected
+- [x] Flag teams not in expected fixtures
+- [x] Identify likely fixture from detected teams (if home + away both found)
 
 ### 3. Create Fixture Lookup Helpers (20-30 min)
-- [ ] Get fixture by match_id
-- [ ] Get fixture by team names (home + away)
-- [ ] Get all expected teams for episode (flat list)
-- [ ] Format fixture information for OCR output
+- [x] Get fixture by match_id
+- [x] Get fixture by team names (home + away)
+- [x] Get all expected teams for episode (flat list)
+- [x] Format fixture information for OCR output
 
 ### 4. Test with 2025-11-01 Episode (20-30 min)
-- [ ] Load episode manifest and fixtures
-- [ ] Verify 7 expected matches loaded correctly
-- [ ] Test validation with expected teams (Brighton, Leeds, etc.)
-- [ ] Test validation with unexpected team (West Ham, etc.)
-- [ ] Verify confidence boost logic works
+- [x] Load episode manifest and fixtures
+- [x] Verify 7 expected matches loaded correctly
+- [x] Test validation with expected teams (Brighton, Leeds, etc.)
+- [x] Test validation with unexpected team (West Ham, etc.)
+- [x] Verify confidence boost logic works
 
 ## Implementation Details
 
@@ -305,16 +305,16 @@ if fixture:
 ```
 
 ## Success Criteria
-- [ ] `src/motd/ocr/fixture_matcher.py` created with FixtureMatcher class
-- [ ] Loads fixtures and episode manifest successfully
-- [ ] Gets expected fixtures for episode (7 matches for 2025-11-01)
-- [ ] Gets expected teams list (14 teams for 2025-11-01)
-- [ ] Validates detected teams against expected teams
-- [ ] Identifies unexpected teams correctly
-- [ ] Applies confidence boost when teams validate
-- [ ] Can identify fixture from two team names
-- [ ] Handles missing episode_id gracefully (raises ValueError)
-- [ ] Code follows Python guidelines (type hints, docstrings)
+- [x] `src/motd/ocr/fixture_matcher.py` created with FixtureMatcher class
+- [x] Loads fixtures and episode manifest successfully
+- [x] Gets expected fixtures for episode (7 matches for 2025-11-01)
+- [x] Gets expected teams list (14 teams for 2025-11-01)
+- [x] Validates detected teams against expected teams
+- [x] Identifies unexpected teams correctly
+- [x] Applies confidence boost when teams validate
+- [x] Can identify fixture from two team names
+- [x] Handles missing episode_id gracefully (raises ValueError)
+- [x] Code follows Python guidelines (type hints, docstrings)
 
 ## Estimated Time
 1 hour:
