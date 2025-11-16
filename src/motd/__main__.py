@@ -8,7 +8,9 @@ import click
 import json
 import logging
 import sys
+import time
 import yaml
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -594,9 +596,6 @@ def transcribe_command(
 
         python -m motd transcribe data/videos/motd_2025-26_2025-11-01.mp4
     """
-    import time
-    from datetime import datetime, timezone
-
     # Load config
     cfg = load_config(config)
     setup_logging(cfg)
@@ -616,21 +615,52 @@ def transcribe_command(
 
     audio_path = cache_dir / 'audio.wav'
 
-    # Check cache
-    if output.exists() and not force:
-        click.echo(f"\n✓ Cached transcript found: {output}")
-        click.echo("Use --force to re-transcribe")
-        logger.info(f"Using cached transcript: {output}")
+    # Override model size if specified
+    transcription_config = cfg.get('transcription', {}).copy()
+    if model_size:
+        transcription_config['model_size'] = model_size
 
-        # Load and display summary
+    # Check cache and validate configuration hasn't changed
+    cache_valid = False
+    if output.exists() and not force:
+        # Load cached transcript
         with open(output) as f:
             cached = json.load(f)
 
-        click.echo(f"\nCached transcript info:")
-        click.echo(f"  Duration: {cached.get('duration_seconds', 'unknown')}s")
-        click.echo(f"  Segments: {cached.get('segment_count', 'unknown')}")
-        click.echo(f"  Model: {cached.get('metadata', {}).get('model_size', 'unknown')}")
-        click.echo(f"  Processed: {cached.get('metadata', {}).get('processed_at', 'unknown')}")
+        # Validate cache against current configuration
+        cached_metadata = cached.get('metadata', {})
+        cached_model = cached_metadata.get('model_size')
+        cached_device = cached_metadata.get('device')
+
+        current_model = transcription_config.get('model_size', 'large-v3')
+        current_device = transcription_config.get('device', 'auto')
+
+        # Check if configuration has changed
+        config_changed = (cached_model != current_model or
+                         (current_device != 'auto' and cached_device != current_device))
+
+        if config_changed:
+            click.echo(f"\n⚠️  Cache invalid: configuration changed")
+            click.echo(f"   Cached model: {cached_model}, Current: {current_model}")
+            if cached_device != current_device and current_device != 'auto':
+                click.echo(f"   Cached device: {cached_device}, Current: {current_device}")
+            click.echo("   Re-transcribing with new configuration...")
+            logger.info(f"Cache invalidated: model {cached_model}→{current_model} or device changed")
+            cache_valid = False
+        else:
+            click.echo(f"\n✓ Cached transcript found: {output}")
+            click.echo("Use --force to re-transcribe")
+            logger.info(f"Using cached transcript: {output}")
+
+            click.echo(f"\nCached transcript info:")
+            click.echo(f"  Duration: {cached.get('duration', 'unknown')}s")
+            click.echo(f"  Segments: {cached.get('segment_count', 'unknown')}")
+            click.echo(f"  Model: {cached_model}")
+            click.echo(f"  Device: {cached_device}")
+            click.echo(f"  Processed: {cached_metadata.get('processed_at', 'unknown')}")
+            cache_valid = True
+
+    if cache_valid:
         return
 
     try:
@@ -654,11 +684,7 @@ def transcribe_command(
         click.echo(f"\nTranscribing audio with Whisper...")
         logger.info("Starting transcription")
 
-        # Override model size if specified
-        transcription_config = cfg.get('transcription', {}).copy()
-        if model_size:
-            transcription_config['model_size'] = model_size
-
+        # transcription_config already set earlier for cache validation
         transcriber = WhisperTranscriber(transcription_config)
         transcription_result = transcriber.transcribe(str(audio_path))
 
