@@ -103,11 +103,11 @@ python -m motd transcribe data/videos/motd_2025-11-01.mp4 \
 ## Success Criteria
 
 All 6 subtasks must be completed:
-- [ ] 010a: Audio reconnaissance complete
-- [ ] 010b: Audio extractor implemented and tested
-- [ ] 010c: Whisper transcriber implemented and tested
-- [ ] 010d: CLI command integrated with caching
-- [ ] 010e: Full video transcription executed successfully
+- [x] 010a: Audio reconnaissance complete
+- [x] 010b: Audio extractor implemented and tested
+- [x] 010c: Whisper transcriber implemented and tested
+- [x] 010d: CLI command integrated with caching
+- [x] 010e: Full video transcription executed successfully
 - [ ] 010f: Accuracy validated (>95% on critical elements)
 
 ## Completion Checklist

@@ -8,7 +8,9 @@ import click
 import json
 import logging
 import sys
+import time
 import yaml
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +22,7 @@ from motd.config.defaults import (
     DEFAULT_DETECTOR_TYPE
 )
 from motd.ocr import OCRReader, TeamMatcher, FixtureMatcher
+from motd.transcription import AudioExtractor, WhisperTranscriber
 
 
 def load_config(config_path: Path = Path("config/config.yaml")) -> dict[str, Any]:
@@ -547,6 +550,189 @@ def extract_teams_command(
 
     except Exception as e:
         logger.error(f"Team extraction failed: {e}", exc_info=True)
+        click.echo(f"\nError: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command("transcribe")
+@click.argument("video_path", type=click.Path(exists=True, path_type=Path))
+@click.option(
+    '--output',
+    type=click.Path(path_type=Path),
+    default=None,
+    help='Output path for transcript JSON (default: cache/{video_name}/transcript.json)'
+)
+@click.option(
+    '--model-size',
+    type=str,
+    default=None,
+    help='Whisper model size (default: from config)'
+)
+@click.option(
+    '--force',
+    is_flag=True,
+    help='Force re-transcription even if cache exists'
+)
+@click.option(
+    '--config',
+    type=click.Path(exists=True, path_type=Path),
+    default=Path('config/config.yaml'),
+    help='Path to config file'
+)
+def transcribe_command(
+    video_path: Path,
+    output: Path | None,
+    model_size: str | None,
+    force: bool,
+    config: Path
+):
+    """
+    Extract and transcribe audio from video using faster-whisper.
+
+    Extracts audio from VIDEO_PATH, transcribes it with word-level timestamps,
+    and caches results to avoid re-processing (3-15 min per video).
+
+    Example:
+
+        python -m motd transcribe data/videos/motd_2025-26_2025-11-01.mp4
+    """
+    # Load config
+    cfg = load_config(config)
+    setup_logging(cfg)
+    logger = logging.getLogger(__name__)
+
+    logger.info(f"Starting transcription for: {video_path}")
+    click.echo(f"Processing video: {video_path.name}")
+
+    # Determine cache directory
+    video_name = video_path.stem
+    cache_dir = Path('data/cache') / video_name
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    # Determine output path
+    if not output:
+        output = cache_dir / 'transcript.json'
+
+    audio_path = cache_dir / 'audio.wav'
+
+    # Override model size if specified
+    transcription_config = cfg.get('transcription', {}).copy()
+    if model_size:
+        transcription_config['model_size'] = model_size
+
+    # Check cache and validate configuration hasn't changed
+    cache_valid = False
+    if output.exists() and not force:
+        # Load cached transcript
+        with open(output) as f:
+            cached = json.load(f)
+
+        # Validate cache against current configuration
+        cached_metadata = cached.get('metadata', {})
+        cached_model = cached_metadata.get('model_size')
+        cached_device = cached_metadata.get('device')
+
+        current_model = transcription_config.get('model_size', 'large-v3')
+        current_device = transcription_config.get('device', 'auto')
+
+        # Check if configuration has changed
+        config_changed = (cached_model != current_model or
+                         (current_device != 'auto' and cached_device != current_device))
+
+        if config_changed:
+            click.echo(f"\n⚠️  Cache invalid: configuration changed")
+            click.echo(f"   Cached model: {cached_model}, Current: {current_model}")
+            if cached_device != current_device and current_device != 'auto':
+                click.echo(f"   Cached device: {cached_device}, Current: {current_device}")
+            click.echo("   Re-transcribing with new configuration...")
+            logger.info(f"Cache invalidated: model {cached_model}→{current_model} or device changed")
+            cache_valid = False
+        else:
+            click.echo(f"\n✓ Cached transcript found: {output}")
+            click.echo("Use --force to re-transcribe")
+            logger.info(f"Using cached transcript: {output}")
+
+            click.echo(f"\nCached transcript info:")
+            click.echo(f"  Duration: {cached.get('duration', 'unknown')}s")
+            click.echo(f"  Segments: {cached.get('segment_count', 'unknown')}")
+            click.echo(f"  Model: {cached_model}")
+            click.echo(f"  Device: {cached_device}")
+            click.echo(f"  Processed: {cached_metadata.get('processed_at', 'unknown')}")
+            cache_valid = True
+
+    if cache_valid:
+        return
+
+    try:
+        start_time = time.time()
+
+        # Extract audio
+        click.echo("\nExtracting audio from video...")
+        logger.info("Starting audio extraction")
+
+        audio_config = cfg.get('transcription', {})
+        extractor = AudioExtractor(audio_config)
+        extraction_result = extractor.extract(str(video_path), str(audio_path))
+
+        click.echo(
+            f"✓ Audio extracted: {extraction_result['output_size_mb']:.1f} MB, "
+            f"{extraction_result['duration_seconds']:.1f}s"
+        )
+        logger.info(f"Audio extraction complete: {extraction_result}")
+
+        # Transcribe audio
+        click.echo(f"\nTranscribing audio with Whisper...")
+        logger.info("Starting transcription")
+
+        # transcription_config already set earlier for cache validation
+        transcriber = WhisperTranscriber(transcription_config)
+        transcription_result = transcriber.transcribe(str(audio_path))
+
+        elapsed = time.time() - start_time
+        duration = transcription_result['duration']
+        rtf = duration / elapsed if elapsed > 0 else 0
+
+        click.echo(
+            f"✓ Transcribed {transcription_result['segment_count']} segments "
+            f"in {elapsed:.1f}s (RTF: {rtf:.1f}x real-time)"
+        )
+        logger.info(f"Transcription complete: {transcription_result['segment_count']} segments")
+
+        # Build output with metadata
+        output_data = {
+            'metadata': {
+                'video_path': str(video_path),
+                'processed_at': datetime.now(timezone.utc).isoformat(),
+                'model_size': transcription_config.get('model_size', 'large-v3'),
+                'device': transcriber.device,
+                'processing_time_seconds': round(elapsed, 2),
+                'real_time_factor': round(rtf, 2)
+            },
+            **transcription_result
+        }
+
+        # Save transcript
+        with open(output, 'w') as f:
+            json.dump(output_data, f, indent=2)
+
+        click.echo(f"\n{'='*60}")
+        click.echo("Transcription Summary:")
+        click.echo(f"{'='*60}")
+        click.echo(f"  Duration:           {duration:.1f}s ({duration/60:.1f} min)")
+        click.echo(f"  Segments:           {transcription_result['segment_count']}")
+        click.echo(f"  Language:           {transcription_result['language']}")
+        click.echo(f"  Model:              {output_data['metadata']['model_size']}")
+        click.echo(f"  Device:             {output_data['metadata']['device']}")
+        click.echo(f"  Processing time:    {elapsed:.1f}s ({elapsed/60:.1f} min)")
+        click.echo(f"  Real-time factor:   {rtf:.1f}x")
+        click.echo(f"{'='*60}")
+        click.echo(f"\nTranscript saved to: {output}")
+
+        logger.info(f"Transcription completed successfully")
+        logger.info(f"Output: {output}")
+
+    except Exception as e:
+        logger.error(f"Transcription failed: {e}", exc_info=True)
         click.echo(f"\nError: {e}", err=True)
         sys.exit(1)
 

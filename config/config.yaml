@@ -41,7 +41,7 @@ ocr:
 
 # Transcription Configuration
 transcription:
-  model: large-v3              # faster-whisper model (tiny, base, small, medium, large, large-v3)
+  model_size: large-v3         # faster-whisper model (tiny, base, small, medium, large, large-v3)
                                # Note: Uses faster-whisper library, NOT openai-whisper
   language: en                 # Language code
   device: auto                 # Device: auto, cpu, cuda, mps (auto will use GPU if available)

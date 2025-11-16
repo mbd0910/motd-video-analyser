@@ -1,7 +1,7 @@
 # Task 010b: Implement Audio Extractor
 
 ## Status
-⏳ Not Started
+✅ Completed
 
 ## Objective
 Create a robust audio extraction module that converts video files to Whisper's optimal audio format (16kHz mono WAV) using ffmpeg.
@@ -21,23 +21,23 @@ This module handles the conversion automatically, with proper error handling for
 ## Tasks
 
 ### 1. Create Module Structure
-- [ ] Create file: `src/motd/transcription/__init__.py` (if not exists)
-- [ ] Create file: `src/motd/transcription/audio_extractor.py`
-- [ ] Add module docstring explaining purpose
+- [x] Create file: `src/motd/transcription/__init__.py` (if not exists)
+- [x] Create file: `src/motd/transcription/audio_extractor.py`
+- [x] Add module docstring explaining purpose
 
 ### 2. Implement AudioExtractor Class
-- [ ] Create `AudioExtractor` class with configuration support
-- [ ] Add `__init__(self, config: dict)` method:
+- [x] Create `AudioExtractor` class with configuration support
+- [x] Add `__init__(self, config: dict)` method:
   - Accept target sample rate (default: 16000)
   - Accept target channels (default: 1 for mono)
   - Accept output format (default: "wav")
-- [ ] Add `extract(self, video_path: str, output_path: str) -> dict` method:
+- [x] Add `extract(self, video_path: str, output_path: str) -> dict` method:
   - Validate video file exists
   - Run ffmpeg to extract audio
   - Return metadata (duration, file size, success status)
 
 ### 3. Implement ffmpeg Command Generation
-- [ ] Build ffmpeg command with proper parameters:
+- [x] Build ffmpeg command with proper parameters:
   ```python
   cmd = [
       "ffmpeg",
@@ -50,49 +50,49 @@ This module handles the conversion automatically, with proper error handling for
       output_path
   ]
   ```
-- [ ] Use subprocess to execute ffmpeg
-- [ ] Capture stdout/stderr for error handling
+- [x] Use subprocess to execute ffmpeg
+- [x] Capture stdout/stderr for error handling
 
 ### 4. Add Error Handling
-- [ ] Check video file exists before extraction
-- [ ] Raise clear error if ffmpeg not installed
-- [ ] Raise clear error if video has no audio track
-- [ ] Handle ffmpeg errors (corrupted file, unsupported codec)
-- [ ] Validate output file was created successfully
+- [x] Check video file exists before extraction
+- [x] Raise clear error if ffmpeg not installed
+- [x] Raise clear error if video has no audio track
+- [x] Handle ffmpeg errors (corrupted file, unsupported codec)
+- [x] Validate output file was created successfully
 
 ### 5. Add Logging
-- [ ] Log extraction start (video filename, size)
-- [ ] Log extraction progress (if possible with ffmpeg stderr parsing)
-- [ ] Log extraction complete (output size, duration)
-- [ ] Log any warnings or errors
+- [x] Log extraction start (video filename, size)
+- [x] Log extraction progress (if possible with ffmpeg stderr parsing)
+- [x] Log extraction complete (output size, duration)
+- [x] Log any warnings or errors
 
 ### 6. Add Duration Extraction
-- [ ] Use ffprobe to get audio duration:
+- [x] Use ffprobe to get audio duration:
   ```python
   ffprobe -v error -show_entries format=duration \
     -of default=noprint_wrappers=1:nokey=1 input.mp4
   ```
-- [ ] Return duration in metadata (useful for validation)
+- [x] Return duration in metadata (useful for validation)
 
 ### 7. Write Unit Tests (Optional but Recommended)
-- [ ] Create `tests/test_audio_extractor.py`
-- [ ] Test: Extract audio from sample video
-- [ ] Test: Error handling for missing file
-- [ ] Test: Error handling for video without audio
-- [ ] Mock ffmpeg calls if preferred
+- [x] Create `tests/test_audio_extractor.py`
+- [x] Test: Extract audio from sample video
+- [x] Test: Error handling for missing file
+- [x] Test: Error handling for video without audio
+- [x] Mock ffmpeg calls if preferred
 
 ### 8. Manual Testing
-- [ ] Test on test video from Task 009/010a
-- [ ] Verify output file format (16kHz mono WAV)
-- [ ] Verify file size is reasonable (~10MB per minute)
-- [ ] Verify extraction time (<1 minute for 90-min video)
-- [ ] Play output file to verify quality
+- [x] Test on test video from Task 009/010a
+- [x] Verify output file format (16kHz mono WAV)
+- [x] Verify file size is reasonable (~10MB per minute)
+- [x] Verify extraction time (<1 minute for 90-min video)
+- [x] Play output file to verify quality
 
 ### 9. Code Quality Check
-- [ ] Follow Python style guidelines (type hints, docstrings)
-- [ ] No hardcoded paths
-- [ ] Configuration from config.yaml supported
-- [ ] Error messages are helpful and actionable
+- [x] Follow Python style guidelines (type hints, docstrings)
+- [x] No hardcoded paths
+- [x] Configuration from config.yaml supported
+- [x] Error messages are helpful and actionable
 
 ## Validation Checklist
 
