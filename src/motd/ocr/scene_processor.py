@@ -26,7 +26,7 @@ class EpisodeContext:
 
 class SceneProcessor:
     """
-    Processes individual scenes: OCR ’ team matching ’ validation.
+    Processes individual scenes: OCR -> team matching -> validation.
 
     Replaces the monolithic process_scene() function with a class that follows
     Single Responsibility Principle - each method does ONE thing.
@@ -148,7 +148,7 @@ class SceneProcessor:
 
     def _run_ocr(self, frame: Path) -> OCRResult | None:
         """
-        Run OCR with fallback strategy (FT score ’ scoreboard).
+        Run OCR with fallback strategy (FT score ï¿½ scoreboard).
 
         Args:
             frame: Path to frame image
@@ -365,7 +365,7 @@ class SceneProcessor:
         if team1.team == fixture['away_team'] and team2.team == fixture['home_team']:
             self.logger.debug(
                 f"Swapping team order to match fixture: "
-                f"{team1.team} vs {team2.team} ’ {team2.team} vs {team1.team}"
+                f"{team1.team} vs {team2.team} ï¿½ {team2.team} vs {team1.team}"
             )
             return [team2, team1]
 
