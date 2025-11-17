@@ -1,13 +1,13 @@
-# Task 011b: Scene Detection Tuning & FT Graphic Investigation
+# Task 011b: Hybrid Frame Extraction for FT Graphic Capture
 
 ## Objective
-Improve scene detection to capture FT (Full Time) graphics and better align scene boundaries with segment boundaries.
+Implement hybrid frame extraction combining PySceneDetect scene changes with regular interval sampling to guarantee capture of FT (Full Time) graphics and improve boundary detection.
 
 ## Prerequisites
 - [x] Task 011a complete (reconnaissance identified FT graphic detection issue)
 
 ## Estimated Time
-30-60 minutes
+60-90 minutes
 
 ## Problem Statement
 
@@ -16,57 +16,146 @@ From 011a reconnaissance:
 - All OCR is from `scoreboard` source only
 - Scene boundaries don't align well with segment boundaries
   - Example: Match 2 intro is one 92-second scene (should be ~11 seconds)
-- Current PySceneDetect settings may be too conservative:
-  ```yaml
-  threshold: 25.0
-  min_scene_duration: 3.0
-  ```
+
+**Root Cause Analysis**:
+The issue is NOT PySceneDetect sensitivity. The problem is:
+1. FT graphics appear for only 2-3 seconds
+2. OCR `--smart-filtering` removes scenes <2 seconds
+3. PySceneDetect alone may miss brief graphics that don't trigger scene changes
 
 **Impact**: FT graphics are key boundary markers for highlights→interviews transition. Missing them forces us to use timing heuristics instead.
 
-## Approach
+## Hybrid Approach (Selected Strategy)
 
-### Option 1: Tune PySceneDetect Parameters (Recommended)
+Instead of tuning PySceneDetect parameters, implement a **hybrid frame extraction** strategy:
 
-Test with more sensitive settings:
-```yaml
-scene_detection:
-  detector_type: content
-  threshold: 15.0  # Lower from 25.0 (more sensitive)
-  min_scene_duration: 1.0  # Lower from 3.0 (allow shorter scenes)
-```
+### Strategy Components
 
-### Option 2: Alternative Detector
+1. **PySceneDetect Scene Changes** (content-aware)
+   - Keep current threshold: 20.0
+   - Detects major visual transitions
+   - ~810 scenes for 84-minute video
 
-If Option 1 doesn't work, try:
-```yaml
-scene_detection:
-  detector_type: adaptive  # Instead of content
-  threshold: 3.0
-  min_scene_duration: 1.0
-```
+2. **Regular Interval Sampling** (guaranteed coverage)
+   - Extract frames every 5 seconds
+   - Ensures FT graphics captured (appear for 2-3s)
+   - ~1008 samples for 84-minute video (84 min × 60s / 5s)
 
-### Option 3: 1 FPS Sampling (If Options 1-2 fail)
+3. **Smart Deduplication** (avoid duplicates)
+   - If PySceneDetect frame within 1 second of interval sample → keep one
+   - Reduces redundant OCR processing
+   - Expected: ~800-900 unique frames after deduplication
 
-Extract 1 frame per second (~5040 frames for 84-minute video)
-- **Pros**: Guaranteed FT graphic capture
-- **Cons**: 6.2x more OCR processing
+### Why 5-Second Intervals?
+
+- **Guarantees FT graphic capture**: FT graphics appear for 2-3 seconds
+- **Manageable frame count**: ~800-900 frames vs 160-240 (current) or 5040 (1 FPS)
+- **Processing time**: ~8-10 minutes for OCR (acceptable)
+- **Can adjust**: If 5s misses critical moments, can reduce to 3s in future
+
+### Expected Results
+
+| Metric | Current (PySceneDetect only) | Hybrid (5s intervals) |
+|--------|------------------------------|----------------------|
+| Frames for OCR | 160-240 | 800-900 |
+| FT graphics captured | 0/7 (0%) | 7/7 (100%) expected |
+| Processing time | ~2-3 min | ~8-10 min |
+| Coverage guarantee | Gaps | Every 5 seconds |
+| Boundary alignment | Scene-dependent | Time-guaranteed |
 
 ## Implementation Steps
 
 ### 1. Backup Current Data
 - [ ] Copy `data/cache/motd_2025-26_2025-11-01/scenes.json` to `scenes_original.json`
 - [ ] Copy `data/cache/motd_2025-26_2025-11-01/frames/` to `frames_original/`
+- [ ] Copy `data/cache/motd_2025-26_2025-11-01/ocr_results.json` to `ocr_results_original.json`
 
-### 2. Test Option 1: Lower Threshold
-- [ ] Update `config/config.yaml` with new settings
-- [ ] Re-run scene detection: `python -m motd detect-scenes`
-- [ ] Check results:
-  - How many scenes? (manageable if <2000)
-  - Are FT graphics captured? (check around expected times)
-  - Do boundaries align better?
+### 2. Implement Hybrid Frame Extraction
 
-### 3. Check FT Graphic Timestamps
+Add to `src/motd/scene_detection/detector.py`:
+
+```python
+def hybrid_frame_extraction(
+    video_path: str,
+    scenes: list[dict],
+    interval: float = 5.0,
+    dedupe_threshold: float = 1.0
+) -> list[dict]:
+    """
+    Hybrid frame extraction combining scene changes and interval sampling.
+
+    Args:
+        video_path: Path to video file
+        scenes: PySceneDetect scene list
+        interval: Regular sampling interval (seconds)
+        dedupe_threshold: Frames within this many seconds are duplicates
+
+    Returns:
+        Deduplicated list of frames to extract with metadata
+    """
+```
+
+Implementation details:
+- [ ] Add `hybrid_frame_extraction()` function
+- [ ] Combine PySceneDetect scene start times with interval samples
+- [ ] Deduplicate within threshold (default 1.0s)
+- [ ] Return sorted list with source metadata (scene_change vs interval_sampling)
+
+### 3. Update Configuration
+
+Add to `config/config.yaml`:
+
+```yaml
+ocr:
+  # Hybrid frame extraction strategy
+  sampling:
+    use_hybrid: true              # Enable hybrid extraction
+    interval: 5.0                 # Regular sampling interval (seconds)
+    dedupe_threshold: 1.0         # Frames within 1s = duplicate
+    include_scene_changes: true   # Include PySceneDetect frames
+
+  # ... existing config ...
+
+  filtering:
+    skip_intro_seconds: 50
+    motd2_interlude_start: 3121
+    motd2_interlude_end: 3167
+    # REMOVED: min_scene_duration (now handled by hybrid approach)
+```
+
+- [ ] Add `ocr.sampling` section
+- [ ] Remove `ocr.filtering.min_scene_duration` (replaced by hybrid approach)
+
+### 4. Update OCR Extraction Command
+
+Modify `extract-teams` command to use hybrid extraction:
+
+- [ ] Update `src/motd/__main__.py` OCR command
+- [ ] Call `hybrid_frame_extraction()` if `config.ocr.sampling.use_hybrid == True`
+- [ ] Pass hybrid frame list to OCR processing
+- [ ] Log frame source breakdown (scene_change vs interval_sampling)
+
+### 5. Test Hybrid Extraction
+
+- [ ] Run hybrid extraction on test video:
+  ```bash
+  python -m motd detect-scenes data/videos/motd_2025-26_2025-11-01.mp4 \
+    --output data/cache/motd_2025-26_2025-11-01/scenes.json
+  ```
+- [ ] Check frame count (expect ~800-900 after deduplication)
+- [ ] Verify interval samples at expected times (e.g., 5s, 10s, 15s, ...)
+
+### 6. Re-run OCR with Hybrid Frames
+
+- [ ] Run OCR with hybrid frame extraction:
+  ```bash
+  python -m motd extract-teams data/videos/motd_2025-26_2025-11-01.mp4 \
+    --output data/cache/motd_2025-26_2025-11-01/ocr_results.json
+  ```
+- [ ] Log processing: total frames, scene_change frames, interval_sampling frames
+- [ ] Monitor processing time (expect ~8-10 minutes)
+
+### 7. Verify FT Graphic Capture
 
 Expected FT graphic times (from motd_visual_patterns.md):
 - Match 1: ~611s (00:10:11)
@@ -77,96 +166,106 @@ Expected FT graphic times (from motd_visual_patterns.md):
 - Match 6: ~4304s (01:11:44)
 - Match 7: ~4845s (01:20:45)
 
-Script to check:
-```python
-# Look for scenes within ±5 seconds of FT times
-ft_times = [611, 1329, 2125, 2886, 3649, 4304, 4845]
-for scene in scenes:
-    for ft_time in ft_times:
-        if abs(scene["start_seconds"] - ft_time) < 5:
-            print(f"Scene {scene['scene_id']}: {scene['start_time']} (near FT at {ft_time}s)")
-```
+Verification:
+- [ ] Check OCR results for `ft_graphic` source detections
+- [ ] Count FT graphics: `jq '[.ocr_results[] | select(.ocr_source == "ft_graphic")] | length' ocr_results.json`
+- [ ] Target: 7/7 FT graphics detected
+- [ ] If <7/7: Check which matches missing, adjust interval if needed
 
-### 4. Re-run OCR (If Needed)
-- [ ] If new scenes look good, re-run OCR:
-  ```bash
-  python -m motd extract-teams data/videos/motd_2025-26_2025-11-01.mp4 \
-    --output data/cache/motd_2025-26_2025-11-01/ocr_results.json \
-    --smart-filtering
-  ```
-- [ ] Check: Are FT graphics now detected? (target: 7/7)
+### 8. Compare Results
 
-### 5. Compare Results
-- [ ] Old scenes: 810 total, 0 FT graphics
-- [ ] New scenes: ??? total, ??? FT graphics
-- [ ] Duration distribution changes?
-- [ ] Boundary alignment improvements?
+Create comparison table:
+- [ ] Frame counts: original vs hybrid
+- [ ] FT graphics: original (0/7) vs hybrid (target 7/7)
+- [ ] Processing time: original vs hybrid
+- [ ] OCR coverage: scenes with detections
+- [ ] Boundary alignment: sample spot-checks at match transitions
 
-### 6. Decision Point
+### 9. Write Tuning Report
 
-**If improved (FT graphics found):**
-- [ ] Keep new scenes.json and frames
-- [ ] Update reconnaissance report with findings
-- [ ] Proceed to 011c with better data
-
-**If not improved:**
-- [ ] Revert to original scenes.json
-- [ ] Document findings
-- [ ] Proceed to 011c with timing heuristics (as planned in 011a)
-- [ ] Consider Option 3 (1 FPS) for Task 013 (refinement)
+Create `docs/scene_detection_tuning_report.md`:
+- [ ] Hybrid approach rationale
+- [ ] Implementation details
+- [ ] Results: frame counts, FT graphics captured, processing time
+- [ ] Comparison to original approach
+- [ ] Recommendations for future tuning (3s vs 5s intervals)
+- [ ] Decision: keep hybrid approach
 
 ## Deliverables
 
-### Scene Detection Tuning Report
-Brief document (`docs/scene_detection_tuning_report.md`) with:
-- Settings tested
-- Results (scene count, FT graphics found)
+### 1. Updated Code
+- `src/motd/scene_detection/detector.py` - `hybrid_frame_extraction()` function
+- `src/motd/__main__.py` - Updated `extract-teams` command
+- `config/config.yaml` - Hybrid sampling configuration
+
+### 2. Scene Detection Tuning Report
+Document (`docs/scene_detection_tuning_report.md`) with:
+- Hybrid approach explanation
+- Implementation details
+- Results (frame count, FT graphics found, processing time)
 - Comparison to original
 - Decision and rationale
 
-### Updated Cache (If Keeping New Scenes)
-- `scenes.json` with improved detection
-- `frames/` with new key frames
-- `ocr_results.json` with re-run OCR
+### 3. Updated Cache
+- `data/cache/motd_2025-26_2025-11-01/ocr_results.json` - With FT graphics
+- `data/cache/motd_2025-26_2025-11-01/frames/` - Hybrid extracted frames
+- Backups of original data preserved
 
 ## Success Criteria
-- [ ] At least one tuning option tested
-- [ ] FT graphic detection assessed (count found)
-- [ ] Decision made: keep new scenes OR revert to original
-- [ ] Tuning report written
+- [ ] Hybrid frame extraction implemented and tested
+- [ ] FT graphic detection: 7/7 (100% target)
+- [ ] Frame count reasonable: 800-900 frames
+- [ ] Processing time acceptable: <15 minutes
+- [ ] Tuning report written with comparison
 - [ ] Ready to proceed to 011c (segment classifier)
-
-## Notes
-- This is a **quick investigation**, not a deep tuning session
-- Goal: Determine if simple param changes help
-- If not, document and move on
-- Can revisit in Task 013 (refinement) if needed
-- Don't spend more than 60 minutes on this
 
 ## Testing Commands
 
 ```bash
-# Update config
-vim config/config.yaml  # Set threshold=15.0, min_duration=1.0
+# Backup current data
+cp data/cache/motd_2025-26_2025-11-01/scenes.json \
+   data/cache/motd_2025-26_2025-11-01/scenes_original.json
+cp -r data/cache/motd_2025-26_2025-11-01/frames \
+   data/cache/motd_2025-26_2025-11-01/frames_original
+cp data/cache/motd_2025-26_2025-11-01/ocr_results.json \
+   data/cache/motd_2025-26_2025-11-01/ocr_results_original.json
 
-# Re-run scene detection
-python -m motd detect-scenes data/videos/motd_2025-26_2025-11-01.mp4 \
-  --output data/cache/motd_2025-26_2025-11-01/scenes.json
+# Test hybrid extraction (after implementation)
+python -m motd extract-teams data/videos/motd_2025-26_2025-11-01.mp4
 
-# Check scene count
-cat data/cache/motd_2025-26_2025-11-01/scenes.json | jq '.total_scenes'
-
-# Check for scenes near FT times
-python scripts/check_ft_scenes.py
-
-# Re-run OCR (if keeping new scenes)
-python -m motd extract-teams data/videos/motd_2025-26_2025-11-01.mp4 \
-  --smart-filtering
-
-# Check FT graphic detection
+# Check FT graphic count
 cat data/cache/motd_2025-26_2025-11-01/ocr_results.json | \
   jq '[.ocr_results[] | select(.ocr_source == "ft_graphic")] | length'
+
+# Check total frames processed
+cat data/cache/motd_2025-26_2025-11-01/ocr_results.json | \
+  jq '.ocr_results | length'
+
+# Check frame source breakdown
+cat data/cache/motd_2025-26_2025-11-01/ocr_results.json | \
+  jq '[.ocr_results[] | .frame_source] | group_by(.) | map({source: .[0], count: length})'
 ```
+
+## Notes
+- Hybrid approach is **superior to PySceneDetect tuning** for this use case
+- 5-second intervals balance coverage and processing time
+- Can reduce to 3-second intervals if validation shows gaps
+- Deduplication prevents redundant OCR processing
+- This approach is **reusable for all future episodes**
+
+## Alternative Considered (Not Pursued)
+
+### Option: Tune PySceneDetect Parameters
+Lower threshold to 15.0, min duration to 1.0:
+- **Pros**: No code changes needed
+- **Cons**: May create 1500-2000 scenes (too many), still no guarantee of FT capture
+- **Decision**: Rejected in favor of hybrid approach
+
+### Option: 1 FPS Sampling
+Extract every frame (25 FPS) or every second (1 FPS):
+- **Pros**: Maximum coverage
+- **Cons**: 5040 frames = ~50 minutes processing time (excessive)
+- **Decision**: Rejected - overkill
 
 ## Next Task
 [011c-segment-classifier.md](011c-segment-classifier.md)
