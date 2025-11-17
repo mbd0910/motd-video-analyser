@@ -15,7 +15,7 @@ ocr:
   # Combines PySceneDetect scene changes with regular interval sampling
   sampling:
     use_hybrid: true              # Enable hybrid extraction (scene changes + intervals)
-    interval: 5.0                 # Regular sampling interval (seconds)
+    interval: 2.0                 # Regular sampling interval (seconds) - reduced from 5.0 in Task 011b-2
     dedupe_threshold: 1.0         # Frames within 1s considered duplicates
     include_scene_changes: true   # Include PySceneDetect frames
 

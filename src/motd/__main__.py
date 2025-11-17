@@ -250,7 +250,7 @@ def detect_scenes_command(
                     "start_seconds": scene["start_seconds"],
                     "end_seconds": scene["end_seconds"],
                     "duration": scene["duration_seconds"],
-                    "frames": [scene.get("key_frame_path")] if scene.get("key_frame_path") else []
+                    "frames": scene.get("frames", [])
                 }
                 for i, scene in enumerate(scenes)
             ]
@@ -375,6 +375,47 @@ def process_scene(
             }
             for match in matches
         ]
+
+        # NEW: Validate FT graphics - if source is ft_score, verify it's genuine
+        if ocr_result['primary_source'] == 'ft_score':
+            team_names = [t['team'] for t in detected_teams]
+            if not ocr_reader.validate_ft_graphic(ocr_result['results'], team_names):
+                # False positive - try scoreboard instead
+                logger.debug(
+                    f"Scene {scene['scene_id']}: ft_score region has text but not genuine "
+                    f"FT graphic (missing score/FT text), trying scoreboard fallback"
+                )
+
+                # Use scoreboard results if available
+                scoreboard_results = ocr_result['all_regions'].get('scoreboard', [])
+                if scoreboard_results and not any('error' in r for r in scoreboard_results):
+                    # Re-process with scoreboard data
+                    combined_text = ' '.join([r['text'] for r in scoreboard_results])
+                    matches = team_matcher.match_multiple(
+                        combined_text,
+                        candidate_teams=expected_teams,
+                        max_teams=2
+                    )
+
+                    if matches:
+                        # Update detected teams and source
+                        detected_teams = [
+                            {
+                                'team': match['team'],
+                                'confidence': match['confidence'],
+                                'matched_text': match['matched_text'],
+                                'fixture_validated': match['fixture_validated']
+                            }
+                            for match in matches
+                        ]
+                        ocr_result['primary_source'] = 'scoreboard'
+                        logger.debug(f"Scene {scene['scene_id']}: Using scoreboard fallback")
+                    else:
+                        # No teams in scoreboard either - skip this scene
+                        return None
+                else:
+                    # No scoreboard fallback available
+                    return None
 
         # Validate against fixtures
         team_names = [t['team'] for t in detected_teams]
