@@ -211,9 +211,9 @@ class OCRReader:
         # Extract all OCR text
         all_text = ' '.join([r.get('text', '').upper() for r in ocr_results])
 
-        # Requirement 2: Score pattern (matches "2-1", "0 - 0", "2 0", etc.)
-        # BBC FT graphics show "2 | 0" but OCR reads as "2 0" (space-separated)
-        score_pattern = r'\b\d+\s*[-–—]?\s*\d+\b'
+        # Requirement 2: Score pattern (matches "2-1", "0 - 0", "2 0", "3 | 0", etc.)
+        # BBC FT graphics show "2 | 0" and OCR may read hyphen, pipe, or space
+        score_pattern = r'\b\d+\s*[-–—|]?\s*\d+\b'
         has_score = bool(re.search(score_pattern, all_text))
 
         # Requirement 3: FT indicator
