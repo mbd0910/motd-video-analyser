@@ -21,6 +21,11 @@ This is the most complex epic - split into 7 focused subtasks:
    - **[011b-1-ocr-region-calibration.md](011b-1-ocr-region-calibration.md)** ✅ - OCR calibration for 720p
      - Calibrated all OCR regions for 1280x720 video resolution
      - 14/14 teams detected (5/7 via FT graphics, 2/7 via scoreboard backup)
+   - **[011b-2-frame-extraction-fix.md](011b-2-frame-extraction-fix.md)** ⏳ - Fix frame extraction bugs & FT validation (1.5-2 hours)
+     - Fix scenes.json serialization bug (only 1 frame per scene stored)
+     - Reduce interval to 2s (better coverage: 2,520 frames)
+     - Add strict FT graphic validation (2 teams + score + "FT" text)
+     - CRITICAL: Manual verification required before 011c
 
 3. **[011c-segment-classifier.md](011c-segment-classifier.md)** - Segment classifier implementation (2-2.5 hours)
    - Classify scenes: studio_intro / highlights / interviews / studio_analysis
@@ -93,6 +98,7 @@ python -m motd_analyzer process data/videos/your_video.mp4 \
 - [x] 011a: Reconnaissance report complete with classification heuristics
 - [x] 011b: Hybrid frame extraction complete (1459 frames, 100% FT coverage)
 - [x] 011b-1: OCR region calibration complete (14/14 teams detected)
+- [ ] 011b-2: Frame extraction bugs fixed, FT validation added, data verified
 - [ ] 011c: Segment classifier implemented and tested
 - [ ] 011d: Match boundary detector implemented with 100% running order accuracy
 - [ ] 011e: Airtime calculator implemented and validated
