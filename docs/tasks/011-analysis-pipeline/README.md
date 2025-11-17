@@ -8,39 +8,44 @@ Combine all components (scenes, OCR, transcription) to classify segments, detect
 - Have scene, OCR, and transcription data for test video ✅
 
 ## Epic Overview
-This is the most complex epic - split into 6 focused subtasks:
+This is the most complex epic - split into 7 focused subtasks:
 
-1. **[011a-reconnaissance.md](011a-reconnaissance.md)** - Analysis reconnaissance & pattern discovery (45-60 min)
+1. **[011a-reconnaissance.md](011a-reconnaissance.md)** ✅ - Analysis reconnaissance & pattern discovery (45-60 min)
    - Map data relationships between scenes, OCR, and transcript
    - Validate against ground truth (motd_visual_patterns.md)
    - Propose classification heuristics
 
-2. **[011b-segment-classifier.md](011b-segment-classifier.md)** - Segment classifier implementation (2-2.5 hours)
+2. **[011b-scene-detection-tuning.md](011b-scene-detection-tuning.md)** - Scene detection tuning (30-60 min)
+   - Test lower PySceneDetect thresholds
+   - Attempt to capture FT graphics (0/7 currently detected)
+   - Decide: keep improved scenes OR proceed with current approach
+
+3. **[011c-segment-classifier.md](011c-segment-classifier.md)** - Segment classifier implementation (2-2.5 hours)
    - Classify scenes: studio_intro / highlights / interviews / studio_analysis
    - Multi-signal approach (OCR + transcript + timing)
    - Target: >85% accuracy
 
-3. **[011c-match-boundary-detector.md](011c-match-boundary-detector.md)** - Match boundary detection (1.5-2 hours)
+4. **[011d-match-boundary-detector.md](011d-match-boundary-detector.md)** - Match boundary detection (1.5-2 hours)
    - Detect match boundaries and determine running order
-   - Use OCR fixtures + team mentions + FT graphics
+   - Use OCR fixtures + team mentions + timing
    - Target: 100% running order accuracy (CRITICAL)
 
-4. **[011d-airtime-calculator.md](011d-airtime-calculator.md)** - Airtime calculator (1-1.5 hours)
+5. **[011e-airtime-calculator.md](011e-airtime-calculator.md)** - Airtime calculator (1-1.5 hours)
    - Calculate durations per segment type per match
    - Sum totals and validate ranges
 
-5. **[011e-pipeline-orchestrator.md](011e-pipeline-orchestrator.md)** - Pipeline orchestrator & CLI (2-2.5 hours)
+6. **[011f-pipeline-orchestrator.md](011f-pipeline-orchestrator.md)** - Pipeline orchestrator & CLI (2-2.5 hours)
    - Wire all components together
    - Implement caching strategy
    - Create `process` CLI command
 
-6. **[011f-validation.md](011f-validation.md)** - Execution & validation (2-3 hours)
+7. **[011g-validation.md](011g-validation.md)** - Execution & validation (2-3 hours)
    - Run full pipeline on test video
    - Validate running order (100% required)
    - Validate segment classification (>85% target)
-   - Investigate FT graphic detection issues
+   - Document final accuracy metrics
 
-**Total Estimated Time**: 8-11 hours
+**Total Estimated Time**: 8.5-12 hours
 
 ### Future Enhancement: Theme Song Detection
 Consider adding MOTD theme song detection as part of segment classification:
@@ -83,12 +88,13 @@ python -m motd_analyzer process data/videos/your_video.mp4 \
 ```
 
 ## Success Criteria
-- [ ] 011a: Reconnaissance report complete with classification heuristics
-- [ ] 011b: Segment classifier implemented and tested
-- [ ] 011c: Match boundary detector implemented with 100% running order accuracy
-- [ ] 011d: Airtime calculator implemented and validated
-- [ ] 011e: Pipeline orchestrator working with CLI command
-- [ ] 011f: Full validation complete with report
+- [x] 011a: Reconnaissance report complete with classification heuristics
+- [ ] 011b: Scene detection tuning complete (FT graphics investigation)
+- [ ] 011c: Segment classifier implemented and tested
+- [ ] 011d: Match boundary detector implemented with 100% running order accuracy
+- [ ] 011e: Airtime calculator implemented and validated
+- [ ] 011f: Pipeline orchestrator working with CLI command
+- [ ] 011g: Full validation complete with report
 - [ ] Running order: 100% accurate (7/7 matches) - **CRITICAL**
 - [ ] Segment classification: >85% accurate
 - [ ] Team mentions detected correctly
@@ -97,7 +103,7 @@ python -m motd_analyzer process data/videos/your_video.mp4 \
 - [ ] Caching works correctly (re-run is instant)
 
 ## Estimated Time
-8-11 hours (updated based on subtask breakdown)
+8.5-12 hours (updated with new 011b subtask)
 
 ## Notes
 - Start with simple heuristic rules for classification

@@ -14,21 +14,21 @@ Map data relationships between scenes, OCR, and transcription to discover classi
 ## Implementation Steps
 
 ### 1. Load All Cached Data
-- [ ] Load `data/cache/motd_2025-26_2025-11-01/scenes.json`
-- [ ] Load `data/cache/motd_2025-26_2025-11-01/ocr_results.json`
-- [ ] Load `data/cache/motd_2025-26_2025-11-01/transcript.json`
-- [ ] Load ground truth from `docs/motd_visual_patterns.md` (lines 95-102: running order)
+- [x] Load `data/cache/motd_2025-26_2025-11-01/scenes.json`
+- [x] Load `data/cache/motd_2025-26_2025-11-01/ocr_results.json`
+- [x] Load `data/cache/motd_2025-26_2025-11-01/transcript.json`
+- [x] Load ground truth from `docs/motd_visual_patterns.md` (lines 95-102: running order)
 
 ### 2. Map Data Relationships
-- [ ] Cross-reference scenes with OCR detections
+- [x] Cross-reference scenes with OCR detections
   - Which scenes have scoreboard graphics?
   - Which scenes have FT (Full Time) graphics?
   - Which scenes have team formations?
-- [ ] Cross-reference scenes with transcript segments
+- [x] Cross-reference scenes with transcript segments
   - Which scenes overlap with speech?
   - Which transcript segments contain team names?
   - Which transcript segments contain transition words ("Alright", "Right", "Moving on")?
-- [ ] Map scene sequences
+- [x] Map scene sequences
   - What comes before/after FT graphics?
   - What comes before/after team mentions?
   - Duration patterns by segment type
@@ -36,32 +36,32 @@ Map data relationships between scenes, OCR, and transcription to discover classi
 ### 3. Pattern Discovery for Each Segment Type
 
 #### Highlights Pattern
-- [ ] Identify all scenes with scoreboard OCR
-- [ ] Identify all scenes with FT graphic OCR
-- [ ] Duration ranges for highlights segments
-- [ ] Typical sequence: Formation → Scoreboards → FT graphic
+- [x] Identify all scenes with scoreboard OCR
+- [x] Identify all scenes with FT graphic OCR
+- [x] Duration ranges for highlights segments
+- [x] Typical sequence: Formation → Scoreboards → FT graphic
 
 #### Interview Pattern
-- [ ] Identify scenes following FT graphics
-- [ ] Check for interview keywords in transcript ("speak to", "join us", "after the game")
-- [ ] Check for name graphics in OCR (player/manager names)
-- [ ] Duration ranges for interview segments
+- [x] Identify scenes following FT graphics
+- [x] Check for interview keywords in transcript ("speak to", "join us", "after the game")
+- [x] Check for name graphics in OCR (player/manager names)
+- [x] Duration ranges for interview segments
 
 #### Studio Intro Pattern
-- [ ] Identify short scenes (7-11 seconds) at match starts
-- [ ] Check for team mentions in transcript
-- [ ] Verify they occur before highlights (with formation graphics)
-- [ ] Transition from previous match analysis
+- [x] Identify short scenes (7-11 seconds) at match starts
+- [x] Check for team mentions in transcript
+- [x] Verify they occur before highlights (with formation graphics)
+- [x] Transition from previous match analysis
 
 #### Studio Analysis Pattern
-- [ ] Identify scenes after interviews
-- [ ] Check for transition words in transcript
-- [ ] Check for team discussion keywords
-- [ ] Duration ranges for analysis segments
+- [x] Identify scenes after interviews
+- [x] Check for transition words in transcript
+- [x] Check for team discussion keywords
+- [x] Duration ranges for analysis segments
 
 ### 4. Validate Against Ground Truth
-- [ ] Compare discovered match boundaries with motd_visual_patterns.md
-- [ ] Verify 7 matches detected in correct order:
+- [x] Compare discovered match boundaries with motd_visual_patterns.md
+- [x] Verify 7 matches detected in correct order:
   1. Liverpool v Aston Villa (00:00:50)
   2. Burnley v Arsenal (00:14:25)
   3. Forest vs Manchester United (00:26:27)
@@ -69,19 +69,19 @@ Map data relationships between scenes, OCR, and transcription to discover classi
   5. Spurs v Chelsea (00:52:48)
   6. Brighton v Leeds (1:04:54)
   7. Palace v Brentford (1:14:40)
-- [ ] Check if all 7 FT graphics were detected by OCR
-- [ ] Document any missing FT graphics and why
+- [x] Check if all 7 FT graphics were detected by OCR
+- [x] Document any missing FT graphics and why
 
 ### 5. Document Edge Cases
-- [ ] MOTD 2 interlude (52:01-52:47) - how to detect/skip?
-- [ ] Intro sequence (00:00:00-00:00:50) - already filtered?
-- [ ] Outro sequence (1:22:57+) - how to detect?
-- [ ] VAR reviews during highlights - correctly part of highlights?
-- [ ] Formation graphics - whole screen vs bottom screen differences
-- [ ] Missing OCR detections - which scenes/teams?
+- [x] MOTD 2 interlude (52:01-52:47) - how to detect/skip?
+- [x] Intro sequence (00:00:00-00:00:50) - already filtered?
+- [x] Outro sequence (1:22:57+) - how to detect?
+- [x] VAR reviews during highlights - correctly part of highlights?
+- [x] Formation graphics - whole screen vs bottom screen differences
+- [x] Missing OCR detections - which scenes/teams?
 
 ### 6. Propose Classification Heuristics
-- [ ] Document priority-ordered rules for segment classification:
+- [x] Document priority-ordered rules for segment classification:
   ```
   Rule 1: FT graphic in OCR → End of highlights (next = interviews)
   Rule 2: Scoreboard OCR + no FT → Highlights
@@ -90,8 +90,8 @@ Map data relationships between scenes, OCR, and transcription to discover classi
   Rule 5: After interviews + transition keywords → Studio Analysis
   Rule 6: Default → Studio (generic/unclassified)
   ```
-- [ ] Document confidence scoring approach
-- [ ] Identify which signals are most reliable
+- [x] Document confidence scoring approach
+- [x] Identify which signals are most reliable
 
 ## Deliverables
 
@@ -113,14 +113,14 @@ Create `docs/analysis_reconnaissance_report.md` with:
 6. **Are there any unexpected segment types?** (e.g., league table reviews, montages)
 
 ## Success Criteria
-- [ ] All cached data loaded and understood
-- [ ] Data relationships mapped (OCR ↔ scenes ↔ transcript)
-- [ ] Patterns documented for all 4 segment types
-- [ ] Ground truth validation complete (7/7 matches identified)
-- [ ] FT graphic detection assessed (documented any missing)
-- [ ] Classification rules proposed with confidence
-- [ ] Reconnaissance report written
-- [ ] Ready to implement 011b (segment classifier)
+- [x] All cached data loaded and understood
+- [x] Data relationships mapped (OCR ↔ scenes ↔ transcript)
+- [x] Patterns documented for all 4 segment types
+- [x] Ground truth validation complete (7/7 matches identified)
+- [x] FT graphic detection assessed (documented any missing)
+- [x] Classification rules proposed with confidence
+- [x] Reconnaissance report written
+- [x] Ready to implement 011b (segment classifier)
 
 ## Notes
 - Focus on **discovery**, not implementation

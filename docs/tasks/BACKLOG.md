@@ -61,16 +61,17 @@ This directory contains discrete, actionable tasks for building the MOTD Analyse
 
 ## Phase 4: Analysis & Classification (Task 011 - Epic)
 - 🔄 [011-analysis-pipeline](011-analysis-pipeline/) - Segment classifier, match boundaries, airtime, orchestrator
-  - ⏳ 011a: Analysis reconnaissance & pattern discovery
-  - ⏳ 011b: Segment classifier (multi-signal: OCR + transcript + timing)
-  - ⏳ 011c: Match boundary detector (running order via OCR + team mentions)
-  - ⏳ 011d: Airtime calculator (sum durations by segment type)
-  - ⏳ 011e: Pipeline orchestrator & CLI (`process` command)
-  - ⏳ 011f: Execution, validation & FT graphic investigation
+  - ✅ 011a: Analysis reconnaissance & pattern discovery
+  - ⏳ 011b: Scene detection tuning & FT graphic investigation
+  - ⏳ 011c: Segment classifier (multi-signal: OCR + transcript + timing)
+  - ⏳ 011d: Match boundary detector (running order via OCR + team mentions)
+  - ⏳ 011e: Airtime calculator (sum durations by segment type)
+  - ⏳ 011f: Pipeline orchestrator & CLI (`process` command)
+  - ⏳ 011g: Execution & validation
 
-**Note**: This is the most complex epic - split into 6 subtasks. Running order accuracy (100%) is critical.
+**Note**: This is the most complex epic - split into 7 subtasks. Running order accuracy (100%) is critical.
 
-**Estimated Time**: 8-11 hours
+**Estimated Time**: 8.5-12 hours
 
 ---
 
