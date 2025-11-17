@@ -60,6 +60,14 @@ transcription:
 teams:
   path: data/teams/premier_league_2025_26.json
 
+# Fixtures
+fixtures:
+  path: data/fixtures/premier_league_2025_26.json
+
+# Episodes
+episodes:
+  manifest_path: data/episodes/episode_manifest.json
+
 # Caching Configuration
 cache:
   enabled: true
