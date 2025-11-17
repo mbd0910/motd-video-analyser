@@ -163,14 +163,62 @@ def detect_scenes_command(
 
         click.echo(f"Detected {len(scenes)} scenes")
 
-        # Extract key frames
-        click.echo("Extracting key frames...")
-        extract_key_frames_for_scenes(
-            video_path=video_path,
-            scenes=scenes,
-            output_dir=frames_dir,
-            extract_position="start"
-        )
+        # Extract frames (hybrid or traditional)
+        ocr_config = config_data.get('ocr', {})
+        sampling_config = ocr_config.get('sampling', {})
+        use_hybrid = sampling_config.get('use_hybrid', False)
+
+        if use_hybrid:
+            click.echo("Extracting frames using hybrid strategy (scene changes + intervals)...")
+            from motd.scene_detection.detector import hybrid_frame_extraction
+            from motd.scene_detection.frame_extractor import extract_hybrid_frames
+
+            # Get filtering config
+            filtering = ocr_config.get('filtering', {})
+            skip_intro = filtering.get('skip_intro_seconds', 0)
+            motd2_start = filtering.get('motd2_interlude_start', 0)
+            motd2_end = filtering.get('motd2_interlude_end', 0)
+            skip_intervals = [(motd2_start, motd2_end)] if motd2_start and motd2_end else []
+
+            # Generate hybrid frame list
+            hybrid_frames = hybrid_frame_extraction(
+                video_path=str(video_path),
+                scenes=scenes,
+                interval=sampling_config.get('interval', 5.0),
+                dedupe_threshold=sampling_config.get('dedupe_threshold', 1.0),
+                skip_intro=skip_intro,
+                skip_intervals=skip_intervals
+            )
+
+            # Extract frames
+            hybrid_frames = extract_hybrid_frames(video_path, hybrid_frames, frames_dir)
+
+            # Update scenes with hybrid frame paths (for compatibility with existing code)
+            # Each scene gets the first hybrid frame that falls within its timespan
+            for scene in scenes:
+                matching_frames = [
+                    f['frame_path'] for f in hybrid_frames
+                    if f.get('frame_path') and
+                       scene['start_seconds'] <= f['timestamp'] < scene['end_seconds']
+                ]
+                if matching_frames:
+                    scene['key_frame_path'] = matching_frames[0]
+                    scene['frames'] = matching_frames  # Store all matching frames
+                else:
+                    scene['key_frame_path'] = None
+                    scene['frames'] = []
+
+            click.echo(f"  Extracted {len(hybrid_frames)} hybrid frames")
+            click.echo(f"  Scene frames: {sum(1 for f in hybrid_frames if f['source'] == 'scene_change')}")
+            click.echo(f"  Interval samples: {sum(1 for f in hybrid_frames if f['source'] == 'interval_sampling')}")
+        else:
+            click.echo("Extracting key frames (scene changes only)...")
+            extract_key_frames_for_scenes(
+                video_path=video_path,
+                scenes=scenes,
+                output_dir=frames_dir,
+                extract_position="start"
+            )
 
         # Prepare output JSON
         output_data = {
@@ -226,12 +274,12 @@ def filter_scenes(scenes: list[dict[str, Any]], config: dict[str, Any]) -> list[
     """
     Filter scenes based on reconnaissance findings from Task 009a.
 
-    Target: 810 → 160-240 scenes (70-80% reduction)
+    Note: With hybrid frame extraction (Task 011b), min_scene_duration filtering
+    is removed. Hybrid approach guarantees coverage regardless of scene duration.
 
     Filters out:
     - Intro scenes (first 50 seconds)
     - MOTD 2 interlude (52:01-52:47)
-    - Very short scenes (transitions <2 seconds)
     """
     filtering = config.get('ocr', {}).get('filtering', {})
 
@@ -244,8 +292,8 @@ def filter_scenes(scenes: list[dict[str, Any]], config: dict[str, Any]) -> list[
     motd2_start = filtering.get('motd2_interlude_start', 3121)  # 52:01
     motd2_end = filtering.get('motd2_interlude_end', 3167)      # 52:47
 
-    # Skip short scenes (transitions <2 seconds)
-    min_duration = filtering.get('min_scene_duration', 2.0)
+    # Note: min_scene_duration filtering removed (Task 011b)
+    # Hybrid frame extraction now handles coverage of brief graphics
 
     for scene in scenes:
         # Skip intro
@@ -254,10 +302,6 @@ def filter_scenes(scenes: list[dict[str, Any]], config: dict[str, Any]) -> list[
 
         # Skip MOTD 2 interlude
         if motd2_start <= scene['start_seconds'] <= motd2_end:
-            continue
-
-        # Skip short scenes (transitions)
-        if scene['duration'] < min_duration:
             continue
 
         filtered.append(scene)
