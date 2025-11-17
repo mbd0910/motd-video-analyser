@@ -375,6 +375,45 @@ def process_scene(
         if not matches:
             return None
 
+        # SINGLE TEAM + FT FALLBACK: If only 1 team detected but we have FT graphic,
+        # use fixtures to infer the opponent (handles OCR failures on non-bold text)
+        if len(matches) == 1 and ocr_result['primary_source'] == 'ft_score':
+            # Check if this looks like FT graphic (has FT text + score)
+            if ocr_reader.validate_ft_graphic(ocr_result['results'], [matches[0]['team']]):
+                # Find opponent from fixtures
+                detected_team = matches[0]['team']
+                opponent = None
+
+                for fixture in fixture_matcher.fixtures.get(episode_id, []):
+                    if fixture['home_team'] == detected_team:
+                        opponent = fixture['away_team']
+                        break
+                    elif fixture['away_team'] == detected_team:
+                        opponent = fixture['home_team']
+                        break
+
+                if opponent:
+                    logger.debug(
+                        f"Scene {scene['scene_id']}: Only 1 team detected ({detected_team}) "
+                        f"in FT graphic, inferred opponent from fixture: {opponent}"
+                    )
+                    # Add opponent as second match with reduced confidence
+                    matches.append({
+                        'team': opponent,
+                        'confidence': 0.75,  # Lower confidence (inferred, not OCR'd)
+                        'matched_text': 'inferred_from_fixture',
+                        'fixture_validated': True
+                    })
+                else:
+                    logger.debug(
+                        f"Scene {scene['scene_id']}: Only 1 team detected ({detected_team}) "
+                        f"but couldn't find opponent in fixtures"
+                    )
+                    return None
+            else:
+                # Not a valid FT graphic, reject
+                return None
+
         # FIXTURE PAIR VALIDATION: Ensure detected teams form a valid fixture
         # This prevents false matches like "Chelsea vs Man Utd" when OCR reads
         # "che" from "Manchester" (actual fixture: Forest vs Man Utd)

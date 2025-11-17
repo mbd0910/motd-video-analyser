@@ -201,10 +201,10 @@ class OCRReader:
         """
         import re
 
-        # Requirement 1: Two teams
-        if len(detected_teams) != 2:
+        # Requirement 1: At least one team (allow 1 team for fixture inference fallback)
+        if len(detected_teams) < 1:
             logger.debug(
-                f"FT validation failed: {len(detected_teams)} teams detected (need exactly 2)"
+                f"FT validation failed: {len(detected_teams)} teams detected (need at least 1)"
             )
             return False
 
