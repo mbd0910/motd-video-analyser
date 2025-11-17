@@ -125,6 +125,8 @@ class TestFTGraphicValidation:
             {'text': '2–1'},      # En dash
             {'text': '2—1'},      # Em dash
             {'text': '0 - 0'},    # Draw
+            {'text': '2 0'},      # Space-separated (BBC FT graphics - OCR reads "2 | 0" as "2 0")
+            {'text': '1  1'},     # Multiple spaces
         ]
 
         for score_text in test_cases:
