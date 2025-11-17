@@ -44,21 +44,33 @@ This directory contains discrete, actionable tasks for building the MOTD Analyse
 
 ---
 
-## Phase 3: Audio Transcription (Task 010 - Epic)
-- ⏳ [010-transcription](010-transcription/) - Audio extraction, Whisper integration, CLI, validation
+## Phase 3: Audio Transcription (Task 010 - Epic) ✅
+- ✅ [010-transcription](completed/010-transcription/) - Audio extraction, Whisper integration, CLI, validation
+  - ✅ 010a: Audio transcription reconnaissance (evaluated faster-whisper models, chose large-v3)
+  - ✅ 010b: Audio extractor implementation (ffmpeg integration, WAV extraction)
+  - ✅ 010c: Transcription engine with faster-whisper (GPU-accelerated, 5min runtime for 84min video)
+  - ✅ 010d: CLI integration (`transcribe` command with caching)
+  - ✅ 010e: Run on test video (1773 segments, word-level timestamps)
+  - ✅ 010f: Validation (excellent accuracy, duration 5039.3s ≈ 84 minutes)
 
-**Note**: This is an epic - split into smaller subtasks before starting.
+**Results**: Episode 01.11: 1773 segments transcribed in ~5 minutes (GPU); word-level timestamps; excellent accuracy; full caching implemented
 
-**Estimated Time**: 2-3 hours (+ 10-15 mins transcription time)
+**Estimated Time**: 2-3 hours (+ 5 mins transcription time with faster-whisper)
 
 ---
 
 ## Phase 4: Analysis & Classification (Task 011 - Epic)
-- ⏳ [011-analysis-pipeline](011-analysis-pipeline/) - Segment classifier, team mentions, airtime calculator, orchestrator
+- 🔄 [011-analysis-pipeline](011-analysis-pipeline/) - Segment classifier, match boundaries, airtime, orchestrator
+  - ⏳ 011a: Analysis reconnaissance & pattern discovery
+  - ⏳ 011b: Segment classifier (multi-signal: OCR + transcript + timing)
+  - ⏳ 011c: Match boundary detector (running order via OCR + team mentions)
+  - ⏳ 011d: Airtime calculator (sum durations by segment type)
+  - ⏳ 011e: Pipeline orchestrator & CLI (`process` command)
+  - ⏳ 011f: Execution, validation & FT graphic investigation
 
-**Note**: This is the most complex epic - definitely split into smaller subtasks before starting.
+**Note**: This is the most complex epic - split into 6 subtasks. Running order accuracy (100%) is critical.
 
-**Estimated Time**: 4-6 hours
+**Estimated Time**: 8-11 hours
 
 ---
 

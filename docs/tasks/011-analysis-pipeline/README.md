@@ -4,17 +4,43 @@
 Combine all components (scenes, OCR, transcription) to classify segments, detect team mentions, and calculate airtime.
 
 ## Prerequisites
-- [010-transcription-epic.md](010-transcription-epic.md) completed
-- Have scene, OCR, and transcription data for test video
+- Task 010 (Transcription Epic) completed ✅
+- Have scene, OCR, and transcription data for test video ✅
 
 ## Epic Overview
-This is the most complex epic - definitely split into sub-tasks:
-1. Implement segment classifier (studio/highlights/interview/analysis)
-2. Implement team mention detector (find first team in analysis segments)
-3. Implement airtime calculator (sum durations by match)
-4. Create pipeline orchestrator (ties everything together)
-5. Run end-to-end on test video
-6. Validate full pipeline output
+This is the most complex epic - split into 6 focused subtasks:
+
+1. **[011a-reconnaissance.md](011a-reconnaissance.md)** - Analysis reconnaissance & pattern discovery (45-60 min)
+   - Map data relationships between scenes, OCR, and transcript
+   - Validate against ground truth (motd_visual_patterns.md)
+   - Propose classification heuristics
+
+2. **[011b-segment-classifier.md](011b-segment-classifier.md)** - Segment classifier implementation (2-2.5 hours)
+   - Classify scenes: studio_intro / highlights / interviews / studio_analysis
+   - Multi-signal approach (OCR + transcript + timing)
+   - Target: >85% accuracy
+
+3. **[011c-match-boundary-detector.md](011c-match-boundary-detector.md)** - Match boundary detection (1.5-2 hours)
+   - Detect match boundaries and determine running order
+   - Use OCR fixtures + team mentions + FT graphics
+   - Target: 100% running order accuracy (CRITICAL)
+
+4. **[011d-airtime-calculator.md](011d-airtime-calculator.md)** - Airtime calculator (1-1.5 hours)
+   - Calculate durations per segment type per match
+   - Sum totals and validate ranges
+
+5. **[011e-pipeline-orchestrator.md](011e-pipeline-orchestrator.md)** - Pipeline orchestrator & CLI (2-2.5 hours)
+   - Wire all components together
+   - Implement caching strategy
+   - Create `process` CLI command
+
+6. **[011f-validation.md](011f-validation.md)** - Execution & validation (2-3 hours)
+   - Run full pipeline on test video
+   - Validate running order (100% required)
+   - Validate segment classification (>85% target)
+   - Investigate FT graphic detection issues
+
+**Total Estimated Time**: 8-11 hours
 
 ### Future Enhancement: Theme Song Detection
 Consider adding MOTD theme song detection as part of segment classification:
@@ -57,15 +83,21 @@ python -m motd_analyzer process data/videos/your_video.mp4 \
 ```
 
 ## Success Criteria
-- [ ] Full pipeline runs end-to-end
-- [ ] Running order is correct
-- [ ] Segment classification >85% accurate
+- [ ] 011a: Reconnaissance report complete with classification heuristics
+- [ ] 011b: Segment classifier implemented and tested
+- [ ] 011c: Match boundary detector implemented with 100% running order accuracy
+- [ ] 011d: Airtime calculator implemented and validated
+- [ ] 011e: Pipeline orchestrator working with CLI command
+- [ ] 011f: Full validation complete with report
+- [ ] Running order: 100% accurate (7/7 matches) - **CRITICAL**
+- [ ] Segment classification: >85% accurate
 - [ ] Team mentions detected correctly
 - [ ] Airtime calculations accurate
-- [ ] Final JSON matches expected schema
+- [ ] Final JSON matches PRD schema (section 3.4)
+- [ ] Caching works correctly (re-run is instant)
 
 ## Estimated Time
-4-6 hours
+8-11 hours (updated based on subtask breakdown)
 
 ## Notes
 - Start with simple heuristic rules for classification
