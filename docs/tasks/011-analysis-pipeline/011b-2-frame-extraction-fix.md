@@ -172,8 +172,8 @@ data/videos/motd_2025-26_2025-11-01.mp4                         # Original video
 - [ ] Backup current `scenes.json` and `ocr_results.json` (for comparison)
 
 ### Step 3: Re-run Frame Extraction
-- [ ] Run: `python -m motd detect-scenes data/videos/motd_2025-26_2025-11-01.mp4 --output data/cache/motd_2025-26_2025-11-01/scenes.json`
-- [ ] Verify: ~2,520 frames extracted in `frames/` directory
+- [x] Run: `python -m motd detect-scenes data/videos/motd_2025-26_2025-11-01.mp4 --output data/cache/motd_2025-26_2025-11-01/scenes.json`
+- [x] Verify: ~2,520 frames extracted in `frames/` directory (actual: 2,599 frames)
 - [ ] Verify: scenes.json contains multiple frames per scene (not just 1)
 - [ ] Spot-check: 5-10 random scenes have expected frames
 
@@ -243,10 +243,10 @@ with open('data/cache/motd_2025-26_2025-11-01/ocr_results.json') as f:
 
 ## Success Criteria (ALL Must Pass Before 011c)
 
-- [ ] Serialization bug fixed (verified by code review)
-- [ ] Interval changed to 2.0 seconds (verified in config.yaml)
-- [ ] FT validation logic implemented (verified by code review)
-- [ ] ~2,520 frames extracted (±10%)
+- [x] Serialization bug fixed (verified by code review)
+- [x] Interval changed to 2.0 seconds (verified in config.yaml)
+- [x] FT validation logic implemented (verified by code review)
+- [x] ~2,520 frames extracted (±10%) - actual: 2,599 frames (78% more than before)
 - [ ] scenes.json contains multiple frames per scene (>500 scenes with >1 frame)
 - [ ] Manual verification complete:
   - [ ] 0% FT false positives (sample of 10)
@@ -271,6 +271,35 @@ with open('data/cache/motd_2025-26_2025-11-01/ocr_results.json') as f:
 - **User must be involved** in verification - their eyes are critical
 - **If verification fails**, adjust validation logic and re-run
 - **Only proceed to 011c** when user explicitly confirms data is clean
+
+---
+
+## Future Enhancements (Not in Scope for 011b-2)
+
+### Vision Model Validation (Consider for Task 011c)
+
+**Context:** Vision models (GPT-4V, Claude API) could provide additional validation for segment classification.
+
+**Potential Use Cases:**
+- Validate low-confidence OCR results (<0.7 confidence)
+- Confirm stadium vs studio scenes when OCR is ambiguous
+- Sanity-check FT graphic classifications
+
+**Cost Estimate:**
+- ~£0.50-£1.00 per 83-minute episode
+- Only process questionable frames (10-20% of total)
+- Claude Max plan covers web interface, but API usage billed separately
+
+**Recommendation:**
+- NOT needed for Task 011b-2 (OCR + FT validation is sufficient)
+- Consider adding in Task 011c (Segment Classifier) if accuracy <85%
+- Use as confidence booster, not primary detection method
+
+**Why OCR-first approach is correct:**
+- Need structured text extraction (exact team names, scores)
+- Fixture matching requires precise team identification
+- Vision models excel at "what type of scene" but not "which exact teams"
+- Hybrid approach: OCR for text + vision for validation = best of both
 
 ---
 
