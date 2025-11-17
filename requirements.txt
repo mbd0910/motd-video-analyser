@@ -27,3 +27,7 @@ click==8.1.8
 python-dateutil==2.9.0.post0
 tqdm==4.67.1
 packaging==24.2
+
+# Data Validation
+pydantic==2.10.3  # Type-safe models with runtime validation
+rapidfuzz==3.11.0  # Fuzzy string matching (already used by team_matcher)

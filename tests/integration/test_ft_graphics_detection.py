@@ -121,19 +121,18 @@ def config():
 def ocr_reader(config):
     """Initialize OCRReader with test configuration."""
     # Use CPU for tests to avoid GPU allocation issues in parallel tests
-    test_config = config.copy()
+    import copy
+    test_config = copy.deepcopy(config)
     test_config['ocr']['gpu'] = False
-    return OCRReader(test_config)
+    # OCRReader expects just the ocr config section
+    return OCRReader(test_config['ocr'])
 
 
 @pytest.fixture(scope="module")
 def team_matcher():
     """Initialize TeamMatcher with Premier League teams."""
     teams_path = Path(__file__).parent.parent.parent / "data" / "teams" / "premier_league_2025_26.json"
-    with open(teams_path, 'r') as f:
-        teams_data = json.load(f)
-    teams = [team['name'] for team in teams_data['teams']]
-    return TeamMatcher(teams)
+    return TeamMatcher(teams_path)
 
 
 @pytest.fixture(scope="module")
@@ -359,7 +358,9 @@ def test_fixture_validation(ground_truth: Dict, fixture_matcher: FixtureMatcher,
 
 
 @pytest.mark.parametrize("ground_truth", FT_GRAPHICS_GROUND_TRUTH, ids=lambda gt: gt['frame'])
-def test_process_scene_end_to_end(ground_truth: Dict, fixtures_dir: Path, config: Dict, episode_id: str):
+def test_process_scene_end_to_end(ground_truth: Dict, fixtures_dir: Path, config: Dict,
+                                   ocr_reader: OCRReader, team_matcher: TeamMatcher,
+                                   fixture_matcher: FixtureMatcher, episode_id: str):
     """
     CRITICAL END-TO-END TEST: Test complete process_scene() pipeline.
 
@@ -373,6 +374,7 @@ def test_process_scene_end_to_end(ground_truth: Dict, fixtures_dir: Path, config
     - No false rejections
     """
     from src.motd.__main__ import process_scene
+    import logging
 
     frame_path = fixtures_dir / ground_truth['frame']
 
@@ -386,8 +388,15 @@ def test_process_scene_end_to_end(ground_truth: Dict, fixtures_dir: Path, config
         'duration': 1.0,
     }
 
+    # Get expected teams for episode
+    expected_teams = fixture_matcher.get_expected_teams(episode_id)
+
+    # Set up logger
+    logger = logging.getLogger(__name__)
+
     # Call process_scene exactly as production pipeline does
-    detection = process_scene(scene, config, episode_id)
+    detection = process_scene(scene, ocr_reader, team_matcher, fixture_matcher,
+                             expected_teams, episode_id, logger)
 
     print(f"\n{ground_truth['frame']}:")
     print(f"  Detection Result: {detection is not None}")
