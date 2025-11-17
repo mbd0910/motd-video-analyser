@@ -356,6 +356,15 @@ def process_scene(
         if not combined_text or not combined_text.strip():
             return None
 
+        # OCR NOISE FILTERING: Remove common OCR errors before team matching
+        # "Eeagie", "Eeague" = Premier League logo consistently misread
+        # Prevents "lee" substring matching Leeds United
+        noise_terms = ['eeagie', 'eeague', 'bb sport', 'bbc sport']
+        combined_text_lower = combined_text.lower()
+        for term in noise_terms:
+            combined_text_lower = combined_text_lower.replace(term, '')
+        combined_text = combined_text_lower  # Use filtered text for matching
+
         # Match teams (with fixture candidates)
         matches = team_matcher.match_multiple(
             combined_text,
@@ -365,6 +374,55 @@ def process_scene(
 
         if not matches:
             return None
+
+        # FIXTURE PAIR VALIDATION: Ensure detected teams form a valid fixture
+        # This prevents false matches like "Chelsea vs Man Utd" when OCR reads
+        # "che" from "Manchester" (actual fixture: Forest vs Man Utd)
+        if len(matches) >= 2:
+            team1, team2 = matches[0]['team'], matches[1]['team']
+            fixture_check = fixture_matcher.identify_fixture(team1, team2, episode_id)
+
+            if not fixture_check:
+                # Invalid pair! Search top candidates for first valid fixture match
+                logger.debug(
+                    f"Scene {scene['scene_id']}: Top 2 teams ({team1}, {team2}) "
+                    f"don't form valid fixture, searching alternatives..."
+                )
+
+                # Get more candidates (up to 5 top matches)
+                all_matches = team_matcher.match_multiple(
+                    combined_text,
+                    candidate_teams=expected_teams,
+                    max_teams=5
+                )
+
+                # Find first valid fixture pair
+                valid_pair_found = False
+                for i in range(len(all_matches)):
+                    for j in range(i + 1, len(all_matches)):
+                        team_a = all_matches[i]['team']
+                        team_b = all_matches[j]['team']
+                        fixture_test = fixture_matcher.identify_fixture(team_a, team_b, episode_id)
+
+                        if fixture_test:
+                            # Found valid pair!
+                            matches = [all_matches[i], all_matches[j]]
+                            valid_pair_found = True
+                            logger.debug(
+                                f"Scene {scene['scene_id']}: Found valid fixture: "
+                                f"{team_a} vs {team_b} (was {team1} vs {team2})"
+                            )
+                            break
+                    if valid_pair_found:
+                        break
+
+                if not valid_pair_found:
+                    # No valid fixture pair found in top 5 - reject this scene
+                    logger.debug(
+                        f"Scene {scene['scene_id']}: No valid fixture pair found "
+                        f"in top 5 candidates, rejecting scene"
+                    )
+                    return None
 
         detected_teams = [
             {
@@ -433,6 +491,20 @@ def process_scene(
                 detected_teams[1]['team'],
                 episode_id
             )
+
+            # FIXTURE-AWARE ORDERING: Ensure teams are in fixture order (home, away)
+            # This fixes cases where OCR reads teams left-to-right but fixture has them reversed
+            if matched_fixture:
+                team1, team2 = detected_teams[0]['team'], detected_teams[1]['team']
+
+                # Check if teams are in wrong order (away team listed first)
+                if team1 == matched_fixture['away_team'] and team2 == matched_fixture['home_team']:
+                    # Swap to match fixture order (home, away)
+                    detected_teams[0], detected_teams[1] = detected_teams[1], detected_teams[0]
+                    logger.debug(
+                        f"Scene {scene['scene_id']}: Swapped team order to match fixture "
+                        f"(was {team1} vs {team2}, now {team2} vs {team1})"
+                    )
 
         return {
             'scene_id': scene['scene_id'],
