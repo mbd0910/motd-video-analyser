@@ -4,10 +4,19 @@ Identifies transitions between segments (studio, highlights, interviews).
 """
 
 from scenedetect import detect, ContentDetector, AdaptiveDetector
-from typing import Any
+from typing import Any, TypedDict, Literal
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+class HybridFrame(TypedDict):
+    """Frame extraction specification from hybrid sampling strategy."""
+    timestamp: float  # Frame timestamp in seconds
+    source: Literal['scene_change', 'interval_sampling']  # Extraction source
+    scene_id: int | None  # Scene ID (only for scene_change source)
+    frame_id: int  # Unique sequential frame identifier
+
 
 # Monkey-patch PySceneDetect to fix NumPy 2.x compatibility
 # Workaround for PySceneDetect 0.6.x with NumPy 2.x
@@ -128,3 +137,145 @@ def get_fps(video_path: str) -> float:
         return fps
     finally:
         cap.release()
+
+
+def get_video_duration(video_path: str) -> float:
+    """
+    Get total duration of video in seconds.
+
+    Args:
+        video_path: Path to video file
+
+    Returns:
+        Duration in seconds
+    """
+    import cv2
+    cap = cv2.VideoCapture(video_path)
+    try:
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        duration = frame_count / fps if fps > 0 else 0
+        return duration
+    finally:
+        cap.release()
+
+
+def hybrid_frame_extraction(
+    video_path: str,
+    scenes: list[dict[str, Any]],
+    interval: float = 5.0,
+    dedupe_threshold: float = 1.0,
+    skip_intro: float = 0.0,
+    skip_intervals: list[tuple[float, float]] | None = None
+) -> list[HybridFrame]:
+    """
+    Hybrid frame extraction combining scene changes and interval sampling.
+
+    Combines PySceneDetect scene start times with regular interval samples,
+    then deduplicates frames within dedupe_threshold.
+
+    Args:
+        video_path: Path to video file
+        scenes: PySceneDetect scene list from detect_scenes()
+        interval: Regular sampling interval in seconds (default 5.0)
+        dedupe_threshold: Frames within this many seconds are duplicates (default 1.0)
+        skip_intro: Skip first N seconds (default 0.0)
+        skip_intervals: List of (start, end) tuples to skip (e.g., MOTD2 interlude)
+
+    Returns:
+        Deduplicated list of frame extraction specifications with metadata:
+        [
+            {
+                'timestamp': float,  # Seconds
+                'source': 'scene_change' | 'interval_sampling',
+                'scene_id': int | None,  # Only for scene_change
+                'frame_id': int  # Unique sequential ID
+            },
+            ...
+        ]
+    """
+    logger.info("Starting hybrid frame extraction")
+    logger.info(f"Parameters: interval={interval}s, dedupe_threshold={dedupe_threshold}s")
+
+    # Get video duration
+    duration = get_video_duration(video_path)
+    logger.info(f"Video duration: {duration:.1f}s")
+
+    skip_intervals = skip_intervals or []
+
+    # Collect all candidate timestamps
+    candidates = []
+
+    # 1. Add scene change timestamps
+    for scene in scenes:
+        timestamp = scene['start_seconds']
+        if timestamp >= skip_intro:
+            candidates.append({
+                'timestamp': timestamp,
+                'source': 'scene_change',
+                'scene_id': scene['scene_id']
+            })
+
+    scene_count = len(candidates)
+    logger.info(f"Added {scene_count} scene change timestamps")
+
+    # 2. Add interval sampling timestamps
+    current = skip_intro
+    interval_count = 0
+    while current <= duration:
+        # Check if in skip interval
+        in_skip = False
+        for skip_start, skip_end in skip_intervals:
+            if skip_start <= current <= skip_end:
+                in_skip = True
+                break
+
+        if not in_skip:
+            candidates.append({
+                'timestamp': current,
+                'source': 'interval_sampling',
+                'scene_id': None
+            })
+            interval_count += 1
+
+        current += interval
+
+    logger.info(f"Added {interval_count} interval sampling timestamps")
+    logger.info(f"Total candidates: {len(candidates)}")
+
+    # 3. Sort by timestamp
+    candidates.sort(key=lambda x: x['timestamp'])
+
+    # 4. Deduplicate
+    deduplicated = []
+    last_timestamp = -float('inf')
+
+    for candidate in candidates:
+        timestamp = candidate['timestamp']
+
+        # If within threshold of last timestamp, skip
+        if timestamp - last_timestamp < dedupe_threshold:
+            logger.debug(
+                f"Skipping duplicate: {candidate['source']} at {timestamp:.1f}s "
+                f"(within {dedupe_threshold}s of previous frame)"
+            )
+            continue
+
+        deduplicated.append(candidate)
+        last_timestamp = timestamp
+
+    # 5. Assign frame IDs
+    for i, frame in enumerate(deduplicated, 1):
+        frame['frame_id'] = i
+
+    # Log statistics
+    scene_frames = sum(1 for f in deduplicated if f['source'] == 'scene_change')
+    interval_frames = sum(1 for f in deduplicated if f['source'] == 'interval_sampling')
+
+    logger.info(f"Deduplication complete:")
+    logger.info(f"  Total frames: {len(deduplicated)}")
+    logger.info(f"  Scene changes: {scene_frames}")
+    logger.info(f"  Interval samples: {interval_frames}")
+    logger.info(f"  Removed duplicates: {len(candidates) - len(deduplicated)}")
+
+    return deduplicated

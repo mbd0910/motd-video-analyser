@@ -141,3 +141,53 @@ def extract_multiple_frames_per_scene(
             frame_paths.append(str(frame_path))
 
     return frame_paths
+
+
+def extract_hybrid_frames(
+    video_path: Path | str,
+    hybrid_frames: list[dict[str, Any]],
+    output_dir: Path | str
+) -> list[dict[str, Any]]:
+    """
+    Extract frames from hybrid frame extraction list.
+
+    Designed to work with output from hybrid_frame_extraction() in detector.py.
+    Creates frame files with metadata-rich names for better debugging.
+
+    Args:
+        video_path: Path to video file
+        hybrid_frames: List from hybrid_frame_extraction()
+            Each dict must have: frame_id, timestamp, source
+        output_dir: Directory to save frames
+
+    Returns:
+        Updated hybrid_frames list with frame_path added to each entry
+    """
+    video_path = Path(video_path)
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    logger.info(f"Extracting {len(hybrid_frames)} hybrid frames to {output_dir}")
+
+    for frame in hybrid_frames:
+        frame_id = frame['frame_id']
+        timestamp = frame['timestamp']
+        source = frame['source']
+
+        # Name format: frame_{id:04d}_{source}_{timestamp}.jpg
+        # e.g., frame_0001_scene_change_15.3s.jpg or frame_0042_interval_sampling_210.0s.jpg
+        filename = f"frame_{frame_id:04d}_{source}_{timestamp:.1f}s.jpg"
+        frame_path = output_dir / filename
+
+        success = extract_key_frame(video_path, timestamp, frame_path)
+
+        if success:
+            frame['frame_path'] = str(frame_path)
+        else:
+            logger.error(f"Failed to extract frame {frame_id} at {timestamp}s")
+            frame['frame_path'] = None
+
+    success_count = sum(1 for f in hybrid_frames if f.get('frame_path'))
+    logger.info(f"Successfully extracted {success_count}/{len(hybrid_frames)} frames")
+
+    return hybrid_frames

@@ -11,33 +11,42 @@ ocr:
   gpu: true                    # Use GPU acceleration if available
   confidence_threshold: 0.7    # Minimum confidence for automatic acceptance
 
+  # Hybrid frame extraction strategy (Task 011b)
+  # Combines PySceneDetect scene changes with regular interval sampling
+  sampling:
+    use_hybrid: true              # Enable hybrid extraction (scene changes + intervals)
+    interval: 5.0                 # Regular sampling interval (seconds)
+    dedupe_threshold: 1.0         # Frames within 1s considered duplicates
+    include_scene_changes: true   # Include PySceneDetect frames
+
   # Regions of interest (ROI) for OCR - adjust based on video resolution
-  # These coordinates are for 1920x1080 video
+  # Coordinates calibrated for 720p (1280x720) video - MOTD 2025-26 season
   # Multi-tiered strategy: FT scores (primary) > scoreboards (backup) > formations (validation)
   regions:
     ft_score:                  # Lower-middle full-time score graphic (PRIMARY - 90-95% auto-capture)
-      x: 800
-      y: 900
-      width: 320
-      height: 120
+      x: 157                   # Left edge (measured from frame_0834 - Fulham vs Wolves)
+      y: 545                   # Captures team names, crests, scores, and scorers
+      width: 966               # Nearly full-width (1123-157) to accommodate long names like "Wolverhampton Wanderers"
+      height: 140              # Includes scorer information below main score
     scoreboard:                # Top-left live scoreboard graphic (SECONDARY - ubiquitous but motion-blurred)
       x: 0
       y: 0
-      width: 400
-      height: 100
+      width: 370               # Extended to ensure full "TEAM | SCORE | TEAM" layout captured (includes margin)
+      height: 70               # Measured to capture full scoreboard height
     formation:                 # Bottom-right formation graphic (VALIDATION - manual screenshots)
-      x: 800
-      y: 600
-      width: 1120              # 1920 - 800 = 1120 (extends to right edge)
-      height: 480              # 1080 - 600 = 480 (extends to bottom edge)
+      x: 533                   # 800 * 0.667
+      y: 400                   # 600 * 0.667
+      width: 747               # 1280 - 533 = 747 (extends to right edge at 720p)
+      height: 320              # 720 - 400 = 320 (extends to bottom edge at 720p)
 
-  # Scene filtering based on Task 009a reconnaissance findings
-  # Target: 810 → 160-240 scenes (70-80% reduction)
+  # Scene filtering for hybrid frame extraction
+  # Note: min_scene_duration removed - now handled by hybrid sampling approach
   filtering:
-    skip_intro_seconds: 50           # Skip first 50 seconds (intro + theme song)
+    skip_intro_seconds: 0            # Start from beginning (safe default for edge cases)
+                                     # Standard MOTD intro is ~50s, can set to 50 if known
+                                     # Keep at 0 to catch breaking news, tributes, or pre-intro content
     motd2_interlude_start: 3121      # MOTD 2 interlude start (52:01 = 52*60+1)
     motd2_interlude_end: 3167        # MOTD 2 interlude end (52:47 = 52*60+47)
-    min_scene_duration: 2.0          # Skip scenes <2 seconds (transitions)
 
 # Transcription Configuration
 transcription:

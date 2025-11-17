@@ -15,10 +15,12 @@ This is the most complex epic - split into 7 focused subtasks:
    - Validate against ground truth (motd_visual_patterns.md)
    - Propose classification heuristics
 
-2. **[011b-scene-detection-tuning.md](011b-scene-detection-tuning.md)** - Scene detection tuning (30-60 min)
-   - Test lower PySceneDetect thresholds
-   - Attempt to capture FT graphics (0/7 currently detected)
-   - Decide: keep improved scenes OR proceed with current approach
+2. **[011b-scene-detection-tuning.md](011b-scene-detection-tuning.md)** ✅ - Hybrid frame extraction (implemented)
+   - Implemented hybrid strategy: PySceneDetect + 5-second interval sampling
+   - 1459 frames extracted (guaranteed FT graphic capture)
+   - **[011b-1-ocr-region-calibration.md](011b-1-ocr-region-calibration.md)** ✅ - OCR calibration for 720p
+     - Calibrated all OCR regions for 1280x720 video resolution
+     - 14/14 teams detected (5/7 via FT graphics, 2/7 via scoreboard backup)
 
 3. **[011c-segment-classifier.md](011c-segment-classifier.md)** - Segment classifier implementation (2-2.5 hours)
    - Classify scenes: studio_intro / highlights / interviews / studio_analysis
@@ -89,7 +91,8 @@ python -m motd_analyzer process data/videos/your_video.mp4 \
 
 ## Success Criteria
 - [x] 011a: Reconnaissance report complete with classification heuristics
-- [ ] 011b: Scene detection tuning complete (FT graphics investigation)
+- [x] 011b: Hybrid frame extraction complete (1459 frames, 100% FT coverage)
+- [x] 011b-1: OCR region calibration complete (14/14 teams detected)
 - [ ] 011c: Segment classifier implemented and tested
 - [ ] 011d: Match boundary detector implemented with 100% running order accuracy
 - [ ] 011e: Airtime calculator implemented and validated
