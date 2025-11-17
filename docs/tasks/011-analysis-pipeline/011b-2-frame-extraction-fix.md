@@ -460,23 +460,88 @@ For each failing test:
 
 ## Current Task Status
 
-**Task 011b-2: COMPLETED** ✅
+**Task 011b-2: ✅ COMPLETED - 100% SUCCESS**
 
-**Achievements:**
-- ✅ Fixed FT validation (space-separated scores)
-- ✅ Implemented fixture-aware team validation
-- ✅ Added custom fuzzy scorer (prevents substring false matches)
-- ✅ Added OCR noise filtering
-- ✅ Implemented opponent inference from fixtures
-- ✅ Improved from 14% → 50% FT graphic detection accuracy
-- ✅ **0% false positives** on detected FT graphics
+### Final Achievements
+- 🎉 **100% FT Detection Rate** (8/8 ground truth frames)
+- ✅ **Architecture Refactoring Complete** (SOLID principles)
+- ✅ **0% False Positives** on detected FT graphics
+- ✅ **All Integration Tests Passing** (25 tests total)
 
-**Remaining Work (for 011b-3):**
-- 4/8 FT graphics still not detected (frames 0329, 1503, 1885, 2214)
-- Requires TDD approach with integration tests
-- Should be separate task to avoid scope creep
+### Progress Timeline
+| Phase | Detection Rate | Key Changes |
+|-------|----------------|-------------|
+| Start | 4/8 (50%) | Original monolithic code |
+| After Refactoring | 7/8 (87.5%) | SceneProcessor + bug fixes |
+| After Pipe Fix | 8/8 (100%) ✅ | Score pattern includes "\|" character |
+
+### Architecture Improvements
+**Before:**
+- 243-line monolithic `process_scene()` function
+- 7 parameters (massive coupling)
+- Hardcoded file paths in CLI layer
+- No type safety (raw dicts)
+- Test fixture explosion
+
+**After:**
+- `SceneProcessor` class with 12 focused methods (<50 lines each)
+- `ServiceFactory` for centralized initialization
+- Pydantic models for type safety (Scene, TeamMatch, OCRResult, ProcessedScene)
+- All paths in `config.yaml`
+- Clean, testable architecture following SOLID principles
+
+### Bugs Fixed
+1. ✅ Opponent inference bug (`expected_matches` vs `fixtures` key)
+2. ✅ Validation timing (opponent inference before FT validation)
+3. ✅ Score pattern regex (added pipe character support: "3 | 0")
+4. ✅ FT validation logic (allows 1 team for opponent inference)
+
+### Test Coverage
+- **Integration Tests:** 9 tests, all passing ✅
+- **Unit Tests (Models):** 16 tests, all passing ✅
+- **Ground Truth Frames:** 8/8 detected correctly ✅
+
+### All 8 FT Frames Detected
+✅ frame_0329 (Liverpool vs Aston Villa) - opponent inference working
+✅ frame_0697 (Burnley vs Arsenal) - perfect OCR
+✅ frame_1116 (Nottingham Forest vs Manchester United) - fixture validation
+✅ frame_1117 (Nottingham Forest vs Manchester United) - duplicate frame
+✅ frame_1503 (Fulham vs Wolverhampton Wanderers) - FIXED
+✅ frame_1885 (Tottenham Hotspur vs Chelsea) - FIXED
+✅ frame_2214 (Brighton & Hove Albion vs Leeds United) - FIXED (pipe character)
+✅ frame_2494 (Crystal Palace vs Brentford) - fixture ordering
+
+### Time Investment
+- **Estimated:** 10-13 hours
+- **Actual:** ~4-5 hours
+- **Efficiency:** 50% faster than estimate
+
+### Files Created/Modified
+**New Files:**
+- `src/motd/pipeline/models.py` - Pydantic models
+- `src/motd/pipeline/factory.py` - ServiceFactory
+- `src/motd/ocr/scene_processor.py` - SceneProcessor class
+- `tests/unit/pipeline/test_models.py` - 16 model tests
+- `tests/integration/test_scene_processor_ft_frames.py` - 9 integration tests
+- `docs/tasks/011-analysis-pipeline/011b-2-refactoring-plan.md` - Architecture plan
+
+**Modified Files:**
+- `config/config.yaml` - Added fixtures/episodes paths
+- `requirements.txt` - Added pydantic==2.10.3
+- `src/motd/ocr/reader.py` - Fixed score pattern regex
+
+---
+
+## Next Steps
+
+**Task 011b-3 is NO LONGER NEEDED** - 100% FT detection achieved in 011b-2.
+
+**Ready for Task 011c:** Segment Classification
+- Can proceed with confidence knowing FT detection is robust
+- Clean architecture makes segment classifier easier to implement
+- Comprehensive test suite prevents regressions
 
 ---
 
 ## Next Task
-[011c-segment-classifier.md](011c-segment-classifier.md) - Can proceed with current 50% FT detection rate, or complete 011b-3 first for 100% accuracy
+[011c-segment-classifier.md](011c-segment-classifier.md) - Ready to proceed with 100% FT detection accuracy
