@@ -384,13 +384,18 @@ def process_scene(
                 detected_team = matches[0]['team']
                 opponent = None
 
-                for fixture in fixture_matcher.fixtures.get(episode_id, []):
-                    if fixture['home_team'] == detected_team:
-                        opponent = fixture['away_team']
-                        break
-                    elif fixture['away_team'] == detected_team:
-                        opponent = fixture['home_team']
-                        break
+                # Get episode's fixtures from manifest
+                episode_data = fixture_matcher.episodes_by_id.get(episode_id)
+                if episode_data:
+                    for fixture_id in episode_data.get('fixtures', []):
+                        fixture = fixture_matcher.fixtures_by_id.get(fixture_id)
+                        if fixture:
+                            if fixture['home_team'] == detected_team:
+                                opponent = fixture['away_team']
+                                break
+                            elif fixture['away_team'] == detected_team:
+                                opponent = fixture['home_team']
+                                break
 
                 if opponent:
                     logger.debug(
