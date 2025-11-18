@@ -113,29 +113,15 @@ class VenueMatcher:
         # Clean text for matching
         cleaned_text = self._clean_text(text)
 
-        # Try stadium name match (highest confidence)
+        # Try stadium name match ONLY (no aliases to prevent false positives)
         match = self._try_index_match(
             cleaned_text, self.stadium_index, confidence=1.0, source="stadium"
         )
         if match and match.confidence >= threshold:
             return match
 
-        # Try alias match (high confidence)
-        match = self._try_index_match(
-            cleaned_text, self.alias_index, confidence=0.9, source="alias"
-        )
-        if match and match.confidence >= threshold:
-            return match
-
-        # Try additional reference match (medium confidence)
-        match = self._try_index_match(
-            cleaned_text,
-            self.additional_ref_index,
-            confidence=0.7,
-            source="additional_reference",
-        )
-        if match and match.confidence >= threshold:
-            return match
+        # REMOVED: Alias matching (caused false positives like "that lane" matching "The Lane")
+        # REMOVED: Additional reference matching (too ambiguous for reliable detection)
 
         return None
 
