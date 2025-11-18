@@ -266,65 +266,52 @@ class RunningOrderDetector:
         is_first_match: bool
     ) -> float:
         """
-        Detect match_start by searching forward for first mention of both teams.
+        Detect match_start by searching backward from highlights_start for team mentions.
 
-        Searches from previous match's highlights_end (or episode start) forward
-        to this match's highlights_start, looking for the first occurrence where
-        both teams are mentioned.
+        Searches backward from this match's highlights_start to find where BOTH teams
+        are mentioned within 10 seconds of each other. This finds the actual studio intro
+        immediately before highlights, avoiding "coming up later" mentions from earlier
+        in the episode or from previous match's post-match analysis.
 
         Args:
             teams: Team pair (normalized/sorted)
             search_start: Start of search window (previous match's highlights_end or 0)
             highlights_start: First scoreboard timestamp (end of search window)
             segments: Transcript segments
-            is_first_match: Whether this is the first match in the episode
+            is_first_match: Whether this is the first match in the episode (unused - same algorithm for all)
 
         Returns:
             match_start timestamp (seconds)
         """
-        # For first match, use episode start (after intro)
-        if is_first_match:
-            # Assume episode intro ends around 50s (typical MOTD structure)
-            return min(50.0, highlights_start - 10.0)
-
         # Find segments in the search window (between previous match and this one)
         relevant_segments = [
             s for s in segments
             if search_start <= s.get('start', 0) < highlights_start
         ]
 
-        # Bidirectional search: forward from previous match AND backward from highlights
-        forward_mention = None  # First mention searching forward
-        backward_mention = None  # Last mention searching backward
+        # Search backward from highlights_start to find where BOTH teams mentioned
+        team1_mention = None
+        team2_mention = None
 
-        # Search forward: find first mention of either team
-        for segment in relevant_segments:
-            text = segment.get('text', '').lower()
-
-            if self._fuzzy_team_match(text, teams[0]) or self._fuzzy_team_match(text, teams[1]):
-                forward_mention = segment.get('start', 0)
-                break  # Stop at first mention
-
-        # Search backward: find last mention of either team
         for segment in reversed(relevant_segments):
             text = segment.get('text', '').lower()
+            timestamp = segment.get('start', 0)
 
-            if self._fuzzy_team_match(text, teams[0]) or self._fuzzy_team_match(text, teams[1]):
-                backward_mention = segment.get('start', 0)
-                break  # Stop at last mention (searching backward)
+            # Check if either team mentioned in this segment
+            if self._fuzzy_team_match(text, teams[0]):
+                team1_mention = timestamp
+            if self._fuzzy_team_match(text, teams[1]):
+                team2_mention = timestamp
 
-        # Use the result that makes most sense
-        if forward_mention is not None and backward_mention is not None:
-            # Both found - use the one closest to highlights (backward search result)
-            # This avoids "coming up later" mentions
-            return backward_mention
-        elif backward_mention is not None:
-            return backward_mention
-        elif forward_mention is not None:
-            return forward_mention
-        else:
-            # Fallback: No mention found, assume 60s before highlights
-            return max(search_start, highlights_start - 60.0)
+            # If both teams found and within 10s of each other, this is the intro
+            if team1_mention is not None and team2_mention is not None:
+                time_gap = abs(team1_mention - team2_mention)
+                if time_gap <= 10.0:
+                    # Return the earlier mention (start of intro)
+                    return min(team1_mention, team2_mention)
+
+        # Fallback: No valid team mentions found, assume 60s before highlights
+        return max(search_start, highlights_start - 60.0)
 
     def _fuzzy_team_match(self, text: str, team_name: str, threshold: float = 0.80) -> bool:
         """

@@ -22,7 +22,6 @@ from motd.config.defaults import (
     DEFAULT_DETECTOR_TYPE
 )
 from motd.ocr import OCRReader, TeamMatcher, FixtureMatcher
-from motd.ocr.scene_processor import SceneProcessor, EpisodeContext
 from motd.pipeline.factory import ServiceFactory
 from motd.pipeline.models import Scene
 from motd.transcription import AudioExtractor, WhisperTranscriber
@@ -426,6 +425,9 @@ def extract_teams_command(
         expected_fixtures = fixture_matcher.get_expected_fixtures(episode_id)
         click.echo(f"✓ Expected {len(expected_fixtures)} fixtures with {len(expected_teams)} teams")
         logger.info(f"Expected {len(expected_fixtures)} fixtures with {len(expected_teams)} teams")
+
+        # Import here to avoid circular dependency
+        from motd.ocr.scene_processor import SceneProcessor, EpisodeContext
 
         # Create episode context and scene processor
         context = EpisodeContext(
