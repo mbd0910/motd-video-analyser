@@ -129,7 +129,7 @@ class VenueMatcher:
         """
         Clean and normalize text for matching.
 
-        Removes common prepositions and articles to improve matching.
+        Removes common prepositions, articles, and punctuation to improve matching.
 
         Args:
             text: Raw text
@@ -137,6 +137,8 @@ class VenueMatcher:
         Returns:
             Cleaned text
         """
+        import string
+
         # Remove common prepositions/articles at start
         patterns = [
             r"^at\s+",
@@ -146,6 +148,8 @@ class VenueMatcher:
         ]
 
         cleaned = text.lower().strip()
+        # Remove punctuation to avoid threshold issues (e.g., "Park." vs "Park")
+        cleaned = cleaned.translate(str.maketrans('', '', string.punctuation))
         for pattern in patterns:
             cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
 

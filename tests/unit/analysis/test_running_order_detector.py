@@ -432,3 +432,70 @@ class TestVenueStrategyImprovements:
 
             assert error <= tolerance, \
                 f"Match {i} should be within ±{tolerance}s of {expected}s, got {actual}s (error: {error}s)"
+
+    def test_match7_selhurl_park_detection_bug(self, detector):
+        """Debug Match 7 venue detection failure (Selhurl Park typo case).
+
+        Context:
+        - Teams: ['Brentford', 'Crystal Palace'] (alphabetically sorted)
+        - Expected venue: Selhurst Park (Palace home ground)
+        - Transcript 4485.95s: "James Fielden was at Selhurl Park" (typo)
+        - Transcript 4484.37s: "Crystal Palace and Brentford" (both teams)
+
+        Issue: venue_result returns null despite:
+        - VenueMatcher working in isolation (88% confidence match)
+        - Both teams present in 5-segment window
+        - Venue in search window [4291s, 4527s]
+
+        This test will reveal which step fails.
+        """
+        base_result = detector.detect_running_order()
+        result = detector.detect_match_boundaries(base_result)
+
+        match7 = result.matches[6]
+
+        # Verify teams are correct
+        assert set(match7.teams) == {'Brentford', 'Crystal Palace'}
+
+        # The bug: venue_result should NOT be null
+        assert match7.venue_result is not None, \
+            "Match 7 venue detection should find 'Selhurl Park' → 'Selhurst Park'"
+
+        # If venue found, verify it's correct
+        if match7.venue_result:
+            assert match7.venue_result['venue'] == 'Selhurst Park'
+            # Timestamp should be earlier than venue mention (backward search)
+            assert match7.venue_result['timestamp'] < 4486, \
+                f"Should use intro start, not venue mention time: {match7.venue_result['timestamp']}"
+
+    def test_venue_selects_earliest_team_sentence(self, detector):
+        """Test that venue strategy selects EARLIEST sentence containing a team name.
+        
+        Real example from Match 1:
+        - Sentence [5] at 61.11s: "It was six defeats... Liverpool." ← Should select THIS
+        - Sentence [6] at 66.05s: "Aston Villa had just won..." ← NOT this one
+        
+        When searching backward from venue mention, should find the earliest 
+        (furthest back) sentence containing either team, not the first one encountered.
+        """
+        base_result = detector.detect_running_order()
+        result = detector.detect_match_boundaries(base_result)
+        
+        match1 = result.matches[0]
+        
+        # Match 1: Liverpool vs Aston Villa
+        # Expected: 61.11s ("It was six defeats... Liverpool")
+        # Algorithm should NOT pick 66.05s ("Aston Villa had just won...")
+        
+        assert match1.venue_result is not None
+        assert match1.venue_result['timestamp'] == 61.11, \
+            f"Match 1 should select earliest team sentence at 61.11s, got {match1.venue_result['timestamp']}s"
+        
+        # Match 2: Arsenal vs Burnley
+        # Expected: 866.30s ("Leaders, Arsenal...")
+        # Algorithm should NOT pick 870.94s ("Back-to-back victories for Burnley...")
+        
+        match2 = result.matches[1]
+        assert match2.venue_result is not None
+        assert match2.venue_result['timestamp'] == 866.30, \
+            f"Match 2 should select earliest team sentence at 866.30s, got {match2.venue_result['timestamp']}s"

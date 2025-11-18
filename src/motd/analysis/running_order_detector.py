@@ -362,6 +362,56 @@ class RunningOrderDetector:
         # Fallback: No valid team mentions found, assume 60s before highlights
         return max(search_start, highlights_start - 60.0)
 
+    def _extract_sentences_from_segments(
+        self, segments: list[dict]
+    ) -> list[dict[str, Any]]:
+        """
+        Extract sentences from transcript segments by combining segments
+        until we hit one ending with sentence-ending punctuation.
+
+        Args:
+            segments: List of transcript segments (ordered by timestamp)
+
+        Returns:
+            List of sentences with start timestamp and text
+            Each sentence dict contains:
+            - 'start': timestamp of first segment in sentence
+            - 'text': complete sentence text
+        """
+        if not segments:
+            return []
+
+        sentences = []
+        current_parts = []
+        current_start = None
+
+        for segment in segments:
+            text = segment.get('text', '').strip()
+            if not text:
+                continue
+
+            # Start new sentence if needed
+            if current_start is None:
+                current_start = segment.get('start', 0)
+
+            current_parts.append(text)
+
+            # Check if this segment ends with sentence-ending punctuation
+            if text.endswith('.') or text.endswith('!') or text.endswith('?'):
+                # Complete sentence
+                sentence_text = ' '.join(current_parts)
+                sentences.append({'start': current_start, 'text': sentence_text})
+                # Reset
+                current_parts = []
+                current_start = None
+
+        # Handle incomplete sentence at end
+        if current_parts:
+            sentence_text = ' '.join(current_parts)
+            sentences.append({'start': current_start, 'text': sentence_text})
+
+        return sentences
+
     def _detect_match_start_venue(
         self,
         teams: tuple[str, str],
@@ -413,39 +463,52 @@ class RunningOrderDetector:
                 })
 
         if venue_mentions:
-            # For each venue mention, validate by searching backward for team mentions
+            # For each venue mention, search backward through SENTENCES for team mentions
             for venue_mention in sorted(venue_mentions, key=lambda m: m['timestamp']):
                 venue_timestamp = venue_mention['timestamp']
 
-                # Search backward 3-5 segments before venue mention to find intro start
+                # Get segments before and including venue mention (8-10 segments for safety)
                 intro_segments = [
                     s for s in relevant_segments
                     if s.get('start', 0) <= venue_timestamp
                 ]
-                # Take last 5 segments (up to and including venue mention)
-                search_window = intro_segments[-5:] if len(intro_segments) >= 5 else intro_segments
+                search_window = intro_segments[-10:] if len(intro_segments) >= 10 else intro_segments
 
-                # Check if BOTH teams are mentioned in these segments
-                team1_found = False
-                team2_found = False
-                earliest_segment_time = None
+                # Extract sentences from these segments
+                sentences = self._extract_sentences_from_segments(search_window)
 
-                for segment in search_window:
-                    text = segment.get('text', '').lower()
-                    segment_time = segment.get('start', 0)
+                # Search backward through sentences to find ALL sentences containing team names
+                # within reasonable proximity (20s) of the venue mention
+                # Then return the EARLIEST one (minimum timestamp)
+                team_sentences = []
+                max_lookback_seconds = 20.0  # Don't go too far back
 
-                    if earliest_segment_time is None:
-                        earliest_segment_time = segment_time
+                for sentence in reversed(sentences):
+                    text = sentence['text'].lower()
+                    sentence_time = sentence['start']
 
-                    if self._fuzzy_team_match(text, teams[0]):
-                        team1_found = True
-                    if self._fuzzy_team_match(text, teams[1]):
-                        team2_found = True
+                    # Only consider sentences within 20s before venue mention
+                    if venue_timestamp - sentence_time > max_lookback_seconds:
+                        continue
 
-                # If both teams found, this is a valid intro!
-                if team1_found and team2_found:
+                    # Skip pure transition sentences
+                    if text.strip() in ['ok.', 'thank you.', 'thank you very much.']:
+                        continue
+
+                    # Check if sentence contains at least one team name
+                    has_team = (
+                        self._fuzzy_team_match(text, teams[0]) or
+                        self._fuzzy_team_match(text, teams[1])
+                    )
+
+                    if has_team:
+                        team_sentences.append(sentence)
+
+                # Return the earliest sentence containing a team name
+                if team_sentences:
+                    earliest = min(team_sentences, key=lambda s: s['start'])
                     return {
-                        'timestamp': earliest_segment_time,  # Use EARLIEST segment, not venue mention
+                        'timestamp': earliest['start'],
                         'venue': venue_mention['venue'],
                         'confidence': venue_mention['confidence'],
                         'matched_text': venue_mention['matched_text'],
@@ -497,6 +560,10 @@ class RunningOrderDetector:
         # Fuzzy match against words in text
         words = text.split()
         for word in words:
+            # Skip very short words to avoid false positives (e.g., "a" matching "Aston")
+            if len(word) < 4:
+                continue
+
             # Try fuzzy matching
             score = fuzz.partial_ratio(team_lower, word) / 100.0
             if score >= threshold:
