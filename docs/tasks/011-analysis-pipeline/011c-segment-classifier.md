@@ -1,4 +1,26 @@
-# Task 011c: Segment Classifier Implementation
+# Task 011c: Segment Classifier (Epic)
+
+**Status:** Split into 3 sub-tasks
+**Estimated Time:** 2-3 hours total (across 3 sub-tasks)
+
+## Sub-Tasks
+
+1. **[011c-1: Ground Truth Dataset Creation](011c-1-ground-truth-dataset.md)** - 60 mins
+   - Create labeled dataset of 39 strategic scenes
+   - Analyze patterns to validate classification assumptions
+   - Deliverable: Ground truth labels + pattern analysis
+
+2. **[011c-2: Assumption Validation](011c-2-assumption-validation.md)** - 30 mins
+   - Validate specific rules (FT graphics, duration, keywords, sequencing)
+   - Update config with validated thresholds
+   - Deliverable: Validation report + decision on which rules to implement
+
+3. **[011c-3: Classifier Implementation](011c-3-classifier-implementation.md)** - 90 mins
+   - Implement segment classifier using validated rules only
+   - Test on ground truth (target >85% accuracy)
+   - Deliverable: Working classifier + accuracy report
+
+---
 
 ## Quick Context
 
@@ -20,277 +42,232 @@ See [Visual Patterns](../../domain/visual_patterns.md) for detailed episode stru
 
 ---
 
+## Overview
+
+This epic implements segment classification through a **validation-driven approach**:
+- **011c-1** creates ground truth → validates assumptions
+- **011c-2** tests specific rules → identifies what works
+- **011c-3** implements only validated rules → avoids wasted effort
+
+**Traditional approach (avoided):**
+1. Implement all rules from task file
+2. Test on data
+3. Debug why it doesn't work
+4. Discover assumptions were wrong
+5. Rewrite classifier
+
+**Our approach:**
+1. Label ground truth first (011c-1)
+2. Validate which rules actually work (011c-2)
+3. Implement only validated rules (011c-3)
+4. Achieve >85% accuracy immediately
+
+---
+
+## Key Findings from Research
+
+**Data available:**
+- 1,229 scenes total (vs. 810 originally estimated)
+- 394 scenes with OCR (32.1% coverage across all 7 matches)
+- 1,773 transcript segments with word-level timing
+- FT graphic detection working reliably (from 011b)
+
+**Transition discovery:**
+- 39 "SECOND HALF" transition scenes documented in visual_patterns.md
+- Duration: 0.08s - 22.64s (highly variable)
+- **Decision:** Use as boundary markers, NOT separate segment type
+- Rationale: Too brief/inconsistent for meaningful analysis
+
+**Segment types (7 total):**
+1. `intro` - Episode opening (00:00-00:50)
+2. `studio_intro` - Host introducing next match
+3. `highlights` - Match footage with scoreboard
+4. `interviews` - Post-match player/manager interviews
+5. `studio_analysis` - Pundit discussion
+6. `interlude` - MOTD2 promo/ads (52:01-52:47)
+7. `outro` - League table review, closing montage
+
+---
+
 ## Objective
-Implement a robust multi-signal classifier to categorize each scene into one of 4 segment types: `studio_intro`, `highlights`, `interviews`, `studio_analysis`.
+
+Implement a robust multi-signal classifier to categorize each scene into one of 7 segment types, achieving >85% accuracy on ground truth dataset.
 
 ## Prerequisites
-- [x] Task 011a complete (reconnaissance report with classification rules)
-- [x] Have cached data and understand patterns
 
-## Estimated Time
-2-2.5 hours
+- [x] Task 011b complete (frame extraction, OCR, FT validation working)
+- [x] Processed data available: scenes.json, ocr_results.json, transcript.json
+- [x] Visual patterns documented: [visual_patterns.md](../../domain/visual_patterns.md)
+- [ ] Understanding of [Segment Types](../../domain/README.md#segment-types)
 
 ## Target Accuracy
->85% segment classification accuracy (validated in 011f)
 
-## Segment Types
+>85% segment classification accuracy on ground truth dataset (validated in 011f on full episode)
 
-### 1. `studio_intro`
-Match introduction from studio before highlights
-- **Duration**: 7-11 seconds typically
+## Workflow
+
+### Phase 1: Ground Truth Creation (011c-1)
+**Goal:** Create labeled dataset and validate assumptions
+
+**Input:** Raw data (scenes, OCR, transcript)
+**Output:** 39 labeled scenes + pattern analysis
+**Decision Point:** Do assumptions hold? Continue to 011c-2 or pivot?
+
+### Phase 2: Assumption Validation (011c-2)
+**Goal:** Test specific rules against ground truth
+
+**Input:** Labeled dataset from 011c-1
+**Output:** Validation report listing which rules work
+**Decision Point:** ≥2-3 rules validated? Continue to 011c-3 or add visual recognition?
+
+### Phase 3: Classifier Implementation (011c-3)
+**Goal:** Build classifier with validated rules
+
+**Input:** Validation report from 011c-2
+**Output:** Working classifier + accuracy report
+**Decision Point:** Accuracy >85%? Proceed to 011d or iterate?
+
+---
+
+## Classification Signals Available
+
+Based on research, these signals are available for classification:
+
+**Strong signals (high confidence):**
+1. **FT graphic detection** - Reliably marks end of highlights
+2. **Scoreboard OCR presence** - 394 scenes with team OCR
+3. **Sequencing patterns** - Matches follow predictable structure
+
+**Moderate signals (medium confidence):**
+4. **Duration ranges** - Segment types have characteristic lengths
+5. **Transcript keywords** - Certain phrases indicate segment type
+
+**Weak signals (low confidence):**
+6. **Position in episode** - Intro always first, outro always last
+7. **Scene frame count** - More frames = longer, more important
+
+**Future enhancements (Task 013):**
+- Visual recognition (studio vs pitch detection)
+- Audio features (crowd noise, music, commentary patterns)
+
+---
+
+## Segment Type Definitions
+
+### 1. `intro`
+Episode opening sequence (MOTD theme, graphics)
+- **Duration**: ~50 seconds (consistent)
+- **Signals**: First scenes of episode, distinctive music
+- **Visual**: MOTD branding, spinning logos, host introduction
+
+### 2. `studio_intro`
+Host introducing next match from studio
+- **Duration**: 7-20 seconds typically
 - **Signals**: Short duration + team mentions + before highlights
+- **Visual**: Wide studio shot, host at desk
 
-### 2. `highlights`
-Match footage with goals and key moments
+### 3. `highlights`
+Match footage with scoreboards and FT graphics
 - **Duration**: 5-10 minutes typically
 - **Signals**: Scoreboard OCR + FT graphic at end
+- **Visual**: Football pitch, players, scoreboard graphics
 
-### 3. `interviews`
-Player/manager interviews after match
+### 4. `interviews`
+Post-match player/manager interviews
 - **Duration**: 45-90 seconds typically
 - **Signals**: After FT graphic + interview keywords + before studio analysis
+- **Visual**: Interview backdrop with sponsor logos, name captions
 
-### 4. `studio_analysis`
+### 5. `studio_analysis`
 Post-match pundit discussion
 - **Duration**: 2-5 minutes typically
 - **Signals**: After interviews + transition keywords + team discussion
+- **Visual**: Wide studio shot, pundits discussing
 
-## Implementation Steps
+### 6. `interlude`
+MOTD2 promo and upcoming football adverts
+- **Duration**: ~46 seconds (52:01-52:47)
+- **Signals**: Mid-episode position, promotional content
+- **Visual**: Graphics showing upcoming matches/shows
 
-### 1. Create Module Structure
-- [ ] Create `src/motd/analysis/` directory
-- [ ] Create `src/motd/analysis/__init__.py`
-- [ ] Create `src/motd/analysis/segment_classifier.py`
+### 7. `outro`
+League table review and closing montage
+- **Duration**: ~1 minute (82:57-83:59)
+- **Signals**: End of episode, league table graphics
+- **Visual**: League table, closing montage, end credits
 
-### 2. Implement SegmentClassifier Class
+---
 
-```python
-class SegmentClassifier:
-    """Classifies video scenes into segment types using multi-signal approach."""
+## Success Criteria (Epic-Level)
 
-    def __init__(
-        self,
-        scenes: List[Dict],
-        ocr_results: List[Dict],
-        transcript: Dict,
-        config: Optional[Dict] = None
-    ):
-        """
-        Args:
-            scenes: Scene detection results
-            ocr_results: OCR detection results
-            transcript: Transcription results
-            config: Optional classification thresholds
-        """
-        pass
+- [ ] Ground truth dataset created (39 labeled scenes)
+- [ ] Pattern analysis validates at least 2-3 classification signals
+- [ ] Assumption validation report documents which rules work
+- [ ] Config file updated with validated thresholds
+- [ ] SegmentClassifier implemented with validated rules only
+- [ ] Unit tests passing (>80% coverage)
+- [ ] Ground truth accuracy >85%
+- [ ] Full dataset classified (1,229 scenes)
+- [ ] Spot-check validation >80% correct
+- [ ] Ready for Task 011d (match boundary detection)
 
-    def classify_scenes(self) -> List[Dict]:
-        """
-        Classify all scenes with segment types.
+---
 
-        Returns:
-            List of scenes with added fields:
-            - segment_type: str (studio_intro/highlights/interviews/studio_analysis)
-            - confidence: float (0-1)
-            - classification_signals: List[str] (which rules triggered)
-        """
-        pass
+## Deliverables (Across All Sub-Tasks)
 
-    def _has_scoreboard_ocr(self, scene_id: int) -> bool:
-        """Check if scene has scoreboard OCR detection."""
-        pass
+### Documentation
+- `docs/ground_truth/scene_mapping.md` - Timestamp → scene_id mapping
+- `docs/ground_truth/labeling_template.md` - 39 scenes with labels
+- `docs/ground_truth/analysis.md` - Pattern analysis findings
+- `docs/ground_truth/validation_report.md` - Rule validation results
 
-    def _has_ft_graphic(self, scene_id: int) -> bool:
-        """Check if scene has Full Time graphic."""
-        pass
-
-    def _get_transcript_for_scene(self, scene: Dict) -> List[Dict]:
-        """Get transcript segments overlapping with scene timespan."""
-        pass
-
-    def _has_team_mention(self, transcript_segments: List[Dict]) -> bool:
-        """Check if transcript mentions team names."""
-        pass
-
-    def _has_transition_words(self, transcript_segments: List[Dict]) -> bool:
-        """Check for transition keywords (Alright, Right, Moving on)."""
-        pass
-
-    def _has_interview_keywords(self, transcript_segments: List[Dict]) -> bool:
-        """Check for interview keywords (speak to, join us, after the game)."""
-        pass
-```
-
-### 3. Implement Classification Rules (Priority Order)
-
-- [ ] **Rule 1: FT Graphic Detection**
-  - If scene has FT graphic in OCR → Mark as end of highlights
-  - Next scene starts interviews
-  - Confidence: 0.95
-
-- [ ] **Rule 2: Scoreboard Detection**
-  - If scene has scoreboard OCR + no FT → Highlights
-  - Confidence: 0.90
-
-- [ ] **Rule 3: Post-Highlights Pattern**
-  - If scene follows FT graphic + before studio transition → Interviews
-  - Check for interview keywords (boost confidence)
-  - Confidence: 0.85
-
-- [ ] **Rule 4: Short Scene with Team Mentions**
-  - If scene duration 7-11 seconds + team mention + before highlights → Studio Intro
-  - Confidence: 0.80
-
-- [ ] **Rule 5: Post-Interview Analysis**
-  - If scene after interviews + transition keywords → Studio Analysis
-  - Check for team discussion
-  - Confidence: 0.80
-
-- [ ] **Rule 6: Default Classification**
-  - Remaining scenes → Studio (generic)
-  - Confidence: 0.50 (low confidence, needs refinement)
-
-### 4. Implement Confidence Scoring
-
-- [ ] Base confidence from rule match
-- [ ] Boost confidence if multiple signals agree:
-  - +0.05 for each additional signal
-  - Cap at 0.95
-- [ ] Reduce confidence for conflicting signals:
-  - -0.10 for each contradiction
-  - Floor at 0.30
-
-### 5. Add Configuration Support
-
-- [ ] Create default config in `config/config.yaml`:
-  ```yaml
-  segment_classification:
-    studio_intro:
-      min_duration_seconds: 5
-      max_duration_seconds: 15
-      keywords: ["let's look at", "coming up", "now", "next"]
-
-    highlights:
-      min_duration_seconds: 120  # 2 minutes
-      max_duration_seconds: 900  # 15 minutes
-
-    interviews:
-      min_duration_seconds: 30
-      max_duration_seconds: 180  # 3 minutes
-      keywords: ["speak to", "join us", "after the game", "thoughts on"]
-
-    studio_analysis:
-      min_duration_seconds: 60
-      max_duration_seconds: 600  # 10 minutes
-      transition_keywords: ["alright", "right", "moving on", "what did you make"]
-  ```
-
-### 6. Implement Unit Tests
-
-- [ ] Create `tests/unit/analysis/test_segment_classifier.py`
-- [ ] Test FT graphic detection
-- [ ] Test scoreboard detection
-- [ ] Test team mention detection
-- [ ] Test transition word detection
-- [ ] Test interview keyword detection
-- [ ] Test confidence scoring
-- [ ] Test full classification on sample data
-
-Sample test structure:
-```python
-def test_ft_graphic_ends_highlights():
-    """Scene with FT graphic should be classified as end of highlights."""
-    scenes = [{"id": 220, "duration": 2.5, ...}]
-    ocr_results = [{"scene_id": 220, "ft_graphic": True, ...}]
-
-    classifier = SegmentClassifier(scenes, ocr_results, {})
-    classified = classifier.classify_scenes()
-
-    assert classified[0]["segment_type"] == "highlights"
-    assert classified[0]["confidence"] > 0.9
-```
-
-### 7. Add Logging
-
-- [ ] Log classification decisions at INFO level
-- [ ] Log low-confidence classifications (<0.6) at WARNING level
-- [ ] Log rule applications at DEBUG level
-- [ ] Example:
-  ```python
-  logger.info(f"Scene {scene_id}: Classified as {segment_type} (confidence: {confidence:.2f})")
-  logger.warning(f"Scene {scene_id}: Low confidence classification ({confidence:.2f})")
-  logger.debug(f"Scene {scene_id}: Applied rules: {classification_signals}")
-  ```
-
-### 8. Handle Edge Cases
-
-- [ ] **Intro sequence (00:00-00:50)**: Skip or classify as special `intro` type?
-- [ ] **MOTD 2 interlude**: Detect and skip (or classify as `interlude`)
-- [ ] **Outro/league table**: Detect and classify as `outro`
-- [ ] **VAR reviews**: Should remain part of highlights
-- [ ] **Formation graphics**: Part of highlights or separate?
-- [ ] **Missing OCR**: What if no scoreboard detected? (fallback to timing/transcript)
-
-### 9. Integration Testing
-
-- [ ] Test on full test video data
-- [ ] Classify all 810 scenes
-- [ ] Spot-check 10-20 scenes across different types
-- [ ] Verify patterns make sense
-- [ ] Document any surprising classifications
-
-## Deliverables
-
-### 1. Source Code
+### Code
 - `src/motd/analysis/__init__.py`
 - `src/motd/analysis/segment_classifier.py`
-
-### 2. Tests
 - `tests/unit/analysis/test_segment_classifier.py`
 
-### 3. Configuration
-- Updated `config/config.yaml` with segment classification settings
+### Configuration
+- Updated `config/config.yaml` with validated segment classification thresholds
 
-### 4. Documentation
-- Docstrings for all classes/methods
-- Examples in docstrings
-- README update if needed
+### Data
+- `data/cache/motd_2025-26_2025-11-01/classified_scenes.json` - Full dataset classified
 
-## Success Criteria
-- [ ] SegmentClassifier class implemented with all methods
-- [ ] All 6 classification rules implemented
-- [ ] Confidence scoring working
-- [ ] Configuration support added
-- [ ] Unit tests passing (>80% coverage)
-- [ ] Integration test on full video data
-- [ ] Logging provides useful debugging info
-- [ ] Edge cases handled gracefully
-- [ ] Code follows Python style guidelines
-- [ ] Ready for 011c (match boundary detector)
+---
 
-## Testing Commands
+## Edge Cases to Handle
 
-```bash
-# Run unit tests
-pytest tests/unit/analysis/test_segment_classifier.py -v
+- [ ] **Intro sequence (00:00-00:50)**: Classify as `intro` type
+- [ ] **MOTD 2 interlude (52:01-52:47)**: Classify as `interlude` type
+- [ ] **Outro/league table (82:57+)**: Classify as `outro` type
+- [ ] **Transition scenes (<2s)**: May be part of highlights or separate
+- [ ] **VAR reviews**: Remain part of highlights
+- [ ] **Formation graphics**: Part of highlights
+- [ ] **Missing OCR**: Fallback to duration + transcript + sequencing
+- [ ] **Missing transcript**: Fallback to OCR + duration
 
-# Run with coverage
-pytest tests/unit/analysis/test_segment_classifier.py --cov=src/motd/analysis
-
-# Test on real data (integration)
-python -m motd classify-segments data/cache/motd_2025-26_2025-11-01/scenes.json \
-  --ocr data/cache/motd_2025-26_2025-11-01/ocr_results.json \
-  --transcript data/cache/motd_2025-26_2025-11-01/transcript.json \
-  --output data/cache/motd_2025-26_2025-11-01/classified_scenes.json
-```
+---
 
 ## Notes
-- Start with simple heuristics, not ML (can enhance in Task 013)
-- Prioritize precision over recall (better to be unsure than wrong)
-- Low confidence (<0.6) = flag for manual review
-- Document why rules work, not just what they do
-- Keep rules configurable for easy tuning
-- User validation in 011f will reveal if rules need adjustment
+
+- **Validation-driven approach prevents wasted effort** - Don't code until rules are validated
+- **User labeling is critical** - Your visual cues inform which signals to prioritize
+- **Start simple, iterate** - Implement 2-3 validated rules first, then add more
+- **Prioritize precision over recall** - Better to be unsure than wrong
+- **Low confidence (<0.6) = flag for manual review**
+- **Visual recognition is optional** - Only add if heuristics are weak
+- **011f will validate on full episode** - Current task only tests on single episode
+
+---
 
 ## Next Task
-[011c-match-boundary-detector.md](011c-match-boundary-detector.md)
+
+[011d: Match Boundary Detection](011d-match-boundary-detector.md) - Uses classified scenes to detect match boundaries
+
+---
+
+## Related Tasks
+
+- [011b-2: Frame Extraction Fix & FT Validation](011b-2-frame-extraction-fix.md) - Produced the data we're classifying
+- [011d: Match Boundary Detection](011d-match-boundary-detector.md) - Consumes classified scenes
+- [011f: Validation & Accuracy Testing](011f-validation-accuracy.md) - Validates classifier on full episode
+- [013: ML Enhancement](../013-ml-enhancements/) - Future ML approach (if needed)
