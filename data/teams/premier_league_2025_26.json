@@ -5,122 +5,272 @@
     {
       "full": "Arsenal",
       "abbrev": "Arsenal",
-      "codes": ["ARS"],
-      "alternates": ["The Gunners", "Gunners"]
+      "codes": [
+        "ARS"
+      ],
+      "alternates": [
+        "The Gunners",
+        "Gunners"
+      ]
     },
     {
       "full": "Aston Villa",
       "abbrev": "Aston Villa",
-      "codes": ["AVL", "AST"],
-      "alternates": ["Villa"]
+      "codes": [
+        "AVL",
+        "AST"
+      ],
+      "alternates": [
+        "Villa",
+        "The Villans",
+        "Villans"
+      ]
     },
     {
       "full": "Bournemouth",
       "abbrev": "Bournemouth",
-      "codes": ["BOU", "BOR"],
-      "alternates": ["The Cherries", "Cherries", "AFC Bournemouth"]
+      "codes": [
+        "BOU",
+        "BOR"
+      ],
+      "alternates": [
+        "The Cherries",
+        "Cherries",
+        "AFC Bournemouth"
+      ]
     },
     {
       "full": "Brentford",
       "abbrev": "Brentford",
-      "codes": ["BRE", "BRN"],
-      "alternates": ["The Bees", "Bees"]
+      "codes": [
+        "BRE",
+        "BRN"
+      ],
+      "alternates": [
+        "The Bees",
+        "Bees"
+      ]
     },
     {
       "full": "Brighton & Hove Albion",
       "abbrev": "Brighton",
-      "codes": ["BHA", "BRI"],
-      "alternates": ["Brighton", "The Seagulls", "Seagulls"]
+      "codes": [
+        "BHA",
+        "BRI"
+      ],
+      "alternates": [
+        "Brighton",
+        "The Seagulls",
+        "Seagulls",
+        "The Albion",
+        "Albion"
+      ]
     },
     {
       "full": "Burnley",
       "abbrev": "Burnley",
-      "codes": ["BUR"],
-      "alternates": ["The Clarets", "Clarets"]
+      "codes": [
+        "BUR"
+      ],
+      "alternates": [
+        "The Clarets",
+        "Clarets"
+      ]
     },
     {
       "full": "Chelsea",
       "abbrev": "Chelsea",
-      "codes": ["CHE", "CHL"],
-      "alternates": ["The Blues", "Blues"]
+      "codes": [
+        "CHE",
+        "CHL"
+      ],
+      "alternates": [
+        "The Blues",
+        "Blues"
+      ]
     },
     {
       "full": "Crystal Palace",
       "abbrev": "Crystal Palace",
-      "codes": ["CRY", "CPA", "PAL"],
-      "alternates": ["Palace", "The Eagles", "Eagles"]
+      "codes": [
+        "CRY",
+        "CPA",
+        "PAL"
+      ],
+      "alternates": [
+        "Palace",
+        "The Eagles",
+        "Eagles",
+        "The Glaziers"
+      ]
     },
     {
       "full": "Everton",
       "abbrev": "Everton",
-      "codes": ["EVE", "EVR"],
-      "alternates": ["The Toffees", "Toffees"]
+      "codes": [
+        "EVE",
+        "EVR"
+      ],
+      "alternates": [
+        "The Toffees",
+        "Toffees",
+        "The Blues",
+        "Blues"
+      ]
     },
     {
       "full": "Fulham",
       "abbrev": "Fulham",
-      "codes": ["FUL"],
-      "alternates": ["The Cottagers", "Cottagers"]
+      "codes": [
+        "FUL"
+      ],
+      "alternates": [
+        "The Cottagers",
+        "Cottagers"
+      ]
     },
     {
       "full": "Leeds United",
       "abbrev": "Leeds",
-      "codes": ["LEE"],
-      "alternates": ["Leeds", "The Whites", "Whites", "United"]
+      "codes": [
+        "LEE"
+      ],
+      "alternates": [
+        "Leeds",
+        "The Whites",
+        "Whites",
+        "United",
+        "The Peacocks"
+      ]
     },
     {
       "full": "Liverpool",
       "abbrev": "Liverpool",
-      "codes": ["LIV"],
-      "alternates": ["The Reds", "Reds"]
+      "codes": [
+        "LIV"
+      ],
+      "alternates": [
+        "The Reds",
+        "Reds"
+      ]
     },
     {
       "full": "Manchester City",
       "abbrev": "Man City",
-      "codes": ["MCI", "MAC", "MCY"],
-      "alternates": ["Man City", "City", "The Citizens", "Citizens"]
+      "codes": [
+        "MCI",
+        "MAC",
+        "MCY"
+      ],
+      "alternates": [
+        "Man City",
+        "City",
+        "The Citizens",
+        "Citizens",
+        "The Sky Blues",
+        "Cityzens"
+      ]
     },
     {
       "full": "Manchester United",
       "abbrev": "Man Utd",
-      "codes": ["MUN", "MNU", "MAN"],
-      "alternates": ["Man Utd", "Man United", "United", "The Red Devils", "Red Devils"]
+      "codes": [
+        "MUN",
+        "MNU",
+        "MAN"
+      ],
+      "alternates": [
+        "Man Utd",
+        "Man United",
+        "United",
+        "The Red Devils",
+        "Red Devils"
+      ]
     },
     {
       "full": "Newcastle United",
       "abbrev": "Newcastle",
-      "codes": ["NEW", "NCU", "NWC"],
-      "alternates": ["Newcastle", "The Magpies", "Magpies"]
+      "codes": [
+        "NEW",
+        "NCU",
+        "NWC"
+      ],
+      "alternates": [
+        "Newcastle",
+        "The Magpies",
+        "Magpies",
+        "United"
+      ]
     },
     {
       "full": "Nottingham Forest",
       "abbrev": "Nott'm Forest",
-      "codes": ["NFO", "FOR", "NOT"],
-      "alternates": ["Forest", "Nottm Forest", "Notts Forest", "Nott'm Forest"]
+      "codes": [
+        "NFO",
+        "FOR",
+        "NOT"
+      ],
+      "alternates": [
+        "Forest",
+        "Nottm Forest",
+        "Notts Forest",
+        "Nott'm Forest",
+        "Nottingham"
+      ]
     },
     {
       "full": "Sunderland",
       "abbrev": "Sunderland",
-      "codes": ["SUN", "SND"],
-      "alternates": ["The Black Cats", "Black Cats"]
+      "codes": [
+        "SUN",
+        "SND"
+      ],
+      "alternates": [
+        "The Black Cats",
+        "Black Cats"
+      ]
     },
     {
       "full": "Tottenham Hotspur",
       "abbrev": "Tottenham",
-      "codes": ["TOT"],
-      "alternates": ["Spurs", "Tottenham", "The Lilywhites", "Hotspur"]
+      "codes": [
+        "TOT"
+      ],
+      "alternates": [
+        "Spurs",
+        "Tottenham",
+        "The Lilywhites",
+        "Hotspur"
+      ]
     },
     {
       "full": "West Ham United",
       "abbrev": "West Ham",
-      "codes": ["WHU", "WHM", "WES"],
-      "alternates": ["West Ham", "The Hammers", "Hammers"]
+      "codes": [
+        "WHU",
+        "WHM",
+        "WES"
+      ],
+      "alternates": [
+        "West Ham",
+        "The Hammers",
+        "Hammers",
+        "The Irons",
+        "Irons",
+        "United"
+      ]
     },
     {
       "full": "Wolverhampton Wanderers",
       "abbrev": "Wolves",
-      "codes": ["WOL"],
-      "alternates": ["Wolves", "Wanderers"]
+      "codes": [
+        "WOL"
+      ],
+      "alternates": [
+        "Wolves",
+        "Wanderers",
+        "The Wanderers"
+      ]
     }
   ]
 }

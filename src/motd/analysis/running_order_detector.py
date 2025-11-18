@@ -11,10 +11,19 @@ Includes transcript-based boundary detection for match_start/match_end.
 """
 
 from collections import defaultdict
-from typing import Any
+from typing import Any, TypedDict
 from rapidfuzz import fuzz
 
 from src.motd.pipeline.models import MatchBoundary, RunningOrderResult
+
+
+class TeamData(TypedDict, total=False):
+    """Structure of team data from teams JSON."""
+
+    full: str
+    abbrev: str
+    codes: list[str]
+    alternates: list[str]
 
 
 class RunningOrderDetector:
@@ -31,7 +40,7 @@ class RunningOrderDetector:
         self,
         ocr_results: list[dict[str, Any]],
         transcript: dict[str, Any],
-        team_names: list[str]
+        teams_data: list[TeamData],
     ):
         """
         Initialize detector with processed data.
@@ -39,11 +48,28 @@ class RunningOrderDetector:
         Args:
             ocr_results: OCR detection results (from ocr_results.json)
             transcript: Whisper transcript (from transcript.json)
-            team_names: List of valid team names for matching
+            teams_data: Teams data with alternates (from teams JSON)
         """
         self.ocr_results = ocr_results
         self.transcript = transcript
-        self.team_names = team_names
+        self.teams_data = teams_data
+
+        # Extract team names from teams_data
+        self.team_names = [team.get("full") for team in teams_data if team.get("full")]
+
+        # Build team alternates index for short name lookups
+        self._build_alternates_index()
+
+    def _build_alternates_index(self) -> None:
+        """Build index of team alternates from teams data."""
+        self.team_alternates: dict[str, list[str]] = {}
+
+        for team in self.teams_data:
+            full_name = team.get("full")
+            alternates = team.get("alternates", [])
+
+            if full_name:
+                self.team_alternates[full_name] = alternates
 
     def detect_running_order(self) -> RunningOrderResult:
         """
@@ -327,49 +353,14 @@ class RunningOrderDetector:
             if score >= threshold:
                 return True
 
-        # Handle common variations
+        # Handle common variations using team alternates from JSON
         # e.g., "Man United" for "Manchester United", "Villa" for "Aston Villa"
-        short_names = self._get_team_short_names(team_name)
-        for short_name in short_names:
-            if short_name.lower() in text:
+        alternates = self.team_alternates.get(team_name, [])
+        for alternate in alternates:
+            if alternate.lower() in text:
                 return True
 
         return False
-
-    def _get_team_short_names(self, team_name: str) -> list[str]:
-        """
-        Get common short name variations for a team.
-
-        Args:
-            team_name: Full team name
-
-        Returns:
-            List of short name variations
-        """
-        # Common short name patterns
-        short_names = []
-
-        # Handle multi-word teams (e.g., "Manchester United" → "United", "Man United")
-        parts = team_name.split()
-        if len(parts) >= 2:
-            # Last word (e.g., "United", "City", "Villa")
-            short_names.append(parts[-1])
-
-            # First word (e.g., "Manchester", "Aston")
-            if parts[0] not in ['Brighton', 'Crystal']:  # Avoid ambiguous ones
-                short_names.append(parts[0])
-
-            # Common abbreviations
-            if 'Manchester' in team_name:
-                short_names.append('Man ' + parts[-1])  # "Man United", "Man City"
-            if 'Tottenham' in team_name:
-                short_names.append('Spurs')
-            if 'Wolverhampton' in team_name:
-                short_names.append('Wolves')
-            if 'Brighton' in team_name:
-                short_names.append('Brighton')
-
-        return short_names
 
     # Helper methods
 

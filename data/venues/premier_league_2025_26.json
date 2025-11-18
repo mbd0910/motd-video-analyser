@@ -1,0 +1,146 @@
+{
+  "season": "2025-26",
+  "competition": "Premier League",
+  "venues": [
+    {
+      "team": "Arsenal",
+      "stadium": "Emirates Stadium",
+      "city": "London",
+      "aliases": ["Emirates", "The Emirates", "The Emirates Stadium", "Ashburton Grove"],
+      "additional_references": ["North Bank", "Clock End"]
+    },
+    {
+      "team": "Aston Villa",
+      "stadium": "Villa Park",
+      "city": "Birmingham",
+      "aliases": [],
+      "additional_references": ["Holte End"]
+    },
+    {
+      "team": "Bournemouth",
+      "stadium": "Vitality Stadium",
+      "city": "Bournemouth",
+      "aliases": ["Vitality", "The Vitality", "Dean Court"],
+      "additional_references": []
+    },
+    {
+      "team": "Brentford",
+      "stadium": "Gtech Community Stadium",
+      "city": "London",
+      "aliases": ["Gtech", "The Gtech", "Brentford Community Stadium"],
+      "additional_references": ["Griffin Park"]
+    },
+    {
+      "team": "Brighton & Hove Albion",
+      "stadium": "Amex Stadium",
+      "city": "Brighton",
+      "aliases": ["Amex", "The Amex"],
+      "additional_references": ["Falmer"]
+    },
+    {
+      "team": "Burnley",
+      "stadium": "Turf Moor",
+      "city": "Burnley",
+      "aliases": [],
+      "additional_references": []
+    },
+    {
+      "team": "Chelsea",
+      "stadium": "Stamford Bridge",
+      "city": "London",
+      "aliases": ["The Bridge"],
+      "additional_references": ["Matthew Harding Stand", "Shed End"]
+    },
+    {
+      "team": "Crystal Palace",
+      "stadium": "Selhurst Park",
+      "city": "London",
+      "aliases": ["Selhurst"],
+      "additional_references": ["Sainsburys End", "Holmesdale"]
+    },
+    {
+      "team": "Everton",
+      "stadium": "Hill Dickinson Stadium",
+      "city": "Liverpool",
+      "aliases": ["Bramley-Moore Dock Stadium", "Everton Stadium"],
+      "additional_references": ["Goodison Park", "Goodison"]
+    },
+    {
+      "team": "Fulham",
+      "stadium": "Craven Cottage",
+      "city": "London",
+      "aliases": ["The Cottage"],
+      "additional_references": ["Hammersmith End", "Putney End", "Riverside Stand", "Johnny Haynes Stand", "The Pavilion"]
+    },
+    {
+      "team": "Leeds United",
+      "stadium": "Elland Road",
+      "city": "Leeds",
+      "aliases": [],
+      "additional_references": []
+    },
+    {
+      "team": "Liverpool",
+      "stadium": "Anfield",
+      "city": "Liverpool",
+      "aliases": [],
+      "additional_references": ["The Kop", "Anfield Road"]
+    },
+    {
+      "team": "Manchester City",
+      "stadium": "Etihad Stadium",
+      "city": "Manchester",
+      "aliases": ["The Etihad", "The Etihad Stadium"],
+      "additional_references": ["Maine Road"]
+    },
+    {
+      "team": "Manchester United",
+      "stadium": "Old Trafford",
+      "city": "Manchester",
+      "aliases": ["The Theatre of Dreams"],
+      "additional_references": ["Sir Alex Ferguson", "Sir Bobby Charlton"]
+    },
+    {
+      "team": "Newcastle United",
+      "stadium": "St James' Park",
+      "city": "Newcastle",
+      "aliases": ["Sports Direct Arena"],
+      "additional_references": ["Gallowgate End"]
+    },
+    {
+      "team": "Nottingham Forest",
+      "stadium": "City Ground",
+      "city": "Nottingham",
+      "aliases": [],
+      "additional_references": ["Brian Clough Stand", "Trent End"]
+    },
+    {
+      "team": "Sunderland",
+      "stadium": "Stadium of Light",
+      "city": "Sunderland",
+      "aliases": ["The Stadium of Light"],
+      "additional_references": ["Roker End"]
+    },
+    {
+      "team": "Tottenham Hotspur",
+      "stadium": "Tottenham Hotspur Stadium",
+      "city": "London",
+      "aliases": ["The Lane", "New White Hart Lane"],
+      "additional_references": ["South Stand"]
+    },
+    {
+      "team": "West Ham United",
+      "stadium": "London Stadium",
+      "city": "London",
+      "aliases": ["Olympic Stadium", "the Olympic Stadium"],
+      "additional_references": ["Boleyn Ground", "Bobby Moore Stand", "Sir Trevor Brooking Stand", "Billy Bonds Stand"]
+    },
+    {
+      "team": "Wolverhampton Wanderers",
+      "stadium": "Molineux Stadium",
+      "city": "Wolverhampton",
+      "aliases": ["Molineux"],
+      "additional_references": ["Sir Jack Hayward Stand", "Steve Bull Stand"]
+    }
+  ]
+}
