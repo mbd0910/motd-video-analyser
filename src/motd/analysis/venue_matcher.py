@@ -186,8 +186,8 @@ class VenueMatcher:
         best_score = 0.0
 
         for key, venue in index.items():
-            # Try fuzzy match
-            score = fuzz.ratio(cleaned_text, key) / 100.0
+            # Try fuzzy match using partial_ratio to find venue names within longer sentences
+            score = fuzz.partial_ratio(cleaned_text, key) / 100.0
 
             if score > best_score:
                 best_score = score
