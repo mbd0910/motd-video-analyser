@@ -26,6 +26,7 @@ from motd.ocr.scene_processor import SceneProcessor, EpisodeContext
 from motd.pipeline.factory import ServiceFactory
 from motd.pipeline.models import Scene
 from motd.transcription import AudioExtractor, WhisperTranscriber
+from motd.analysis.running_order_detector import RunningOrderDetector
 
 
 def load_config(config_path: Path = Path("config/config.yaml")) -> dict[str, Any]:
@@ -741,6 +742,155 @@ def transcribe_command(
 
     except Exception as e:
         logger.error(f"Transcription failed: {e}", exc_info=True)
+        click.echo(f"\nError: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command("analyze-running-order")
+@click.argument("episode_id")
+@click.option(
+    '--output',
+    type=click.Path(path_type=Path),
+    default=None,
+    help='Output path for running order JSON (default: data/output/{episode_id}/running_order.json)'
+)
+@click.option(
+    '--config',
+    type=click.Path(exists=True, path_type=Path),
+    default=Path('config/config.yaml'),
+    help='Path to config file'
+)
+def analyze_running_order_command(
+    episode_id: str,
+    output: Path | None,
+    config: Path
+):
+    """
+    Analyze running order and detect match boundaries for an episode.
+
+    Combines OCR scoreboards, FT graphics, and transcript to detect:
+    - Running order (match sequence)
+    - Match boundaries (intro start, highlights start/end, post-match end)
+
+    Example:
+
+        python -m motd analyze-running-order motd_2025-26_2025-11-01
+    """
+    # Load config
+    cfg = load_config(config)
+    setup_logging(cfg)
+    logger = logging.getLogger(__name__)
+
+    logger.info(f"Starting running order analysis for: {episode_id}")
+    click.echo(f"\n{'='*60}")
+    click.echo(f"Running Order Analysis: {episode_id}")
+    click.echo(f"{'='*60}\n")
+
+    # Define paths
+    cache_dir = Path(f'data/cache/{episode_id}')
+    ocr_path = cache_dir / 'ocr_results.json'
+    transcript_path = cache_dir / 'transcript.json'
+    teams_path = Path('data/teams/premier_league_2025_26.json')
+
+    # Validate required files exist
+    missing_files = []
+    if not ocr_path.exists():
+        missing_files.append(str(ocr_path))
+    if not transcript_path.exists():
+        missing_files.append(str(transcript_path))
+    if not teams_path.exists():
+        missing_files.append(str(teams_path))
+
+    if missing_files:
+        click.echo("Error: Required files not found:", err=True)
+        for path in missing_files:
+            click.echo(f"  - {path}", err=True)
+        click.echo("\nPlease run the following commands first:", err=True)
+        click.echo("  1. python -m motd detect-scenes <video>", err=True)
+        click.echo("  2. python -m motd extract-teams --scenes <scenes.json> --episode-id <id>", err=True)
+        click.echo("  3. python -m motd transcribe <video>", err=True)
+        sys.exit(1)
+
+    try:
+        # Load data
+        click.echo("Loading data...")
+        with open(ocr_path) as f:
+            ocr_data = json.load(f)
+        ocr_results = ocr_data['ocr_results']
+        click.echo(f"  ✓ Loaded {len(ocr_results)} OCR results")
+        logger.info(f"Loaded {len(ocr_results)} OCR results from {ocr_path}")
+
+        with open(transcript_path) as f:
+            transcript = json.load(f)
+        click.echo(f"  ✓ Loaded transcript ({len(transcript.get('segments', []))} segments)")
+        logger.info(f"Loaded transcript with {len(transcript.get('segments', []))} segments")
+
+        with open(teams_path) as f:
+            teams_data = json.load(f)
+        team_names = [team['full'] for team in teams_data['teams']]
+        click.echo(f"  ✓ Loaded {len(team_names)} team names\n")
+        logger.info(f"Loaded {len(team_names)} team names")
+
+        # Create detector
+        click.echo("Detecting running order...")
+        detector = RunningOrderDetector(
+            ocr_results=ocr_results,
+            transcript=transcript,
+            team_names=team_names
+        )
+
+        # Detect running order
+        running_order = detector.detect_running_order()
+        click.echo(f"  ✓ Detected {len(running_order.matches)} matches")
+        click.echo(f"  ✓ Consensus confidence: {running_order.consensus_confidence:.0%}\n")
+
+        # Detect match boundaries
+        click.echo("Detecting match boundaries...")
+        result = detector.detect_match_boundaries(running_order)
+        click.echo(f"  ✓ Detected all match boundaries\n")
+
+        # Display results
+        click.echo(f"{'='*60}")
+        click.echo("RUNNING ORDER WITH BOUNDARIES")
+        click.echo(f"{'='*60}\n")
+
+        for i, match in enumerate(result.matches, 1):
+            # Format timestamps as MM:SS
+            match_start_str = f"{int(match.match_start // 60):02d}:{int(match.match_start % 60):02d}"
+            highlights_start_str = f"{int(match.highlights_start // 60):02d}:{int(match.highlights_start % 60):02d}"
+            highlights_end_str = f"{int(match.highlights_end // 60):02d}:{int(match.highlights_end % 60):02d}"
+            match_end_str = f"{int(match.match_end // 60):02d}:{int(match.match_end % 60):02d}"
+
+            # Calculate durations
+            intro_duration = match.highlights_start - match.match_start
+            highlights_duration = match.highlights_end - match.highlights_start
+            postmatch_duration = match.match_end - match.highlights_end
+            total_duration = match.match_end - match.match_start
+
+            click.echo(f"Match {i}: {match.teams[0]} vs {match.teams[1]}")
+            click.echo(f"  Intro:       {match_start_str} → {highlights_start_str} ({intro_duration:.0f}s)")
+            click.echo(f"  Highlights:  {highlights_start_str} → {highlights_end_str} ({highlights_duration:.0f}s)")
+            click.echo(f"  Post-match:  {highlights_end_str} → {match_end_str} ({postmatch_duration:.0f}s)")
+            click.echo(f"  Total:       {match_start_str} → {match_end_str} ({total_duration:.0f}s)")
+            click.echo()
+
+        # Generate output path
+        if output is None:
+            output = Path(f'data/output/{episode_id}/running_order.json')
+
+        # Save JSON output
+        output.parent.mkdir(parents=True, exist_ok=True)
+        json_output = result.model_dump_json(indent=2)
+        output.write_text(json_output)
+
+        click.echo(f"{'='*60}")
+        click.echo(f"✓ Running order saved to: {output}")
+        click.echo(f"{'='*60}\n")
+
+        logger.info(f"Running order analysis complete: {output}")
+
+    except Exception as e:
+        logger.error(f"Running order analysis failed: {e}", exc_info=True)
         click.echo(f"\nError: {e}", err=True)
         sys.exit(1)
 

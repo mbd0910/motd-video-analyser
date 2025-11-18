@@ -239,3 +239,97 @@ class TestIntegration:
         # Should be deserializable
         reconstructed = RunningOrderResult.model_validate_json(json_str)
         assert len(reconstructed.matches) == 7
+
+
+class TestMatchBoundaryDetection:
+    """Test match_start and match_end boundary detection via transcript."""
+
+    def test_detect_match_boundaries_populates_all_fields(self, detector):
+        """Should populate match_start and match_end for all 7 matches."""
+        # Get base running order (has highlights_start/end)
+        base_result = detector.detect_running_order()
+
+        # Add boundary detection
+        result = detector.detect_match_boundaries(base_result)
+
+        for i, match in enumerate(result.matches, 1):
+            assert match.match_start is not None, f"Match {i} should have match_start"
+            assert match.match_end is not None, f"Match {i} should have match_end"
+            assert match.highlights_start is not None, f"Match {i} should have highlights_start"
+            assert match.highlights_end is not None, f"Match {i} should have highlights_end"
+
+    def test_match_start_before_highlights_start(self, detector):
+        """match_start (intro) should be before highlights_start (first scoreboard)."""
+        base_result = detector.detect_running_order()
+        result = detector.detect_match_boundaries(base_result)
+
+        for i, match in enumerate(result.matches, 1):
+            assert match.match_start < match.highlights_start, \
+                f"Match {i}: intro ({match.match_start}s) should be before highlights ({match.highlights_start}s)"
+
+    def test_highlights_end_before_match_end(self, detector):
+        """highlights_end (FT graphic) should be before match_end (post-match analysis end)."""
+        base_result = detector.detect_running_order()
+        result = detector.detect_match_boundaries(base_result)
+
+        for i, match in enumerate(result.matches, 1):
+            assert match.highlights_end < match.match_end, \
+                f"Match {i}: highlights_end ({match.highlights_end}s) should be before match_end ({match.match_end}s)"
+
+    def test_match_end_equals_next_match_start(self, detector):
+        """Each match_end should equal the next match's match_start (no gaps)."""
+        base_result = detector.detect_running_order()
+        result = detector.detect_match_boundaries(base_result)
+
+        for i in range(len(result.matches) - 1):
+            current = result.matches[i]
+            next_match = result.matches[i + 1]
+
+            assert current.match_end == next_match.match_start, \
+                f"Match {i+1} end ({current.match_end}s) should equal Match {i+2} start ({next_match.match_start}s)"
+
+    def test_first_match_start_reasonable(self, detector):
+        """First match should start near episode beginning (after intro ~50s)."""
+        base_result = detector.detect_running_order()
+        result = detector.detect_match_boundaries(base_result)
+
+        first_match = result.matches[0]
+
+        # Should be between 0-120s (after episode intro, before highlights)
+        assert 0 <= first_match.match_start <= 120, \
+            f"First match should start 0-120s, got {first_match.match_start}s"
+
+    def test_last_match_end_is_episode_duration(self, detector):
+        """Last match should end at episode duration."""
+        base_result = detector.detect_running_order()
+        result = detector.detect_match_boundaries(base_result)
+
+        last_match = result.matches[-1]
+        episode_duration = detector.transcript.get('duration', 0)
+
+        assert last_match.match_end == episode_duration, \
+            f"Last match should end at episode duration ({episode_duration}s), got {last_match.match_end}s"
+
+    def test_intro_duration_reasonable(self, detector):
+        """Intro duration (match_start to highlights_start) should be 3-180s."""
+        base_result = detector.detect_running_order()
+        result = detector.detect_match_boundaries(base_result)
+
+        for i, match in enumerate(result.matches, 1):
+            intro_duration = match.highlights_start - match.match_start
+
+            # Some intros are very brief (team mentioned seconds before kickoff)
+            assert 3 <= intro_duration <= 180, \
+                f"Match {i} intro should be 3-180s, got {intro_duration}s"
+
+    def test_post_match_duration_reasonable(self, detector):
+        """Post-match duration (highlights_end to match_end) should be 10-600s."""
+        base_result = detector.detect_running_order()
+        result = detector.detect_match_boundaries(base_result)
+
+        for i, match in enumerate(result.matches, 1):
+            post_match_duration = match.match_end - match.highlights_end
+
+            # Some matches have minimal post-match (quick transition), some have long analysis
+            assert 10 <= post_match_duration <= 600, \
+                f"Match {i} post-match should be 10-600s, got {post_match_duration}s"

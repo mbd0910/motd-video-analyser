@@ -7,11 +7,12 @@ Detects match running order using 2 independent strategies:
 
 Cross-validates both strategies for consensus and confidence scoring.
 
-Note: Boundary detection via transcript/mention clustering deferred to Phase 2.
+Includes transcript-based boundary detection for match_start/match_end.
 """
 
 from collections import defaultdict
 from typing import Any
+from rapidfuzz import fuzz
 
 from src.motd.pipeline.models import MatchBoundary, RunningOrderResult
 
@@ -170,6 +171,205 @@ class RunningOrderDetector:
             consensus_confidence=consensus_confidence,
             disagreements=[]
         )
+
+    def detect_match_boundaries(self, running_order: RunningOrderResult) -> RunningOrderResult:
+        """
+        Detect match_start and match_end boundaries using transcript.
+
+        For each match:
+        1. match_start: Search forward from previous match's highlights_end
+           to find first mention of BOTH teams (fuzzy matching)
+        2. match_end: Next match's match_start (no gaps between matches)
+
+        This avoids picking up "coming up later" mentions from earlier in the episode.
+
+        Args:
+            running_order: RunningOrderResult with highlights_start/end populated
+
+        Returns:
+            Updated RunningOrderResult with match_start/end populated
+        """
+        # Get transcript segments
+        segments = self.transcript.get('segments', [])
+        episode_duration = self.transcript.get('duration', 0)
+
+        # Process matches to add boundaries
+        updated_matches = []
+
+        for i, match in enumerate(running_order.matches):
+            # Get search window: from previous match's end to this match's highlights
+            if i == 0:
+                search_start = 0  # Episode start
+            else:
+                search_start = running_order.matches[i - 1].highlights_end  # Previous FT graphic
+
+            # Detect match_start (intro beginning)
+            match_start = self._detect_match_start(
+                teams=match.teams,
+                search_start=search_start,
+                highlights_start=match.highlights_start,
+                segments=segments,
+                is_first_match=(i == 0)
+            )
+
+            # Create updated match with match_start
+            updated_match = match.model_copy(update={'match_start': match_start})
+            updated_matches.append(updated_match)
+
+        # Second pass: Set match_end = next match's match_start
+        for i, match in enumerate(updated_matches):
+            if i < len(updated_matches) - 1:
+                # match_end = next match's match_start (no gaps)
+                match_end = updated_matches[i + 1].match_start
+            else:
+                # Last match: match_end = episode duration
+                match_end = episode_duration
+
+            # Update match with match_end
+            updated_matches[i] = match.model_copy(update={'match_end': match_end})
+
+        # Return updated result
+        return running_order.model_copy(update={'matches': updated_matches})
+
+    def _detect_match_start(
+        self,
+        teams: tuple[str, str],
+        search_start: float,
+        highlights_start: float,
+        segments: list[dict],
+        is_first_match: bool
+    ) -> float:
+        """
+        Detect match_start by searching forward for first mention of both teams.
+
+        Searches from previous match's highlights_end (or episode start) forward
+        to this match's highlights_start, looking for the first occurrence where
+        both teams are mentioned.
+
+        Args:
+            teams: Team pair (normalized/sorted)
+            search_start: Start of search window (previous match's highlights_end or 0)
+            highlights_start: First scoreboard timestamp (end of search window)
+            segments: Transcript segments
+            is_first_match: Whether this is the first match in the episode
+
+        Returns:
+            match_start timestamp (seconds)
+        """
+        # For first match, use episode start (after intro)
+        if is_first_match:
+            # Assume episode intro ends around 50s (typical MOTD structure)
+            return min(50.0, highlights_start - 10.0)
+
+        # Find segments in the search window (between previous match and this one)
+        relevant_segments = [
+            s for s in segments
+            if search_start <= s.get('start', 0) < highlights_start
+        ]
+
+        # Bidirectional search: forward from previous match AND backward from highlights
+        forward_mention = None  # First mention searching forward
+        backward_mention = None  # Last mention searching backward
+
+        # Search forward: find first mention of either team
+        for segment in relevant_segments:
+            text = segment.get('text', '').lower()
+
+            if self._fuzzy_team_match(text, teams[0]) or self._fuzzy_team_match(text, teams[1]):
+                forward_mention = segment.get('start', 0)
+                break  # Stop at first mention
+
+        # Search backward: find last mention of either team
+        for segment in reversed(relevant_segments):
+            text = segment.get('text', '').lower()
+
+            if self._fuzzy_team_match(text, teams[0]) or self._fuzzy_team_match(text, teams[1]):
+                backward_mention = segment.get('start', 0)
+                break  # Stop at last mention (searching backward)
+
+        # Use the result that makes most sense
+        if forward_mention is not None and backward_mention is not None:
+            # Both found - use the one closest to highlights (backward search result)
+            # This avoids "coming up later" mentions
+            return backward_mention
+        elif backward_mention is not None:
+            return backward_mention
+        elif forward_mention is not None:
+            return forward_mention
+        else:
+            # Fallback: No mention found, assume 60s before highlights
+            return max(search_start, highlights_start - 60.0)
+
+    def _fuzzy_team_match(self, text: str, team_name: str, threshold: float = 0.80) -> bool:
+        """
+        Check if team name appears in text using fuzzy matching.
+
+        Args:
+            text: Transcript text (lowercased)
+            team_name: Team name to search for
+            threshold: Fuzzy match threshold (default 0.80)
+
+        Returns:
+            True if team name found in text
+        """
+        # Normalize team name for matching
+        team_lower = team_name.lower()
+
+        # Direct substring match
+        if team_lower in text:
+            return True
+
+        # Fuzzy match against words in text
+        words = text.split()
+        for word in words:
+            # Try fuzzy matching
+            score = fuzz.partial_ratio(team_lower, word) / 100.0
+            if score >= threshold:
+                return True
+
+        # Handle common variations
+        # e.g., "Man United" for "Manchester United", "Villa" for "Aston Villa"
+        short_names = self._get_team_short_names(team_name)
+        for short_name in short_names:
+            if short_name.lower() in text:
+                return True
+
+        return False
+
+    def _get_team_short_names(self, team_name: str) -> list[str]:
+        """
+        Get common short name variations for a team.
+
+        Args:
+            team_name: Full team name
+
+        Returns:
+            List of short name variations
+        """
+        # Common short name patterns
+        short_names = []
+
+        # Handle multi-word teams (e.g., "Manchester United" → "United", "Man United")
+        parts = team_name.split()
+        if len(parts) >= 2:
+            # Last word (e.g., "United", "City", "Villa")
+            short_names.append(parts[-1])
+
+            # First word (e.g., "Manchester", "Aston")
+            if parts[0] not in ['Brighton', 'Crystal']:  # Avoid ambiguous ones
+                short_names.append(parts[0])
+
+            # Common abbreviations
+            if 'Manchester' in team_name:
+                short_names.append('Man ' + parts[-1])  # "Man United", "Man City"
+            if 'Tottenham' in team_name:
+                short_names.append('Spurs')
+            if 'Wolverhampton' in team_name:
+                short_names.append('Wolves')
+            if 'Brighton' in team_name:
+                short_names.append('Brighton')
+
+        return short_names
 
     # Helper methods
 

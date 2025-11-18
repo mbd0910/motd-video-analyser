@@ -28,29 +28,230 @@ Wire RunningOrderDetector into pipeline with CLI command and implement transcrip
 
 ---
 
+## Ground Truth Validation Data
+
+**Match intro timestamps** (for boundary detection validation - from visual_patterns.md + manual verification):
+
+| Match | Teams | Intro Start | Notes |
+|-------|-------|-------------|-------|
+| 1 | Liverpool v Aston Villa | **00:01:01** | NOT 00:00:50 (that's show intro + pundits) |
+| 2 | Arsenal v Burnley | **00:14:25** | Transcript: "Thank you very much. Leaders, Arsenal..." |
+| 3 | Nottingham Forest v Man Utd | **00:26:27** | Transcript: "OK. It is a year today since Ruben Amaran..." |
+| 4 | Fulham v Wolves | **00:41:49** | |
+| 5 | Tottenham v Chelsea | **00:52:48** | |
+| 6 | Brighton v Leeds | **01:04:54** | |
+| 7 | Crystal Palace v Brentford | **01:14:40** | |
+
+**Current detection results** (INCORRECT - 30-50s too late):
+- Match 1: 00:00:50 ❌ (should be 00:01:01)
+- Match 2: 00:15:00 ❌ (should be 00:14:25, off by 35s)
+- Match 3: 00:27:19 ❌ (should be 00:26:27, off by 52s)
+- Match 4-7: Similar pattern (30-50s too late)
+
+---
+
 ## Three Segments Per Match
 
-### 1. Studio Intro (`match_start` → `highlights_start`)
+### 1. Intro (`match_start` → `highlights_start`)
 - **Content:** Host introduces match, formations walkthrough, pre-match analysis
-- **Detection:** Search transcript **backward** from `highlights_start` for **first mention** of either team
-- **Duration:** Typically 30-90 seconds
+- **Detection:** See "Boundary Detection Algorithm" below
+- **Duration:** Variable (5-90 seconds - some matches have very brief intros)
 
 ### 2. Highlights (`highlights_start` → `highlights_end`)
 - **Content:** Match footage with scoreboards
 - **Already detected:**
-  - `highlights_start`: First scoreboard appearance
-  - `highlights_end`: FT graphic timestamp
+  - `highlights_start`: First scoreboard appearance (exact via OCR)
+  - `highlights_end`: FT graphic timestamp (exact via OCR)
 
-### 3. Post-Match Analysis (`highlights_end` → `match_end`)
+### 3. Post-Match (`highlights_end` → `match_end`)
 - **Content:** Interviews, pundit analysis, slow-motion replays
 - **Detection:** `match_end` = next match's `match_start` (or episode end for final match)
-- **Duration:** Variable (3-8 minutes typically)
+- **Duration:** Variable (10-600 seconds)
 
 **Key insight:** No gaps between matches! Each match ends exactly when the next one starts.
 
 ---
 
+## Boundary Detection Algorithm
+
+### 2-Strategy Approach (Like Running Order Detection)
+
+Similar to how we detect running order with 2 independent strategies (scoreboards + FT graphics), we'll use multiple strategies for boundary detection with cross-validation.
+
+#### Strategy 1: Team Mention Detection (PRIMARY)
+
+**Algorithm:**
+1. Search **BACKWARD** from `highlights_start` (first scoreboard)
+2. Find **BOTH teams mentioned within 10s of each other**
+3. Use the **earlier** mention timestamp as `match_start`
+
+**Why backward search:**
+- Avoids "coming up later" mentions from earlier in episode
+- Finds the actual intro (always immediately before highlights)
+- Current forward search finds wrong mentions 30-50s too late
+
+**Implementation:**
+```python
+# Iterate segments in reverse from highlights_start
+for segment in reversed(segments_before_highlights):
+    # Check if both teams mentioned close together
+    if both_teams_in_segment or both_teams_in_adjacent_segments(within_10s):
+        return earlier_mention_timestamp
+```
+
+#### Strategy 2: Venue Detection (VALIDATION)
+
+**Algorithm:**
+1. Search **BACKWARD** from `highlights_start`
+2. Find venue mention ("at Anfield", "at Turf Moor", etc.)
+3. Fuzzy match against fixture venue data
+4. Use venue mention timestamp as `match_start`
+
+**Why venue detection:**
+- Presenters often say "at [stadium]" or "[stadium name]"
+- Independent validation of team mention detection
+- Less ambiguous than team names (no "Man United" vs "Manchester United" issues)
+
+**Implementation:**
+```python
+# Search for venue patterns
+patterns = ["at {venue}", "{venue}", "the {venue}"]
+for segment in reversed(segments_before_highlights):
+    for venue in expected_fixtures[match].venues:
+        if fuzzy_match(segment.text, venue):
+            return segment.start
+```
+
+#### Cross-Validation
+
+- Run **both strategies** independently
+- Compare results:
+  - **Agreement** (within ±10s): High confidence, use Team Mention result
+  - **Disagreement** (>10s apart): Log warning, use Team Mention as primary, flag for review
+- Log consensus metadata for future tuning
+
+**Example (Match 2):**
+- Team Mention: 865s ("Arsenal" at 866s + "Burnley" at 870s → use 866s)
+- Venue: 874s ("at Turf Moor")
+- Agreement: NO (9s apart) - but both detect intro region correctly
+- Result: Use 866s (Team Mention), log 9s variance
+
+---
+
+## Code Review Findings (2025-11-18)
+
+### Issue 1: Bidirectional Search is Redundant
+
+**Problem:** Current implementation (running_order_detector.py:270-301) does both forward and backward search, but **always uses backward result**. Forward search is never used.
+
+**Decision:** Remove bidirectional search, simplify to pure backward search as documented
+
+**Fix required in next session:**
+- Remove forward search logic (lines 275-280 in running_order_detector.py)
+- Keep backward search only (lines 282-288)
+- Update docstrings to remove "bidirectional" language (lines 176-189, 240-255)
+
+### Issue 2: Match 1 Hardcoded Fallback
+
+**Problem:** Match 1 uses hardcoded `min(50.0, highlights_start - 10.0)` instead of proper detection (lines 257-260 in running_order_detector.py)
+
+**Impact:** Bypasses both team mention AND venue detection for first match
+
+**Decision:** Remove hardcoded logic, use same backward search for **ALL matches** (including Match 1)
+
+**Fix required in next session:**
+- Delete `if is_first_match: return min(50.0, ...)` block (lines 257-260)
+- Match 1 will now use team mention detection (should find ~61s, not 50s)
+- Venue strategy will work for Match 1 too (once implemented)
+
+### Simplified Algorithm (After Fixes)
+
+**Pure Backward Search (applies to ALL 7 matches):**
+
+1. Filter segments before `highlights_start`
+2. Iterate **backward** through filtered segments
+3. Find where **BOTH teams** mentioned within 10s:
+   - Both in same segment → return that segment's timestamp
+   - Both in adjacent segments (≤10s apart) → return earlier segment's timestamp
+4. Fallback if not found: `max(search_start, highlights_start - 60s)`
+
+**No special cases** - same algorithm for Match 1 through Match 7.
+
+---
+
+## Venue Data Structure
+
+### New Files Required
+
+**1. data/venues/premier_league_2025_26.json**
+
+```json
+{
+  "season": "2025-26",
+  "competition": "Premier League",
+  "venues": [
+    {
+      "team": "Liverpool",
+      "stadium": "Anfield",
+      "city": "Liverpool",
+      "aliases": ["Anfield", "the Anfield"]
+    },
+    {
+      "team": "Arsenal",
+      "stadium": "Emirates Stadium",
+      "city": "London",
+      "aliases": ["Emirates", "the Emirates", "Emirates Stadium"]
+    },
+    {
+      "team": "Manchester United",
+      "stadium": "Old Trafford",
+      "city": "Manchester",
+      "aliases": ["Old Trafford", "the Theatre of Dreams"]
+    },
+    {
+      "team": "Burnley",
+      "stadium": "Turf Moor",
+      "city": "Burnley",
+      "aliases": ["Turf Moor", "the Turf Moor"]
+    }
+    // ... all 20 Premier League teams
+  ]
+}
+```
+
+**2. Update data/fixtures/premier_league_2025_26.json**
+
+Add `venue` field to fixtures:
+```json
+{
+  "date": "2025-11-01",
+  "home": "Liverpool",
+  "away": "Aston Villa",
+  "venue": "Anfield"  // References venues JSON
+}
+```
+
+**3. VenueMatcher class** (similar to TeamMatcher/FixtureMatcher)
+
+---
+
 ## Implementation Steps
+
+### Phase 0: Venue Data Setup (15 mins)
+
+**Goal:** Create venue reference data
+
+**Tasks:**
+- [ ] Create `data/venues/premier_league_2025_26.json` with all 20 PL stadiums
+- [ ] Update `data/fixtures/premier_league_2025_26.json` to include `venue` field
+- [ ] Add `VenueMatcher` class (similar to `TeamMatcher`/`FixtureMatcher`)
+
+**Success criteria:**
+- Venue JSON file created with 20 teams
+- Fixtures updated with venue references
+- VenueMatcher can fuzzy match venue mentions
+
+---
 
 ### 1. Create CLI Command (30 mins)
 
@@ -76,20 +277,35 @@ Wire RunningOrderDetector into pipeline with CLI command and implement transcrip
 
 ---
 
-### 2. Implement Boundary Detection (45 mins)
+### 2. Fix Team Mention Detection (45 mins)
 
-**Goal:** Detect `match_start` via transcript, set `match_end` = next match start
+**Goal:** Fix current algorithm to search **backward** and find **both teams**
 
-**Add method to RunningOrderDetector:**
+**Current bugs:**
+1. Bidirectional search is redundant (forward result never used)
+2. Match 1 uses hardcoded 50s instead of detection
+3. Finds wrong mentions 30-50s too late for matches 2-7
+
+**Fixes required (see "Code Review Findings" above):**
+- Remove bidirectional search → keep pure backward search
+- Remove Match 1 hardcoded logic → use same algorithm for all matches
+- Simplify to one consistent implementation
+
+**Updated method in RunningOrderDetector:**
 ```python
 def detect_match_boundaries(self, running_order: RunningOrderResult) -> RunningOrderResult:
     """
-    Detect match_start and match_end using transcript + known running order.
+    Detect match_start and match_end using 2-strategy approach.
 
-    For each match:
-    1. Find match_start: Search transcript backward from highlights_start
-       for first mention of either team name
-    2. Set match_end: Next match's match_start (or episode end for last match)
+    Strategy 1 (PRIMARY): Team Mention Detection
+    - Search BACKWARD from highlights_start
+    - Find BOTH teams mentioned within 10s
+    - Use earlier mention as match_start
+
+    Strategy 2 (VALIDATION): Venue Detection
+    - Search BACKWARD from highlights_start
+    - Find venue mention (fuzzy match)
+    - Cross-validate with Strategy 1
 
     Returns:
         Updated RunningOrderResult with complete boundaries
@@ -97,27 +313,43 @@ def detect_match_boundaries(self, running_order: RunningOrderResult) -> RunningO
     # Implementation here
 ```
 
-**Algorithm:**
+**Algorithm (Team Mention - Strategy 1):**
 1. For each match in running_order.matches:
    - Get `highlights_start` timestamp
-   - Search transcript backward from that point
-   - Find first segment mentioning either team name (fuzzy match)
-   - Set `match_start` = that segment's start time
+   - Filter segments: `segment.start < highlights_start`
+   - **Search BACKWARD** through filtered segments
+   - Track when BOTH teams mentioned:
+     - Both in same segment → return segment.start
+     - Both in adjacent segments (≤10s apart) → return earlier segment.start
+   - Set `match_start` = that timestamp
 
 2. For each match except the last:
    - Set `match_end` = next_match.match_start
 
 3. For the last match:
-   - Set `match_end` = episode duration (from transcript or video metadata)
+   - Set `match_end` = episode duration
+
+**Algorithm (Venue - Strategy 2):**
+1. Load venue data for match's fixture
+2. Search BACKWARD from `highlights_start`
+3. Fuzzy match segment text against venue aliases
+4. Return venue mention timestamp
+
+**Cross-Validation:**
+- Run both strategies
+- Compare results (should agree within ±10s)
+- Log any disagreements
+- Use Team Mention as primary
 
 **Edge cases:**
-- If no team mention found before `highlights_start`, use `highlights_start - 60s` as fallback
+- If BOTH teams not found: Use fallback (`highlights_start - 60s`)
+- ~~First match special case~~ **REMOVED**: Use same algorithm for all matches (Match 1 will be detected properly now)
 - Ensure `match_start` < `highlights_start` (sanity check)
-- Handle interludes (if encountered): Document but don't implement yet
 
 **Success criteria:**
-- All 7 matches have `match_start` detected
-- All matches have `match_end` set
+- All 7 matches have `match_start` within ±10s of ground truth
+- Team Mention strategy achieves ±5s accuracy
+- Venue strategy (if implemented) validates Team Mention
 - No gaps or overlaps between matches
 - `match_start` < `highlights_start` < `highlights_end` < `match_end` for all matches
 
@@ -203,12 +435,31 @@ def detect_match_boundaries(self, running_order: RunningOrderResult) -> RunningO
 
 ## Success Criteria
 
-- [ ] CLI command runs successfully
-- [ ] 7 matches detected with complete boundaries
-- [ ] All `match_start` values detected via transcript
-- [ ] All `match_end` values set (= next match start)
-- [ ] JSON output generated
-- [ ] Manual validation confirms ±30s accuracy
+### Phase 0: Venue Data Setup
+- [ ] `data/venues/premier_league_2025_26.json` created with 20 teams
+- [ ] `data/fixtures/premier_league_2025_26.json` updated with venue field
+- [ ] `VenueMatcher` class implemented
+
+### Phase 1: CLI Command (COMPLETED ✅)
+- [x] CLI command runs successfully
+- [x] 7 matches detected with 100% consensus
+- [x] JSON output generated
+
+### Phase 2: Fix Boundary Detection (IN PROGRESS)
+- [ ] Team Mention strategy: Search BACKWARD from highlights_start
+- [ ] Team Mention strategy: Find BOTH teams within 10s
+- [ ] All 7 matches within ±10s of ground truth timestamps
+- [ ] Venue strategy implemented (optional for now)
+- [ ] Cross-validation logging added
+
+### Phase 3: Validation
+- [ ] Match 1: 00:01:01 ±10s (NOT 00:00:50)
+- [ ] Match 2: 00:14:25 ±10s
+- [ ] Match 3: 00:26:27 ±10s
+- [ ] Match 4: 00:41:49 ±10s
+- [ ] Match 5: 00:52:48 ±10s
+- [ ] Match 6: 01:04:54 ±10s
+- [ ] Match 7: 01:14:40 ±10s
 - [ ] No gaps or overlaps between matches
 - [ ] Pydantic model validation passes
 
