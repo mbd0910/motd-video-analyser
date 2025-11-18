@@ -20,16 +20,18 @@ docs/tasks/
 │   │   └── README.md
 │   ├── 002-create-project-structure/
 │   │   └── README.md
+│   ├── 011-analysis-pipeline/         # Phase 1 complete (running order detection)
+│   │   ├── README.md
+│   │   └── ... (9 task files)
 │   └── ...
-├── 008-scene-detection-testing/       # Epic task with subtasks
-│   ├── README.md                      # Epic overview
-│   ├── 008a-create-cli-command.md     # Subtask A
-│   ├── 008b-test-on-video.md          # Subtask B
-│   └── 008c-validate-and-tune.md      # Subtask C
-├── 009-ocr-implementation/            # Another epic
-│   └── README.md
-└── 013-refinement-tuning/             # Standalone task
-    └── README.md
+├── 012-classifier-integration/        # Current active task
+│   ├── README.md                      # Task overview
+│   └── 012-01-pipeline-integration.md # Pipeline integration + boundary detection
+└── future/                            # Tentative tasks (YAGNI principle)
+    ├── 012-validation-tools/
+    ├── 013-refinement-tuning/
+    ├── 014-batch-processing/
+    └── 015-documentation/
 ```
 
 ## Task Types
@@ -142,10 +144,26 @@ Finished tasks are moved to `completed/` to keep the main task list clean:
 completed/
 ├── 001-environment-setup/
 ├── 002-create-project-structure/
+├── 003-007-*/                    # Core pipeline tasks
+├── 011-analysis-pipeline/        # Running order detection (Phase 1)
 └── ...
 ```
 
 These are archived for reference but not actively worked on.
+
+## Future Tasks
+
+Tentative tasks are stored in `future/` following the YAGNI principle (You Aren't Gonna Need It). These tasks are created only when they're actually needed, not speculatively.
+
+```
+future/
+├── 012-validation-tools/         # Original task 012 (moved when scope changed)
+├── 013-refinement-tuning/        # Original task 013
+├── 014-batch-processing/         # Original task 014
+└── 015-documentation/            # Original task 015
+```
+
+Tasks in `future/` may be renamed, re-scoped, or discarded as the project evolves.
 
 ## Git Workflow Integration
 

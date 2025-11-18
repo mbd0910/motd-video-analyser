@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Context
 
-**Core pipeline operational** (scene detection, OCR, transcription). **Working on** Task 011 analysis layer (segment classification, match boundaries, airtime calculation). Follow task-driven workflow in [docs/tasks/](docs/tasks/).
+**Core pipeline operational** (scene detection, OCR, transcription). **Working on** Task 012: Pipeline Integration + Match Boundary Detection. Task 011 (Running Order Detection) complete with 100% accuracy. Follow task-driven workflow in [docs/tasks/](docs/tasks/).
 
 ## What This Project Does
 
@@ -15,8 +15,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Critical Warnings
 
 **IMPORTANT**: This project uses task-driven development. Before implementing any feature:
-1. Check if a task file exists in [docs/tasks/](docs/tasks/)
-2. If task is marked "epic" (008-015), MUST split into sub-tasks first
+1. Check if a task file exists in [docs/tasks/](docs/tasks/) or [docs/tasks/completed/](docs/tasks/completed/)
+2. Check [docs/tasks/future/](docs/tasks/future/) for tentative tasks (YAGNI principle - only create when needed)
 3. Never skip task validation checklists
 
 **YOU MUST**:
@@ -29,7 +29,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Skip caching checks - Whisper transcription costs 3-4 minutes per video
 - Commit files in `data/videos/` or `data/cache/` - they're gitignored for size reasons
 - Use Tesseract for OCR (poor on sports graphics) - use EasyOCR
-- Skip epic splitting - Tasks 008+ need breakdown before coding
+- Create deeply nested task structures (011a→011b-1→011b-2) - use sequential numbering (011-01, 011-02) instead
 - Assume 1920x1080 resolution without verification
 
 ## Repository Workflow

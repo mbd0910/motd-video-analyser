@@ -190,5 +190,122 @@ class ProcessedScene(BaseModel):
     }
 
 
+class MatchBoundary(BaseModel):
+    """
+    Detected boundaries for a single match.
+
+    Contains timestamps for match start, highlights start/end, and match end.
+    Used by multi-strategy running order detection and boundary detection.
+    """
+    teams: tuple[str, str] = Field(..., description="Team pair (normalized/sorted)")
+    position: int = Field(..., ge=1, le=7, description="Running order position (1-7)")
+
+    # Timestamps (seconds)
+    match_start: float | None = Field(None, ge=0, description="Match segment start (studio intro)")
+    highlights_start: float | None = Field(None, ge=0, description="First scoreboard appearance")
+    highlights_end: float | None = Field(None, ge=0, description="FT graphic timestamp")
+    match_end: float | None = Field(None, ge=0, description="Match segment end (before next match)")
+
+    # Detection metadata
+    first_mention_time: float | None = Field(None, ge=0, description="First team mention (OCR/transcript)")
+    first_scoreboard_time: float | None = Field(None, ge=0, description="First scoreboard detection")
+    ft_graphic_time: float | None = Field(None, ge=0, description="FT graphic detection")
+    last_mention_time: float | None = Field(None, ge=0, description="Last team mention")
+
+    # Confidence
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Overall boundary confidence")
+    detection_sources: list[str] = Field(
+        default_factory=list,
+        description="Detection sources used: 'scoreboard', 'ft_graphic', 'mentions'"
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "teams": ("Liverpool", "Aston Villa"),
+                    "position": 1,
+                    "match_start": 50.0,
+                    "highlights_start": 112.0,
+                    "highlights_end": 607.3,
+                    "match_end": 911.0,
+                    "first_mention_time": 48.5,
+                    "first_scoreboard_time": 112.0,
+                    "ft_graphic_time": 607.3,
+                    "last_mention_time": 910.2,
+                    "confidence": 0.95,
+                    "detection_sources": ["scoreboard", "ft_graphic", "mentions"]
+                }
+            ]
+        }
+    }
+
+
+class RunningOrderResult(BaseModel):
+    """
+    Result of multi-strategy running order detection.
+
+    Contains ordered list of matches with boundaries and cross-validation metadata.
+    """
+    matches: list[MatchBoundary] = Field(..., description="Ordered list of matches (running order)")
+    strategy_results: dict[str, list[tuple[str, str]]] = Field(
+        ...,
+        description="Results from each strategy: 'scoreboard', 'ft_graphic', 'mentions'"
+    )
+    consensus_confidence: float = Field(
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Cross-validation confidence (1.0 = all strategies agree)"
+    )
+    disagreements: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Positions where strategies disagreed"
+    )
+
+    @field_validator('matches')
+    @classmethod
+    def validate_positions_sequential(cls, v: list[MatchBoundary]) -> list[MatchBoundary]:
+        """Ensure positions are 1,2,3,...,7 with no gaps."""
+        positions = [m.position for m in v]
+        expected = list(range(1, len(v) + 1))
+        if positions != expected:
+            raise ValueError(f'Positions must be sequential 1-{len(v)}, got {positions}')
+        return v
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "matches": [
+                        {
+                            "teams": ("Liverpool", "Aston Villa"),
+                            "position": 1,
+                            "highlights_start": 112.0,
+                            "highlights_end": 607.3,
+                            "confidence": 0.95,
+                            "detection_sources": ["scoreboard", "ft_graphic"]
+                        }
+                    ],
+                    "strategy_results": {
+                        "scoreboard": [("Liverpool", "Aston Villa"), ("Burnley", "Arsenal")],
+                        "ft_graphic": [("Liverpool", "Aston Villa"), ("Burnley", "Arsenal")],
+                        "mentions": [("Liverpool", "Aston Villa"), ("Burnley", "Arsenal")]
+                    },
+                    "consensus_confidence": 1.0,
+                    "disagreements": []
+                }
+            ]
+        }
+    }
+
+
 # Legacy compatibility: Export types for backward compatibility
-__all__ = ['Scene', 'TeamMatch', 'OCRResult', 'ProcessedScene']
+__all__ = [
+    'Scene',
+    'TeamMatch',
+    'OCRResult',
+    'ProcessedScene',
+    'MatchBoundary',
+    'RunningOrderResult'
+]

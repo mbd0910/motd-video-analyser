@@ -915,13 +915,47 @@ python -m motd_analyzer transcribe \
 
 ---
 
-## Phase 4: Analysis & Classification (Est. 8-10 hours)
+## Phase 4: Analysis & Classification (In Progress - Task 011-012)
+
+**Status:** Task 011 complete (Running Order Detection), Task 012 active (Pipeline Integration + Boundary Detection)
+
+**Completed in Task 011:**
+- ✅ Running order detection with 2-strategy approach (scoreboards + FT graphics)
+- ✅ 100% consensus on running order (7/7 matches)
+- ✅ Pydantic models for type safety (MatchBoundary, RunningOrderResult)
+- ✅ 18 passing unit tests with TDD methodology
+- ✅ Highlights boundaries detected (first scoreboard → FT graphic)
+
+**Next in Task 012:**
+- Wire RunningOrderDetector into pipeline with CLI command
+- Implement transcript-based boundary detection for studio intro
+- Set match_end = next match's match_start (no gaps)
+- Generate JSON output with complete three-segment structure per match
 
 ### Goals
-- Classify segments (studio, highlights, interview, analysis)
-- Detect first team mentioned in post-match analysis
+- ✅ Detect running order (Task 011 - complete)
+- ⏳ Detect match boundaries via transcript (Task 012 - active)
 - Calculate airtime per match
 - Generate final JSON output
+
+### Current Implementation Status
+
+**Task 011 Deliverables** (Complete ✅):
+- `src/motd/pipeline/models.py` - MatchBoundary & RunningOrderResult models
+- `src/motd/analysis/running_order_detector.py` - 2-strategy detector with 18 passing tests
+- `tests/unit/analysis/test_running_order_detector.py` - Full test coverage
+
+**Task 012 Next Steps** (Active ⏳):
+1. Create CLI command: `python -m motd analyze-running-order <episode_id>`
+2. Add `detect_match_boundaries()` method to RunningOrderDetector
+3. Implement transcript backward search for studio intro detection
+4. Set match_end = next match_start (no gaps between matches)
+5. Generate JSON output: `data/output/{episode_id}/running_order.json`
+
+**Three Segments Per Match:**
+- **Studio Intro:** `match_start` (first team mention in transcript) → `highlights_start` (first scoreboard)
+- **Highlights:** `highlights_start` (first scoreboard) → `highlights_end` (FT graphic)
+- **Post-Match:** `highlights_end` (FT graphic) → `match_end` (next match_start or episode end)
 
 ### Tasks
 
