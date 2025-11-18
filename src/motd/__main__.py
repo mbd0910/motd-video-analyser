@@ -830,15 +830,32 @@ def analyze_running_order_command(
         with open(teams_path) as f:
             teams_data = json.load(f)
         teams_list = teams_data['teams']
-        click.echo(f"  ✓ Loaded {len(teams_list)} teams\n")
+        click.echo(f"  ✓ Loaded {len(teams_list)} teams")
         logger.info(f"Loaded {len(teams_list)} teams with alternates")
 
-        # Create detector
+        # Load fixtures
+        fixtures_path = Path('data/fixtures/premier_league_2025_26.json')
+        with open(fixtures_path) as f:
+            fixtures_data = json.load(f)
+        fixtures = fixtures_data['fixtures']
+        click.echo(f"  ✓ Loaded {len(fixtures)} fixtures")
+        logger.info(f"Loaded {len(fixtures)} fixtures")
+
+        # Import and create venue matcher
+        from motd.analysis.venue_matcher import VenueMatcher
+        venues_path = Path('data/venues/premier_league_2025_26.json')
+        venue_matcher = VenueMatcher(str(venues_path))
+        click.echo(f"  ✓ Initialized venue matcher\n")
+        logger.info("Initialized venue matcher")
+
+        # Create detector with all dependencies
         click.echo("Detecting running order...")
         detector = RunningOrderDetector(
             ocr_results=ocr_results,
             transcript=transcript,
-            teams_data=teams_list
+            teams_data=teams_list,
+            fixtures=fixtures,
+            venue_matcher=venue_matcher
         )
 
         # Detect running order

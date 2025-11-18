@@ -11,10 +11,13 @@ Includes transcript-based boundary detection for match_start/match_end.
 """
 
 from collections import defaultdict
-from typing import Any, TypedDict
+from typing import Any, TypedDict, Optional
 from rapidfuzz import fuzz
+from pathlib import Path
+import json
 
 from motd.pipeline.models import MatchBoundary, RunningOrderResult
+from motd.analysis.venue_matcher import VenueMatcher
 
 
 class TeamData(TypedDict, total=False):
@@ -41,18 +44,24 @@ class RunningOrderDetector:
         ocr_results: list[dict[str, Any]],
         transcript: dict[str, Any],
         teams_data: list[TeamData],
+        fixtures: list[dict[str, Any]],
+        venue_matcher: VenueMatcher,
     ):
         """
-        Initialize detector with processed data.
+        Initialize detector with processed data and dependencies.
 
         Args:
             ocr_results: OCR detection results (from ocr_results.json)
             transcript: Whisper transcript (from transcript.json)
             teams_data: Teams data with alternates (from teams JSON)
+            fixtures: List of fixtures (from fixtures JSON) - injected dependency
+            venue_matcher: Venue matcher instance - injected dependency
         """
         self.ocr_results = ocr_results
         self.transcript = transcript
         self.teams_data = teams_data
+        self.fixtures = fixtures
+        self.venue_matcher = venue_matcher
 
         # Extract team names from teams_data
         self.team_names = [team.get("full") for team in teams_data if team.get("full")]
@@ -200,20 +209,19 @@ class RunningOrderDetector:
 
     def detect_match_boundaries(self, running_order: RunningOrderResult) -> RunningOrderResult:
         """
-        Detect match_start and match_end boundaries using transcript.
+        Detect match_start and match_end using 2 strategies.
 
-        For each match:
-        1. match_start: Search forward from previous match's highlights_end
-           to find first mention of BOTH teams (fuzzy matching)
-        2. match_end: Next match's match_start (no gaps between matches)
+        Strategy 1: Team Mention Detection (both teams within 10s)
+        Strategy 2: Venue Detection (venue mentioned in transcript)
 
-        This avoids picking up "coming up later" mentions from earlier in the episode.
+        For now, both results are recorded in the output for analysis.
+        match_start uses team mention result (existing behavior).
 
         Args:
             running_order: RunningOrderResult with highlights_start/end populated
 
         Returns:
-            Updated RunningOrderResult with match_start/end populated
+            Updated RunningOrderResult with boundaries and both strategy results
         """
         # Get transcript segments
         segments = self.transcript.get('segments', [])
@@ -229,8 +237,9 @@ class RunningOrderDetector:
             else:
                 search_start = running_order.matches[i - 1].highlights_end  # Previous FT graphic
 
-            # Detect match_start (intro beginning)
-            match_start = self._detect_match_start(
+            # Run BOTH strategies
+            # Strategy 1: Team Mention (existing)
+            team_mention_timestamp = self._detect_match_start(
                 teams=match.teams,
                 search_start=search_start,
                 highlights_start=match.highlights_start,
@@ -238,8 +247,30 @@ class RunningOrderDetector:
                 is_first_match=(i == 0)
             )
 
-            # Create updated match with match_start
-            updated_match = match.model_copy(update={'match_start': match_start})
+            # Build team mention result
+            team_mention_result = {
+                'timestamp': team_mention_timestamp,
+                'strategy': 'team_mention'
+            } if team_mention_timestamp else None
+
+            # Strategy 2: Venue Detection (NEW)
+            venue_result = self._detect_match_start_venue(
+                teams=match.teams,
+                search_start=search_start,
+                highlights_start=match.highlights_start,
+                segments=segments
+            )
+
+            # For now: use team mention as match_start (existing behavior)
+            # Later we'll add cross-validation to choose between them
+            match_start = team_mention_timestamp
+
+            # Create updated match with BOTH strategy results
+            updated_match = match.model_copy(update={
+                'match_start': match_start,
+                'team_mention_result': team_mention_result,
+                'venue_result': venue_result
+            })
             updated_matches.append(updated_match)
 
         # Second pass: Set match_end = next match's match_start
@@ -326,6 +357,90 @@ class RunningOrderDetector:
 
         # Fallback: No valid team mentions found, assume 60s before highlights
         return max(search_start, highlights_start - 60.0)
+
+    def _detect_match_start_venue(
+        self,
+        teams: tuple[str, str],
+        search_start: float,
+        highlights_start: float,
+        segments: list[dict],
+    ) -> Optional[dict[str, Any]]:
+        """
+        Strategy 2: Detect match_start via venue mention in transcript.
+
+        Searches backward from highlights_start for venue mentions and fuzzy matches
+        against the expected venue for this match.
+
+        Args:
+            teams: Team pair (normalized/sorted)
+            search_start: Start of search window
+            highlights_start: First scoreboard timestamp
+            segments: Transcript segments
+
+        Returns:
+            Dict with timestamp and venue details, or None if not found
+        """
+        # Find fixture for these teams to get expected venue
+        fixture = self._find_fixture_for_teams(teams)
+        if not fixture or not fixture.get('venue'):
+            return None
+
+        expected_venue = fixture['venue']
+
+        # Search backward through segments in search window
+        relevant_segments = [
+            s for s in segments
+            if search_start <= s.get('start', 0) < highlights_start
+        ]
+
+        venue_mentions = []
+        for segment in relevant_segments:
+            text = segment.get('text', '')
+            match = self.venue_matcher.match_venue(text)
+
+            # Check if matched venue is the expected one for this match
+            if match and match.venue == expected_venue:
+                venue_mentions.append({
+                    'timestamp': segment.get('start', 0),
+                    'confidence': match.confidence,
+                    'venue': match.venue,
+                    'matched_text': match.matched_text,
+                    'source': match.source
+                })
+
+        if venue_mentions:
+            # Choose EARLIEST mention (same logic as team mentions)
+            # This finds the actual intro, not later commentary
+            earliest = min(venue_mentions, key=lambda m: m['timestamp'])
+            return {
+                'timestamp': earliest['timestamp'],
+                'venue': earliest['venue'],
+                'confidence': earliest['confidence'],
+                'matched_text': earliest['matched_text'],
+                'source': earliest['source']
+            }
+
+        return None
+
+    def _find_fixture_for_teams(self, teams: tuple[str, str]) -> Optional[dict]:
+        """
+        Find fixture that matches the given team pair.
+
+        Args:
+            teams: Team pair (order doesn't matter)
+
+        Returns:
+            Fixture dict or None if not found
+        """
+        for fixture in self.fixtures:
+            home = fixture.get('home_team', '')
+            away = fixture.get('away_team', '')
+
+            # Check if teams match (order doesn't matter)
+            if set([home, away]) == set(teams):
+                return fixture
+
+        return None
 
     def _fuzzy_team_match(self, text: str, team_name: str, threshold: float = 0.80) -> bool:
         """

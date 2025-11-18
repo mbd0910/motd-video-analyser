@@ -219,6 +219,16 @@ class MatchBoundary(BaseModel):
         description="Detection sources used: 'scoreboard', 'ft_graphic', 'mentions'"
     )
 
+    # Boundary detection strategy results (for analysis/comparison)
+    team_mention_result: dict[str, Any] | None = Field(
+        None,
+        description="Team mention strategy result with timestamp and details"
+    )
+    venue_result: dict[str, Any] | None = Field(
+        None,
+        description="Venue strategy result with timestamp and venue details"
+    )
+
     model_config = {
         "json_schema_extra": {
             "examples": [

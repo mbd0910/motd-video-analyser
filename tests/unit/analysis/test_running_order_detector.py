@@ -42,12 +42,31 @@ def teams_data():
 
 
 @pytest.fixture
-def detector(ocr_results, transcript, teams_data):
-    """Create RunningOrderDetector with real data."""
+def fixtures():
+    """Load fixtures data."""
+    fixtures_path = Path('data/fixtures/premier_league_2025_26.json')
+    with open(fixtures_path) as f:
+        data = json.load(f)
+    return data['fixtures']
+
+
+@pytest.fixture
+def venue_matcher():
+    """Create venue matcher."""
+    from motd.analysis.venue_matcher import VenueMatcher
+    venues_path = Path('data/venues/premier_league_2025_26.json')
+    return VenueMatcher(str(venues_path))
+
+
+@pytest.fixture
+def detector(ocr_results, transcript, teams_data, fixtures, venue_matcher):
+    """Create RunningOrderDetector with all dependencies."""
     return RunningOrderDetector(
         ocr_results=ocr_results,
         transcript=transcript,
-        teams_data=teams_data
+        teams_data=teams_data,
+        fixtures=fixtures,
+        venue_matcher=venue_matcher
     )
 
 
