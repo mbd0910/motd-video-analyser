@@ -185,40 +185,6 @@ for segment in reversed(segments_before_highlights):
 
 **1. data/venues/premier_league_2025_26.json**
 
-```json
-{
-  "season": "2025-26",
-  "competition": "Premier League",
-  "venues": [
-    {
-      "team": "Liverpool",
-      "stadium": "Anfield",
-      "city": "Liverpool",
-      "aliases": ["Anfield", "the Anfield"]
-    },
-    {
-      "team": "Arsenal",
-      "stadium": "Emirates Stadium",
-      "city": "London",
-      "aliases": ["Emirates", "the Emirates", "Emirates Stadium"]
-    },
-    {
-      "team": "Manchester United",
-      "stadium": "Old Trafford",
-      "city": "Manchester",
-      "aliases": ["Old Trafford", "the Theatre of Dreams"]
-    },
-    {
-      "team": "Burnley",
-      "stadium": "Turf Moor",
-      "city": "Burnley",
-      "aliases": ["Turf Moor", "the Turf Moor"]
-    }
-    // ... all 20 Premier League teams
-  ]
-}
-```
-
 **2. Update data/fixtures/premier_league_2025_26.json**
 
 Add `venue` field to fixtures:
@@ -242,9 +208,9 @@ Add `venue` field to fixtures:
 **Goal:** Create venue reference data
 
 **Tasks:**
-- [ ] Create `data/venues/premier_league_2025_26.json` with all 20 PL stadiums
-- [ ] Update `data/fixtures/premier_league_2025_26.json` to include `venue` field
-- [ ] Add `VenueMatcher` class (similar to `TeamMatcher`/`FixtureMatcher`)
+- [X] Create `data/venues/premier_league_2025_26.json` with all 20 PL stadiums
+- [X] Update `data/fixtures/premier_league_2025_26.json` to include `venue` field
+- [X] Add `VenueMatcher` class (similar to `TeamMatcher`/`FixtureMatcher`)
 
 **Success criteria:**
 - Venue JSON file created with 20 teams
@@ -436,9 +402,9 @@ def detect_match_boundaries(self, running_order: RunningOrderResult) -> RunningO
 ## Success Criteria
 
 ### Phase 0: Venue Data Setup
-- [ ] `data/venues/premier_league_2025_26.json` created with 20 teams
-- [ ] `data/fixtures/premier_league_2025_26.json` updated with venue field
-- [ ] `VenueMatcher` class implemented
+- [X] `data/venues/premier_league_2025_26.json` created with 20 teams
+- [X] `data/fixtures/premier_league_2025_26.json` updated with venue field
+- [X] `VenueMatcher` class implemented
 
 ### Phase 1: CLI Command (COMPLETED ✅)
 - [x] CLI command runs successfully

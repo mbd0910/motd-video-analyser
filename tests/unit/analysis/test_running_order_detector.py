@@ -11,8 +11,8 @@ import json
 import pytest
 from pathlib import Path
 
-from src.motd.analysis.running_order_detector import RunningOrderDetector
-from src.motd.pipeline.models import RunningOrderResult, MatchBoundary
+from motd.analysis.running_order_detector import RunningOrderDetector
+from motd.pipeline.models import RunningOrderResult, MatchBoundary
 
 
 @pytest.fixture
@@ -33,21 +33,21 @@ def transcript():
 
 
 @pytest.fixture
-def team_names():
-    """Load Premier League team names."""
+def teams_data():
+    """Load Premier League teams data."""
     teams_path = Path('data/teams/premier_league_2025_26.json')
     with open(teams_path) as f:
-        teams_data = json.load(f)
-    return [team['full'] for team in teams_data['teams']]
+        data = json.load(f)
+    return data['teams']
 
 
 @pytest.fixture
-def detector(ocr_results, transcript, team_names):
+def detector(ocr_results, transcript, teams_data):
     """Create RunningOrderDetector with real data."""
     return RunningOrderDetector(
         ocr_results=ocr_results,
         transcript=transcript,
-        team_names=team_names
+        teams_data=teams_data
     )
 
 

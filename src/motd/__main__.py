@@ -827,16 +827,16 @@ def analyze_running_order_command(
 
         with open(teams_path) as f:
             teams_data = json.load(f)
-        team_names = [team['full'] for team in teams_data['teams']]
-        click.echo(f"  ✓ Loaded {len(team_names)} team names\n")
-        logger.info(f"Loaded {len(team_names)} team names")
+        teams_list = teams_data['teams']
+        click.echo(f"  ✓ Loaded {len(teams_list)} teams\n")
+        logger.info(f"Loaded {len(teams_list)} teams with alternates")
 
         # Create detector
         click.echo("Detecting running order...")
         detector = RunningOrderDetector(
             ocr_results=ocr_results,
             transcript=transcript,
-            team_names=team_names
+            teams_data=teams_list
         )
 
         # Detect running order

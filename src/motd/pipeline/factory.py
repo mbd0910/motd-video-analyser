@@ -8,10 +8,10 @@ fixture matcher, and scene processor with configuration from config.yaml.
 from pathlib import Path
 from typing import Dict, Any
 
-from src.motd.ocr.reader import OCRReader
-from src.motd.ocr.team_matcher import TeamMatcher
-from src.motd.ocr.fixture_matcher import FixtureMatcher
-from src.motd.ocr.scene_processor import SceneProcessor, EpisodeContext
+from motd.ocr.reader import OCRReader
+from motd.ocr.team_matcher import TeamMatcher
+from motd.ocr.fixture_matcher import FixtureMatcher
+from motd.ocr.scene_processor import SceneProcessor, EpisodeContext
 
 
 class ServiceFactory:

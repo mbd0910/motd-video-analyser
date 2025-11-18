@@ -14,7 +14,7 @@ from collections import defaultdict
 from typing import Any, TypedDict
 from rapidfuzz import fuzz
 
-from src.motd.pipeline.models import MatchBoundary, RunningOrderResult
+from motd.pipeline.models import MatchBoundary, RunningOrderResult
 
 
 class TeamData(TypedDict, total=False):
