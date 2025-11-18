@@ -352,3 +352,74 @@ class TestMatchBoundaryDetection:
             # Some matches have minimal post-match (quick transition), some have long analysis
             assert 10 <= post_match_duration <= 600, \
                 f"Match {i} post-match should be 10-600s, got {post_match_duration}s"
+
+
+class TestVenueStrategyImprovements:
+    """Test venue strategy with backward search and team validation."""
+
+    # Ground truth from Task 012-01 (visual_patterns.md + manual verification)
+    GROUND_TRUTH_INTROS = {
+        1: 61,    # 00:01:01 - Liverpool vs Aston Villa
+        2: 865,   # 00:14:25 - Arsenal vs Burnley
+        3: 1587,  # 00:26:27 - Nottingham Forest vs Man Utd
+        4: 2509,  # 00:41:49 - Fulham vs Wolves
+        5: 3168,  # 00:52:48 - Tottenham vs Chelsea
+        6: 3894,  # 01:04:54 - Brighton vs Leeds
+        7: 4480,  # 01:14:40 - Crystal Palace vs Brentford
+    }
+
+    def test_venue_detects_intro_start_not_venue_mention(self, detector):
+        """Venue strategy should search BACKWARD from venue mention to find intro start.
+
+        Example Match 1:
+        - Venue mentioned at 69s: "Your commentator at Anfield..."
+        - But intro STARTS at 61s: "It was six defeats in seven..."
+        - Should search backward 3-5 segments and find 61s
+        """
+        base_result = detector.detect_running_order()
+        result = detector.detect_match_boundaries(base_result)
+
+        match1 = result.matches[0]
+
+        # Should be within ±10s of ground truth (61s), NOT venue mention time (69s)
+        assert abs(match1.match_start - 61) <= 10, \
+            f"Match 1 should start ~61s (intro start), got {match1.match_start}s"
+
+        # Should NOT be at venue mention time (~69s)
+        assert abs(match1.match_start - 69) > 5, \
+            f"Match 1 should NOT use venue mention time (69s), got {match1.match_start}s"
+
+    def test_venue_strategy_rejects_false_positives_without_teams(self, detector):
+        """Venue mentions without BOTH teams should be rejected as false positives.
+
+        Example: Match 5 false positive at 3024s
+        - Transcript: "that lane for Fulham" during Match 4 post-analysis
+        - VenueMatcher incorrectly matched "The Lane" alias for Tottenham
+        - But BOTH "Tottenham" AND "Chelsea" are NOT mentioned in those segments
+        - Should reject this and keep searching
+        """
+        base_result = detector.detect_running_order()
+        result = detector.detect_match_boundaries(base_result)
+
+        match5 = result.matches[4]  # Tottenham vs Chelsea
+
+        # Should be within ±30s of ground truth (3168s)
+        assert abs(match5.match_start - 3168) <= 30, \
+            f"Match 5 should start ~3168s, got {match5.match_start}s"
+
+        # Should NOT be the false positive at 3024s
+        assert abs(match5.match_start - 3024) > 60, \
+            f"Match 5 should NOT use false positive at 3024s, got {match5.match_start}s"
+
+    def test_all_matches_within_10s_of_ground_truth(self, detector):
+        """All 7 matches should be within ±10s of ground truth intro times."""
+        base_result = detector.detect_running_order()
+        result = detector.detect_match_boundaries(base_result)
+
+        for i, match in enumerate(result.matches, 1):
+            expected = self.GROUND_TRUTH_INTROS[i]
+            actual = match.match_start
+            error = abs(actual - expected)
+
+            assert error <= 10, \
+                f"Match {i} should be within ±10s of {expected}s, got {actual}s (error: {error}s)"
