@@ -261,9 +261,13 @@ class RunningOrderDetector:
                 segments=segments
             )
 
-            # For now: use team mention as match_start (existing behavior)
-            # Later we'll add cross-validation to choose between them
-            match_start = team_mention_timestamp
+            # Choose best strategy result:
+            # - Prefer venue (more accurate after backward search + team validation)
+            # - Fallback to team mention if venue not found
+            if venue_result and venue_result.get('timestamp'):
+                match_start = venue_result['timestamp']
+            else:
+                match_start = team_mention_timestamp
 
             # Create updated match with BOTH strategy results
             updated_match = match.model_copy(update={
@@ -409,17 +413,46 @@ class RunningOrderDetector:
                 })
 
         if venue_mentions:
-            # Choose EARLIEST mention (same logic as team mentions)
-            # This finds the actual intro, not later commentary
-            earliest = min(venue_mentions, key=lambda m: m['timestamp'])
-            return {
-                'timestamp': earliest['timestamp'],
-                'venue': earliest['venue'],
-                'confidence': earliest['confidence'],
-                'matched_text': earliest['matched_text'],
-                'source': earliest['source']
-            }
+            # For each venue mention, validate by searching backward for team mentions
+            for venue_mention in sorted(venue_mentions, key=lambda m: m['timestamp']):
+                venue_timestamp = venue_mention['timestamp']
 
+                # Search backward 3-5 segments before venue mention to find intro start
+                intro_segments = [
+                    s for s in relevant_segments
+                    if s.get('start', 0) <= venue_timestamp
+                ]
+                # Take last 5 segments (up to and including venue mention)
+                search_window = intro_segments[-5:] if len(intro_segments) >= 5 else intro_segments
+
+                # Check if BOTH teams are mentioned in these segments
+                team1_found = False
+                team2_found = False
+                earliest_segment_time = None
+
+                for segment in search_window:
+                    text = segment.get('text', '').lower()
+                    segment_time = segment.get('start', 0)
+
+                    if earliest_segment_time is None:
+                        earliest_segment_time = segment_time
+
+                    if self._fuzzy_team_match(text, teams[0]):
+                        team1_found = True
+                    if self._fuzzy_team_match(text, teams[1]):
+                        team2_found = True
+
+                # If both teams found, this is a valid intro!
+                if team1_found and team2_found:
+                    return {
+                        'timestamp': earliest_segment_time,  # Use EARLIEST segment, not venue mention
+                        'venue': venue_mention['venue'],
+                        'confidence': venue_mention['confidence'],
+                        'matched_text': venue_mention['matched_text'],
+                        'source': venue_mention['source']
+                    }
+
+        # No valid venue mention found (either no venue or no team validation)
         return None
 
     def _find_fixture_for_teams(self, teams: tuple[str, str]) -> Optional[dict]:
