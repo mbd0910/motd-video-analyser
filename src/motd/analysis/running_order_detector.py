@@ -289,26 +289,40 @@ class RunningOrderDetector:
             if search_start <= s.get('start', 0) < highlights_start
         ]
 
-        # Search backward from highlights_start to find where BOTH teams mentioned
-        team1_mention = None
-        team2_mention = None
+        # Find ALL team mentions in the search window
+        team1_mentions = []
+        team2_mentions = []
 
-        for segment in reversed(relevant_segments):
+        for segment in relevant_segments:
             text = segment.get('text', '').lower()
             timestamp = segment.get('start', 0)
 
-            # Check if either team mentioned in this segment
             if self._fuzzy_team_match(text, teams[0]):
-                team1_mention = timestamp
+                team1_mentions.append(timestamp)
             if self._fuzzy_team_match(text, teams[1]):
-                team2_mention = timestamp
+                team2_mentions.append(timestamp)
 
-            # If both teams found and within 10s of each other, this is the intro
-            if team1_mention is not None and team2_mention is not None:
-                time_gap = abs(team1_mention - team2_mention)
+        # Find all valid pairs (both teams mentioned within 10s)
+        valid_pairs = []
+        for t1 in team1_mentions:
+            for t2 in team2_mentions:
+                time_gap = abs(t1 - t2)
                 if time_gap <= 10.0:
-                    # Return the earlier mention (start of intro)
-                    return min(team1_mention, team2_mention)
+                    intro_start = min(t1, t2)
+                    valid_pairs.append({
+                        'intro_start': intro_start,
+                        'team1_time': t1,
+                        'team2_time': t2,
+                        'gap': time_gap,
+                        'distance_from_highlights': highlights_start - intro_start
+                    })
+
+        if valid_pairs:
+            # Choose the EARLIEST pair (furthest from highlights_start)
+            # This finds the actual intro, not commentary right before highlights
+            # The search window (previous match's end to highlights start) prevents going too far back
+            best_pair = max(valid_pairs, key=lambda p: p['distance_from_highlights'])
+            return best_pair['intro_start']
 
         # Fallback: No valid team mentions found, assume 60s before highlights
         return max(search_start, highlights_start - 60.0)
