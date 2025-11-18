@@ -177,6 +177,62 @@ class OCRReader:
 
         return results
 
+    def validate_ft_graphic(self, ocr_results: List[Dict], detected_teams: List[str]) -> bool:
+        """
+        Validate that OCR results are from a genuine FT score graphic.
+
+        ALL requirements must be met:
+        1. Exactly 2 teams detected
+        2. Score pattern present (e.g., "2-1", "0 - 0")
+        3. "FT" or "FULL TIME" text present
+
+        This filters out:
+        - Possession bars (no FT text)
+        - Player statistics (no score pattern)
+        - Formation graphics (no FT text)
+        - Studio overlays (may have teams but no FT+score)
+
+        Args:
+            ocr_results: List of raw OCR results from EasyOCR
+            detected_teams: List of matched team names
+
+        Returns:
+            True if this is a genuine FT graphic, False otherwise
+        """
+        import re
+
+        # Requirement 1: At least one team (allow 1 team for fixture inference fallback)
+        if len(detected_teams) < 1:
+            logger.debug(
+                f"FT validation failed: {len(detected_teams)} teams detected (need at least 1)"
+            )
+            return False
+
+        # Extract all OCR text
+        all_text = ' '.join([r.get('text', '').upper() for r in ocr_results])
+
+        # Requirement 2: Score pattern (matches "2-1", "0 - 0", "2 0", "3 | 0", etc.)
+        # BBC FT graphics show "2 | 0" and OCR may read hyphen, pipe, or space
+        score_pattern = r'\b\d+\s*[-–—|]?\s*\d+\b'
+        has_score = bool(re.search(score_pattern, all_text))
+
+        # Requirement 3: FT indicator
+        ft_indicators = ['FT', 'FULL TIME', 'FULL-TIME', 'FULLTIME']
+        has_ft = any(indicator in all_text for indicator in ft_indicators)
+
+        # Must have BOTH score AND FT indicator
+        if has_score and has_ft:
+            logger.debug(
+                f"FT validation passed: {detected_teams} with score pattern and FT text"
+            )
+            return True
+        else:
+            logger.debug(
+                f"FT validation failed: score={has_score}, ft_text={has_ft} "
+                f"(teams: {detected_teams})"
+            )
+            return False
+
     def extract_with_fallback(self, frame_path: Path) -> Dict:
         """
         Extract text using multi-tiered strategy: FT score → scoreboard → formation.

@@ -1,4 +1,23 @@
-# Task 011c: Match Boundary Detector Implementation
+# Task 011d: Match Boundary Detector Implementation
+
+## Quick Context
+
+**Parent Task:** [011-analysis-pipeline](README.md)
+**Domain Concepts:** [Running Order](../../domain/README.md#running-order), [Ground Truth](../../domain/README.md#ground-truth), [FT Graphic](../../domain/README.md#ft-graphic), [Episode Manifest](../../domain/README.md#episode-manifest)
+**Business Rules:** [100% Running Order Accuracy Requirement](../../domain/business_rules.md#rule-4-100-running-order-accuracy-requirement)
+
+**Why This Matters:** Running order is the **editorial sequence** MOTD chose to broadcast matches - NOT chronological by kickoff time. This is a key bias indicator ("Are certain teams always shown first?"). 100% accuracy is required because ALL downstream analysis depends on correct match assignment:
+- Airtime calculations (wrong match = wrong team gets credit)
+- Analysis timing (which team discussed first/last)
+- Episode-to-episode patterns (running order trends over season)
+
+**Critical Requirement:** If running order accuracy < 100%, **DO NOT proceed to Task 011e**. One wrong boundary corrupts 2+ matches (boundary error affects neighboring matches).
+
+**Key Data:** Episode manifest (`data/episodes/episode_manifest.json`) defines expected matches for this episode. We know there are exactly 7 matches to detect - not 6, not 8. This constraint helps validate boundary detection.
+
+See [Visual Patterns](../../domain/visual_patterns.md) for ground truth running order of reference episode.
+
+---
 
 ## Objective
 Identify where each match starts and ends, determine running order, and assign scenes to matches. This is **critical** for accuracy - if running order is wrong, everything downstream is useless.

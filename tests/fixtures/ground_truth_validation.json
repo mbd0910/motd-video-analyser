@@ -1,0 +1,347 @@
+{
+  "description": "Ground truth validation data for Task 011b-2 - user-approved examples for TDD validation",
+  "episode_id": "motd_2025-26_2025-11-01",
+  "created_date": "2025-11-18",
+  "scoreboards": [
+    {
+      "fixture_file": "match_1_liverpool_astonvilla_early.jpg",
+      "original_frame": "frame_0075_interval_sampling_120.0s.jpg",
+      "timestamp": "01:52",
+      "timestamp_seconds": 112.04,
+      "expected_home": "Liverpool",
+      "expected_away": "Aston Villa",
+      "expected_source": "scoreboard",
+      "matched_fixture": "2025-11-01-liverpool-astonvilla",
+      "scene_id": 133
+    },
+    {
+      "fixture_file": "match_1_liverpool_astonvilla_late.jpg",
+      "original_frame": "frame_0277_interval_sampling_506.0s.jpg",
+      "timestamp": "08:24",
+      "timestamp_seconds": 504.16,
+      "expected_home": "Liverpool",
+      "expected_away": "Aston Villa",
+      "expected_source": "scoreboard",
+      "matched_fixture": "2025-11-01-liverpool-astonvilla",
+      "scene_id": 230
+    },
+    {
+      "fixture_file": "match_2_burnley_arsenal_early.jpg",
+      "original_frame": "frame_0485_interval_sampling_914.0s.jpg",
+      "timestamp": "15:11",
+      "timestamp_seconds": 911.6,
+      "expected_home": "Burnley",
+      "expected_away": "Arsenal",
+      "expected_source": "scoreboard",
+      "matched_fixture": "2025-11-01-burnley-arsenal",
+      "scene_id": 317
+    },
+    {
+      "fixture_file": "match_2_burnley_arsenal_late.jpg",
+      "original_frame": "frame_0635_scene_change_1207.6s.jpg",
+      "timestamp": "20:07",
+      "timestamp_seconds": 1207.64,
+      "expected_home": "Burnley",
+      "expected_away": "Arsenal",
+      "expected_source": "scoreboard",
+      "matched_fixture": "2025-11-01-burnley-arsenal",
+      "scene_id": 375
+    },
+    {
+      "fixture_file": "match_3_forest_manutd_early.jpg",
+      "original_frame": "frame_0862_interval_sampling_1652.0s.jpg",
+      "timestamp": "27:25",
+      "timestamp_seconds": 1645.2,
+      "expected_home": "Nottingham Forest",
+      "expected_away": "Manchester United",
+      "expected_source": "scoreboard",
+      "matched_fixture": "2025-11-01-forest-manutd",
+      "scene_id": 432
+    },
+    {
+      "fixture_file": "match_3_forest_manutd_late.jpg",
+      "original_frame": "frame_1041_scene_change_1979.9s.jpg",
+      "timestamp": "32:59",
+      "timestamp_seconds": 1979.88,
+      "expected_home": "Nottingham Forest",
+      "expected_away": "Manchester United",
+      "expected_source": "scoreboard",
+      "matched_fixture": "2025-11-01-forest-manutd",
+      "scene_id": 555
+    },
+    {
+      "fixture_file": "match_4_fulham_wolves_early.jpg",
+      "original_frame": "frame_1338_interval_sampling_2564.0s.jpg",
+      "timestamp": "42:35",
+      "timestamp_seconds": 2555.92,
+      "expected_home": "Fulham",
+      "expected_away": "Wolverhampton Wanderers",
+      "expected_source": "scoreboard",
+      "matched_fixture": "2025-11-01-fulham-wolves",
+      "scene_id": 642
+    },
+    {
+      "fixture_file": "match_4_fulham_wolves_late.jpg",
+      "original_frame": "frame_1464_scene_change_2809.3s.jpg",
+      "timestamp": "46:49",
+      "timestamp_seconds": 2809.34,
+      "expected_home": "Fulham",
+      "expected_away": "Wolverhampton Wanderers",
+      "expected_source": "scoreboard",
+      "matched_fixture": "2025-11-01-fulham-wolves",
+      "scene_id": 708
+    },
+    {
+      "fixture_file": "match_5_tottenham_chelsea_early.jpg",
+      "original_frame": "frame_1664_interval_sampling_3218.0s.jpg",
+      "timestamp": "53:36",
+      "timestamp_seconds": 3216.48,
+      "expected_home": "Tottenham Hotspur",
+      "expected_away": "Chelsea",
+      "expected_source": "scoreboard",
+      "matched_fixture": "2025-11-01-tottenham-chelsea",
+      "scene_id": 812
+    },
+    {
+      "fixture_file": "match_5_tottenham_chelsea_late.jpg",
+      "original_frame": "frame_1815_scene_change_3510.2s.jpg",
+      "timestamp": "58:30",
+      "timestamp_seconds": 3510.2,
+      "expected_home": "Tottenham Hotspur",
+      "expected_away": "Chelsea",
+      "expected_source": "scoreboard",
+      "matched_fixture": "2025-11-01-tottenham-chelsea",
+      "scene_id": 876
+    },
+    {
+      "fixture_file": "match_6_brighton_leeds_early.jpg",
+      "original_frame": "frame_2041_interval_sampling_3956.0s.jpg",
+      "timestamp": "65:46",
+      "timestamp_seconds": 3946.68,
+      "expected_home": "Brighton & Hove Albion",
+      "expected_away": "Leeds United",
+      "expected_source": "scoreboard",
+      "matched_fixture": "2025-11-01-brighton-leeds",
+      "scene_id": 945
+    },
+    {
+      "fixture_file": "match_6_brighton_leeds_late.jpg",
+      "original_frame": "frame_2138_scene_change_4147.2s.jpg",
+      "timestamp": "69:07",
+      "timestamp_seconds": 4147.18,
+      "expected_home": "Brighton & Hove Albion",
+      "expected_away": "Leeds United",
+      "expected_source": "scoreboard",
+      "matched_fixture": "2025-11-01-brighton-leeds",
+      "scene_id": 990
+    },
+    {
+      "fixture_file": "match_7_palace_brentford_early.jpg",
+      "original_frame": "frame_2333_interval_sampling_4536.0s.jpg",
+      "timestamp": "75:26",
+      "timestamp_seconds": 4526.92,
+      "expected_home": "Crystal Palace",
+      "expected_away": "Brentford",
+      "expected_source": "scoreboard",
+      "matched_fixture": "2025-11-01-crystalpalace-brentford",
+      "scene_id": 1028
+    },
+    {
+      "fixture_file": "match_7_palace_brentford_late.jpg",
+      "original_frame": "frame_2445_interval_sampling_4748.0s.jpg",
+      "timestamp": "79:07",
+      "timestamp_seconds": 4747.54,
+      "expected_home": "Crystal Palace",
+      "expected_away": "Brentford",
+      "expected_source": "scoreboard",
+      "matched_fixture": "2025-11-01-crystalpalace-brentford",
+      "scene_id": 1123
+    }
+  ],
+  "ft_graphics": [
+    {
+      "fixture_file": "frame_0329_scene_change_607.3s.jpg",
+      "timestamp": "10:07",
+      "timestamp_seconds": 607.3,
+      "expected_home": "Liverpool",
+      "expected_away": "Aston Villa",
+      "expected_source": "ft_score",
+      "notes": "OCR misses 'Aston Villa' (non-bold text), opponent inference used"
+    },
+    {
+      "fixture_file": "frame_0697_scene_change_1325.4s.jpg",
+      "timestamp": "22:05",
+      "timestamp_seconds": 1325.4,
+      "expected_home": "Burnley",
+      "expected_away": "Arsenal",
+      "expected_source": "ft_score",
+      "notes": "OCR works perfectly"
+    },
+    {
+      "fixture_file": "frame_1116_scene_change_2123.1s.jpg",
+      "timestamp": "35:23",
+      "timestamp_seconds": 2123.1,
+      "expected_home": "Nottingham Forest",
+      "expected_away": "Manchester United",
+      "expected_source": "ft_score",
+      "notes": "OCR works after fixture validation fix"
+    },
+    {
+      "fixture_file": "frame_1117_scene_change_2124.2s.jpg",
+      "timestamp": "35:24",
+      "timestamp_seconds": 2124.2,
+      "expected_home": "Nottingham Forest",
+      "expected_away": "Manchester United",
+      "expected_source": "ft_score",
+      "notes": "Duplicate (1s later)"
+    },
+    {
+      "fixture_file": "frame_1503_interval_sampling_2884.0s.jpg",
+      "timestamp": "48:04",
+      "timestamp_seconds": 2884.0,
+      "expected_home": "Fulham",
+      "expected_away": "Wolverhampton Wanderers",
+      "expected_source": "ft_score",
+      "notes": "Multi-frame iteration fix"
+    },
+    {
+      "fixture_file": "frame_1885_interval_sampling_3646.0s.jpg",
+      "timestamp": "60:46",
+      "timestamp_seconds": 3646.0,
+      "expected_home": "Tottenham Hotspur",
+      "expected_away": "Chelsea",
+      "expected_source": "ft_score",
+      "notes": "Multi-frame iteration fix"
+    },
+    {
+      "fixture_file": "frame_2214_interval_sampling_4300.0s.jpg",
+      "timestamp": "71:40",
+      "timestamp_seconds": 4300.0,
+      "expected_home": "Brighton & Hove Albion",
+      "expected_away": "Leeds United",
+      "expected_source": "ft_score",
+      "notes": "FT prioritization fix (was hidden by scoreboard at frames[1])"
+    },
+    {
+      "fixture_file": "frame_2494_interval_sampling_4842.0s.jpg",
+      "timestamp": "80:42",
+      "timestamp_seconds": 4842.0,
+      "expected_home": "Crystal Palace",
+      "expected_away": "Brentford",
+      "expected_source": "ft_score",
+      "notes": "Fixture ordering fix"
+    }
+  ],
+  "edge_cases": {
+    "intro": [
+      {
+        "fixture_file": "intro_sample_1_0s.jpg",
+        "original_frame": "frame_0001_scene_change_0.0s.jpg",
+        "timestamp": "00:00",
+        "timestamp_seconds": 0.0,
+        "scene_id": 1,
+        "expect_no_detections": true,
+        "reason": "Intro sequence before first match"
+      },
+      {
+        "fixture_file": "intro_sample_2_3s.jpg",
+        "original_frame": "frame_0003_scene_change_3.8s.jpg",
+        "timestamp": "00:03",
+        "timestamp_seconds": 3.84,
+        "scene_id": 4,
+        "expect_no_detections": true,
+        "reason": "Intro sequence before first match"
+      },
+      {
+        "fixture_file": "intro_sample_3_4s.jpg",
+        "original_frame": "frame_0004_scene_change_4.9s.jpg",
+        "timestamp": "00:04",
+        "timestamp_seconds": 4.88,
+        "scene_id": 5,
+        "expect_no_detections": true,
+        "reason": "Intro sequence before first match"
+      }
+    ],
+    "motd2_interlude": [
+      {
+        "fixture_file": "interlude_sample_1_52m01s.jpg",
+        "original_frame": "frame_1623_scene_change_3121.4s.jpg",
+        "timestamp": "52:01",
+        "timestamp_seconds": 3121.4,
+        "scene_id": 766,
+        "expect_no_detections": true,
+        "reason": "MOTD 2 interlude (52:01-52:47)"
+      },
+      {
+        "fixture_file": "interlude_sample_2_52m03s.jpg",
+        "original_frame": "frame_1624_scene_change_3123.8s.jpg",
+        "timestamp": "52:03",
+        "timestamp_seconds": 3123.8,
+        "scene_id": 767,
+        "expect_no_detections": true,
+        "reason": "MOTD 2 interlude (52:01-52:47)"
+      },
+      {
+        "fixture_file": "interlude_sample_3_52m04s.jpg",
+        "original_frame": "frame_1625_scene_change_3124.8s.jpg",
+        "timestamp": "52:04",
+        "timestamp_seconds": 3124.8,
+        "scene_id": 771,
+        "expect_no_detections": true,
+        "reason": "MOTD 2 interlude (52:01-52:47)"
+      }
+    ]
+  },
+  "frame_coverage_scenes": [
+    {
+      "scene_id": 127,
+      "start_seconds": 60.76,
+      "start_time": "01:00",
+      "duration": 17.5,
+      "num_frames": 9,
+      "position_in_episode": "early",
+      "expect_min_frames": 5,
+      "expect_time_span_pct": 0.8
+    },
+    {
+      "scene_id": 131,
+      "start_seconds": 87.46,
+      "start_time": "01:27",
+      "duration": 24.18,
+      "num_frames": 12,
+      "position_in_episode": "early",
+      "expect_min_frames": 5,
+      "expect_time_span_pct": 0.8
+    },
+    {
+      "scene_id": 464,
+      "start_seconds": 1733.32,
+      "start_time": "28:53",
+      "duration": 22.64,
+      "num_frames": 11,
+      "position_in_episode": "middle",
+      "expect_min_frames": 5,
+      "expect_time_span_pct": 0.8
+    },
+    {
+      "scene_id": 836,
+      "start_seconds": 3365.88,
+      "start_time": "56:05",
+      "duration": 35.66,
+      "num_frames": 18,
+      "position_in_episode": "late",
+      "expect_min_frames": 5,
+      "expect_time_span_pct": 0.8
+    },
+    {
+      "scene_id": 840,
+      "start_seconds": 3402.58,
+      "start_time": "56:42",
+      "duration": 18.96,
+      "num_frames": 10,
+      "position_in_episode": "late",
+      "expect_min_frames": 5,
+      "expect_time_span_pct": 0.8
+    }
+  ]
+}

@@ -1,4 +1,24 @@
-# Task 011b: Segment Classifier Implementation
+# Task 011c: Segment Classifier Implementation
+
+## Quick Context
+
+**Parent Task:** [011-analysis-pipeline](README.md)
+**Domain Concepts:** [Segment Types](../../domain/README.md#segment-types), [Scene](../../domain/README.md#scene), [OCR Scoreboard](../../domain/README.md#scoreboard)
+**Business Rules:** [Segment Classification Hierarchy](../../domain/business_rules.md#rule-5-segment-classification-hierarchy)
+
+**Why This Matters:** Segment classification enables answering the core research question: "Do some teams get more analysis than others?" Total airtime alone isn't sufficient - we need to distinguish between highlights (match footage) and studio analysis (pundit discussion) to measure quality of coverage, not just quantity.
+
+**Key Insight:** Each match typically has all 4 segment types in sequence:
+1. Studio intro (7-11s) - Preview
+2. Highlights (5-10min) - Match footage
+3. Interviews (45-90s) - Player/manager quotes
+4. Studio analysis (2-5min) - Pundit discussion
+
+Duration varies by match importance - "big six" matches get longer analysis, lower-table matches get minimal studio time.
+
+See [Visual Patterns](../../domain/visual_patterns.md) for detailed episode structure and timing examples.
+
+---
 
 ## Objective
 Implement a robust multi-signal classifier to categorize each scene into one of 4 segment types: `studio_intro`, `highlights`, `interviews`, `studio_analysis`.

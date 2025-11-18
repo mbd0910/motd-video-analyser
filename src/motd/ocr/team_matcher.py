@@ -153,12 +153,38 @@ class TeamMatcher:
             )
             return []
 
-        # Find fuzzy matches using partial_ratio
-        # partial_ratio handles partial matches ("Brighton" from "Brighton & Hove Albion")
+        # Custom scorer to prevent short substring false matches
+        # (e.g., "che" in "Manchester" matching Chelsea)
+        def custom_scorer(query: str, choice: str, **kwargs) -> float:
+            """
+            Custom scorer that penalizes short substring matches.
+
+            Prevents "CHE" matching "manCHEster", "LEE" matching "EeagLE".
+            Uses token_sort_ratio for full team names and penalized partial_ratio for codes.
+            """
+            # Use token_sort_ratio for multi-word team names (better accuracy)
+            token_score = fuzz.token_sort_ratio(query, choice, **kwargs)
+
+            # Use partial_ratio for abbreviations/codes
+            partial_score = fuzz.partial_ratio(query, choice, **kwargs)
+
+            # Penalize very short matches (< 4 chars) unless they're complete words
+            if len(choice) < 4 and partial_score > 90:
+                # Check if it's a complete word match (has word boundaries)
+                query_words = set(query.split())
+                if choice not in query_words and choice.lower() not in query_words:
+                    # Heavy penalty for substring matches of short codes
+                    partial_score *= 0.3  # Reduce to 30% (e.g., 100 → 30)
+
+            # Return best of both scores
+            return max(token_score, partial_score)
+
+        # Find fuzzy matches using custom scorer
+        # Handles partial matches while preventing short substring false positives
         matches = process.extract(
             text.lower(),
             search_index.keys(),
-            scorer=fuzz.partial_ratio,
+            scorer=custom_scorer,
             limit=5  # Get top 5 matches
         )
 

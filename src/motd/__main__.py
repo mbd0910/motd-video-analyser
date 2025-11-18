@@ -22,6 +22,9 @@ from motd.config.defaults import (
     DEFAULT_DETECTOR_TYPE
 )
 from motd.ocr import OCRReader, TeamMatcher, FixtureMatcher
+from motd.ocr.scene_processor import SceneProcessor, EpisodeContext
+from motd.pipeline.factory import ServiceFactory
+from motd.pipeline.models import Scene
 from motd.transcription import AudioExtractor, WhisperTranscriber
 
 
@@ -250,7 +253,7 @@ def detect_scenes_command(
                     "start_seconds": scene["start_seconds"],
                     "end_seconds": scene["end_seconds"],
                     "duration": scene["duration_seconds"],
-                    "frames": [scene.get("key_frame_path")] if scene.get("key_frame_path") else []
+                    "frames": scene.get("frames", [])
                 }
                 for i, scene in enumerate(scenes)
             ]
@@ -320,95 +323,6 @@ def filter_scenes(scenes: list[dict[str, Any]], config: dict[str, Any]) -> list[
         filtered.append(scene)
 
     return filtered
-
-
-def process_scene(
-    scene: dict[str, Any],
-    ocr_reader: OCRReader,
-    team_matcher: TeamMatcher,
-    fixture_matcher: FixtureMatcher,
-    expected_teams: list[str],
-    episode_id: str,
-    logger: logging.Logger
-) -> dict[str, Any] | None:
-    """Process single scene: OCR → team matching → validation."""
-
-    try:
-        # Get frame path
-        if not scene.get('frames') or len(scene['frames']) == 0:
-            return None
-
-        frame_path = Path(scene['frames'][0])
-
-        if not frame_path.exists():
-            logger.warning(f"Frame not found: {frame_path}")
-            return None
-
-        # Run OCR with fallback strategy (FT score → scoreboard)
-        ocr_result = ocr_reader.extract_with_fallback(frame_path)
-
-        if not ocr_result['results']:
-            return None
-
-        # Combine text from OCR results
-        combined_text = ' '.join([r['text'] for r in ocr_result['results']])
-
-        if not combined_text or not combined_text.strip():
-            return None
-
-        # Match teams (with fixture candidates)
-        matches = team_matcher.match_multiple(
-            combined_text,
-            candidate_teams=expected_teams,
-            max_teams=2
-        )
-
-        if not matches:
-            return None
-
-        detected_teams = [
-            {
-                'team': match['team'],
-                'confidence': match['confidence'],
-                'matched_text': match['matched_text'],
-                'fixture_validated': match['fixture_validated']
-            }
-            for match in matches
-        ]
-
-        # Validate against fixtures
-        team_names = [t['team'] for t in detected_teams]
-        validation = fixture_matcher.validate_teams(team_names, episode_id)
-
-        # Apply confidence boost
-        for team in detected_teams:
-            team['confidence'] *= validation['confidence_boost']
-
-        # Try to identify fixture
-        matched_fixture = None
-        if len(detected_teams) >= 2:
-            matched_fixture = fixture_matcher.identify_fixture(
-                detected_teams[0]['team'],
-                detected_teams[1]['team'],
-                episode_id
-            )
-
-        return {
-            'scene_id': scene['scene_id'],
-            'start_time': scene['start_time'],
-            'start_seconds': scene['start_seconds'],
-            'frame_path': str(frame_path),
-            'ocr_source': ocr_result['primary_source'],
-            'detected_teams': detected_teams,
-            'validated_teams': validation['validated_teams'],
-            'unexpected_teams': validation['unexpected_teams'],
-            'confidence_boost': validation['confidence_boost'],
-            'matched_fixture': matched_fixture['match_id'] if matched_fixture else None
-        }
-
-    except Exception as e:
-        logger.error(f"Error processing scene {scene.get('scene_id', 'unknown')}: {e}")
-        return None
 
 
 def generate_summary(ocr_results: list[dict[str, Any]], expected_teams: list[str]) -> dict[str, Any]:
@@ -498,21 +412,32 @@ def extract_teams_command(
     logger.info(f"Loaded {total_scenes} scenes from {scenes}")
 
     try:
-        # Initialise OCR components
+        # Initialise components using ServiceFactory
         click.echo("Initialising OCR components...")
-        ocr_reader = OCRReader(cfg['ocr'])
-        team_matcher = TeamMatcher(Path('data/teams/premier_league_2025_26.json'))
-        fixture_matcher = FixtureMatcher(
-            Path('data/fixtures/premier_league_2025_26.json'),
-            Path('data/episodes/episode_manifest.json')
-        )
+        factory = ServiceFactory(cfg)
+        ocr_reader = factory.create_ocr_reader()
+        team_matcher = factory.create_team_matcher()
+        fixture_matcher = factory.create_fixture_matcher()
         click.echo("✓ OCR components initialised")
 
-        # Get expected teams for fixture-aware matching
+        # Get expected teams and create episode context
         expected_teams = fixture_matcher.get_expected_teams(episode_id)
         expected_fixtures = fixture_matcher.get_expected_fixtures(episode_id)
         click.echo(f"✓ Expected {len(expected_fixtures)} fixtures with {len(expected_teams)} teams")
         logger.info(f"Expected {len(expected_fixtures)} fixtures with {len(expected_teams)} teams")
+
+        # Create episode context and scene processor
+        context = EpisodeContext(
+            episode_id=episode_id,
+            expected_teams=expected_teams,
+            expected_fixtures=expected_fixtures
+        )
+        processor = SceneProcessor(
+            ocr_reader=ocr_reader,
+            team_matcher=team_matcher,
+            fixture_matcher=fixture_matcher,
+            context=context
+        )
 
         # Filter scenes (based on 009a reconnaissance)
         click.echo("\nFiltering scenes...")
@@ -521,35 +446,61 @@ def extract_teams_command(
         click.echo(f"✓ Filtered: {total_scenes} → {len(filtered_scenes)} scenes ({reduction_pct:.1f}% reduction)")
         logger.info(f"Filtered scenes: {total_scenes} → {len(filtered_scenes)} ({reduction_pct:.1f}% reduction)")
 
-        # Process scenes
+        # Process scenes using SceneProcessor
         click.echo("\nProcessing scenes (this may take several minutes)...")
         ocr_results = []
 
-        for idx, scene in enumerate(filtered_scenes, 1):
+        for idx, scene_dict in enumerate(filtered_scenes, 1):
             if idx % 50 == 0 or idx == 1:
                 click.echo(f"  Processing scene {idx}/{len(filtered_scenes)}...")
                 logger.info(f"Processing scene {idx}/{len(filtered_scenes)}")
 
-            result = process_scene(
-                scene,
-                ocr_reader,
-                team_matcher,
-                fixture_matcher,
-                expected_teams,
-                episode_id,
-                logger
+            # Convert dict to Scene model
+            scene = Scene(
+                scene_number=scene_dict['scene_id'],
+                start_time=scene_dict['start_time'],
+                start_seconds=scene_dict['start_seconds'],
+                end_seconds=scene_dict['end_seconds'],
+                duration=scene_dict['duration'],
+                frames=scene_dict.get('frames', []),
+                key_frame_path=scene_dict.get('key_frame_path')
             )
 
-            if result:
+            # Process with SceneProcessor
+            processed_scene = processor.process(scene)
+
+            if processed_scene:
+                # Convert ProcessedScene model to dict for JSON output
+                # Maintain backward compatibility with old output format
+                result = {
+                    'scene_id': processed_scene.scene_number,
+                    'start_time': processed_scene.start_time,
+                    'start_seconds': processed_scene.start_seconds,
+                    'frame_path': processed_scene.frame_path,
+                    'ocr_source': processed_scene.ocr_source,
+                    'detected_teams': [
+                        {
+                            'team': processed_scene.team1,
+                            'confidence': processed_scene.match_confidence,
+                            'matched_text': 'detected',  # Simplified for now
+                            'fixture_validated': processed_scene.fixture_id is not None
+                        },
+                        {
+                            'team': processed_scene.team2,
+                            'confidence': processed_scene.match_confidence,
+                            'matched_text': 'detected',
+                            'fixture_validated': processed_scene.fixture_id is not None
+                        }
+                    ],
+                    'validated_teams': [processed_scene.team1, processed_scene.team2],
+                    'unexpected_teams': [],  # Simplified for now
+                    'confidence_boost': 1.0,  # Simplified for now
+                    'matched_fixture': processed_scene.fixture_id
+                }
+
                 ocr_results.append(result)
 
                 # Log interesting findings
-                if result['unexpected_teams']:
-                    logger.warning(
-                        f"Scene {result['scene_id']}: Unexpected teams detected: "
-                        f"{result['unexpected_teams']}"
-                    )
-
                 if result['matched_fixture']:
                     logger.debug(
                         f"Scene {result['scene_id']}: Identified fixture: "

@@ -28,6 +28,10 @@ Workflow for implementing number task in docs/tasks folder: plan, execute, code 
 2. **Critical Thinking**
    - Plan by thinking hard
    - Critically assess the plan presented in the docs/tasks/{number}-*/README.md file
+   - **Review domain documentation** if task involves business logic:
+     * [Domain Glossary](../docs/domain/README.md) - Check for relevant terminology
+     * [Business Rules](../docs/domain/business_rules.md) - Understand validation constraints
+     * [Visual Patterns](../docs/domain/visual_patterns.md) - Review timing/structure if needed
    - Present task understanding to the user, and any suggested amendments to the plan based on your understanding of the codebase and the project.
 
 2a. **Check if task has subtasks**
@@ -45,6 +49,9 @@ PAUSE HERE UNTIL USER IS HAPPY TO CONTINUE
 4. **Update Task Files**
    - If changes to the plan, aggressively edit task README.md to reflect new plan
    - For subtasks, update the specific subtask file you're working on
+   - **Add Quick Context section** if missing (see [Sub-Task Template](references/subtask_template.md)):
+     * Link to parent task, domain concepts, and business rules
+     * Explain business value ("Why This Matters")
    - Use todo list style plan so items can be checked off one by one
 
 PAUSE HERE UNTIL USER IS HAPPY TO CONTINUE

@@ -49,6 +49,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - [Testing Guidelines](.claude/commands/references/testing_guidelines.md)
 - [Code Quality Checklist](.claude/commands/references/code_quality_checklist.md)
 
+## Domain Knowledge & Business Context
+
+**Domain Documentation Hub** - [docs/domain/](docs/domain/)
+
+Before implementing features, check the domain docs for business context:
+- **[Domain Glossary](docs/domain/README.md)** - Terminology (FT Graphics, Running Order, Episode Manifest, Segment Types, etc.)
+- **[Business Rules](docs/domain/business_rules.md)** - Validation logic, accuracy requirements, processing rules
+- **[Visual Patterns](docs/domain/visual_patterns.md)** - Episode structure, timing patterns, ground truth data
+
+**Why:** Sub-tasks reference these instead of duplicating context. Business logic documented alongside code.
+
+**When writing sub-tasks:** Use [Sub-Task Template](.claude/commands/references/subtask_template.md) - includes Quick Context section linking to domain docs.
+
 ## Task-Driven Development Workflow
 
 ### Critical Pattern: Follow Tasks Sequentially
@@ -142,6 +155,9 @@ Each task has validation checklists - see individual task files in [docs/tasks/]
 
 ## Where to Find Information
 
+- **"What does X mean?"** → [docs/domain/README.md](docs/domain/README.md) (domain glossary - FT graphics, running order, etc.)
+- **"What are the business rules?"** → [docs/domain/business_rules.md](docs/domain/business_rules.md) (validation logic, accuracy requirements)
+- **"How long do segments last?"** → [docs/domain/visual_patterns.md](docs/domain/visual_patterns.md) (episode structure, timings)
 - **"How do I implement X?"** → [docs/roadmap.md](docs/roadmap.md) (detailed code examples)
 - **"Why this library?"** → [docs/tech-tradeoffs.md](docs/tech-tradeoffs.md) (comparisons + alternatives)
 - **"What's next?"** → [docs/tasks/README.md](docs/tasks/README.md) (task list + status)
