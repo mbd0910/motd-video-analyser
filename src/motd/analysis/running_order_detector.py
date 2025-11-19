@@ -224,19 +224,21 @@ class RunningOrderDetector:
 
     def detect_match_boundaries(self, running_order: RunningOrderResult) -> RunningOrderResult:
         """
-        Detect match_start and match_end using 2 strategies.
+        Detect match_start and match_end using 3 independent strategies.
 
-        Strategy 1: Team Mention Detection (both teams within 10s)
-        Strategy 2: Venue Detection (venue mentioned in transcript)
+        Strategy 1: Team Mention Detection (both teams within 10s) - fallback
+        Strategy 2: Venue Detection (venue mentioned in transcript) - PRIMARY
+        Strategy 3: Clustering (temporal density of team co-mentions) - OBSERVATION
 
-        For now, both results are recorded in the output for analysis.
-        match_start uses team mention result (existing behavior).
+        All three results are recorded for analysis/comparison.
+        match_start uses venue (preferred) or team mention (fallback).
+        Clustering stored for side-by-side comparison only.
 
         Args:
             running_order: RunningOrderResult with highlights_start/end populated
 
         Returns:
-            Updated RunningOrderResult with boundaries and both strategy results
+            Updated RunningOrderResult with boundaries and all three strategy results
         """
         # Get transcript segments
         segments = self.transcript.get('segments', [])
@@ -268,7 +270,7 @@ class RunningOrderDetector:
                 'strategy': 'team_mention'
             } if team_mention_timestamp else None
 
-            # Strategy 2: Venue Detection (NEW)
+            # Strategy 2: Venue Detection
             venue_result = self._detect_match_start_venue(
                 teams=match.teams,
                 search_start=search_start,
@@ -276,19 +278,29 @@ class RunningOrderDetector:
                 segments=segments
             )
 
+            # Strategy 3: Clustering (OBSERVATION ONLY)
+            clustering_result = self._detect_match_start_clustering(
+                teams=match.teams,
+                search_start=search_start,
+                highlights_start=match.highlights_start,
+                segments=segments
+            )
+
             # Choose best strategy result:
-            # - Prefer venue (more accurate after backward search + team validation)
+            # - Prefer venue (most accurate, ±5s)
             # - Fallback to team mention if venue not found
+            # - Clustering stored for observation/comparison only
             if venue_result and venue_result.get('timestamp'):
                 match_start = venue_result['timestamp']
             else:
                 match_start = team_mention_timestamp
 
-            # Create updated match with BOTH strategy results
+            # Create updated match with ALL THREE strategy results
             updated_match = match.model_copy(update={
                 'match_start': match_start,
                 'team_mention_result': team_mention_result,
-                'venue_result': venue_result
+                'venue_result': venue_result,
+                'clustering_result': clustering_result  # NEW: Store for observation
             })
             updated_matches.append(updated_match)
 
