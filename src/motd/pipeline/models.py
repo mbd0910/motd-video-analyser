@@ -228,6 +228,10 @@ class MatchBoundary(BaseModel):
         None,
         description="Venue strategy result with timestamp and venue details"
     )
+    clustering_result: dict[str, Any] | None = Field(
+        None,
+        description="Clustering strategy result with timestamp, density, and cluster metadata"
+    )
 
     model_config = {
         "json_schema_extra": {
