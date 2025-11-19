@@ -868,10 +868,27 @@ def analyze_running_order_command(
         result = detector.detect_match_boundaries(running_order)
         click.echo(f"  ✓ Detected all match boundaries\n")
 
-        # Display results
+        # Ground truth for validation (from visual_patterns.md)
+        GROUND_TRUTH_INTROS = {
+            1: 61,    # 00:01:01 - Liverpool vs Aston Villa
+            2: 865,   # 00:14:25 - Arsenal vs Burnley
+            3: 1587,  # 00:26:27 - Nottingham Forest vs Man Utd
+            4: 2509,  # 00:41:49 - Fulham vs Wolves
+            5: 3168,  # 00:52:48 - Tottenham vs Chelsea
+            6: 3894,  # 01:04:54 - Brighton vs Leeds
+            7: 4480,  # 01:14:40 - Crystal Palace vs Brentford
+        }
+
+        # Display results with strategy comparison
         click.echo(f"{'='*60}")
         click.echo("RUNNING ORDER WITH BOUNDARIES")
         click.echo(f"{'='*60}\n")
+
+        # Track strategy comparison stats
+        agreement_count = 0
+        total_with_both = 0
+        venue_diffs = []
+        clustering_diffs = []
 
         for i, match in enumerate(result.matches, 1):
             # Format timestamps as MM:SS
@@ -887,10 +904,91 @@ def analyze_running_order_command(
             total_duration = match.match_end - match.match_start
 
             click.echo(f"Match {i}: {match.teams[0]} vs {match.teams[1]}")
-            click.echo(f"  Intro:       {match_start_str} → {highlights_start_str} ({intro_duration:.0f}s)")
-            click.echo(f"  Highlights:  {highlights_start_str} → {highlights_end_str} ({highlights_duration:.0f}s)")
-            click.echo(f"  Post-match:  {highlights_end_str} → {match_end_str} ({postmatch_duration:.0f}s)")
-            click.echo(f"  Total:       {match_start_str} → {match_end_str} ({total_duration:.0f}s)")
+
+            # Strategy comparison section
+            ground_truth = GROUND_TRUTH_INTROS.get(i)
+            if ground_truth:
+                gt_str = f"{int(ground_truth // 60):02d}:{int(ground_truth % 60):02d}"
+                click.echo(f"  Ground Truth:        {gt_str}")
+
+            click.echo(f"\n  Strategy Results:")
+
+            # Venue strategy
+            if match.venue_result:
+                venue_ts = match.venue_result.get('timestamp')
+                venue_str = f"{int(venue_ts // 60):02d}:{int(venue_ts % 60):02d}"
+                if ground_truth:
+                    venue_diff = venue_ts - ground_truth
+                    venue_diffs.append(abs(venue_diff))
+                    diff_str = f"({venue_diff:+.1f}s)" if venue_diff != 0 else "✓"
+                    click.echo(f"    Venue:             {venue_str} {diff_str}")
+                else:
+                    click.echo(f"    Venue:             {venue_str}")
+            else:
+                click.echo(f"    Venue:             (not detected)")
+
+            # Clustering strategy
+            if match.clustering_result:
+                cluster_ts = match.clustering_result.get('timestamp')
+                cluster_str = f"{int(cluster_ts // 60):02d}:{int(cluster_ts % 60):02d}"
+                cluster_density = match.clustering_result.get('cluster_density', 0)
+                cluster_size = match.clustering_result.get('cluster_size', 0)
+
+                if ground_truth:
+                    cluster_diff = cluster_ts - ground_truth
+                    clustering_diffs.append(abs(cluster_diff))
+                    diff_str = f"({cluster_diff:+.1f}s)" if cluster_diff != 0 else "✓"
+                    click.echo(f"    Clustering:        {cluster_str} {diff_str} (density: {cluster_density:.2f}, size: {cluster_size})")
+                else:
+                    click.echo(f"    Clustering:        {cluster_str} (density: {cluster_density:.2f}, size: {cluster_size})")
+            else:
+                click.echo(f"    Clustering:        (not detected)")
+
+            # Agreement between strategies
+            if match.venue_result and match.clustering_result:
+                venue_ts = match.venue_result.get('timestamp')
+                cluster_ts = match.clustering_result.get('timestamp')
+                diff = abs(venue_ts - cluster_ts)
+                total_with_both += 1
+
+                if diff <= 10.0:
+                    agreement_count += 1
+                    click.echo(f"    Agreement:         ✓ ({diff:.1f}s difference)")
+                else:
+                    click.echo(f"    Agreement:         ✗ ({diff:.1f}s difference)")
+
+            click.echo(f"\n  Boundaries (using venue):")
+            click.echo(f"    Intro:       {match_start_str} → {highlights_start_str} ({intro_duration:.0f}s)")
+            click.echo(f"    Highlights:  {highlights_start_str} → {highlights_end_str} ({highlights_duration:.0f}s)")
+            click.echo(f"    Post-match:  {highlights_end_str} → {match_end_str} ({postmatch_duration:.0f}s)")
+            click.echo(f"    Total:       {match_start_str} → {match_end_str} ({total_duration:.0f}s)")
+            click.echo()
+
+        # Strategy comparison summary
+        click.echo(f"{'='*60}")
+        click.echo("STRATEGY COMPARISON SUMMARY")
+        click.echo(f"{'='*60}\n")
+
+        if total_with_both > 0:
+            agreement_rate = agreement_count / total_with_both
+            click.echo(f"Matches where both strategies detected: {total_with_both}/{len(result.matches)}")
+            click.echo(f"Strategies agree (±10s):                {agreement_count}/{total_with_both} ({agreement_rate:.0%})")
+            click.echo()
+
+        if venue_diffs:
+            avg_venue_diff = sum(venue_diffs) / len(venue_diffs)
+            click.echo(f"Venue Strategy:")
+            click.echo(f"  Average difference from ground truth:  {avg_venue_diff:.2f}s")
+            click.echo(f"  Within ±5s:                            {sum(1 for d in venue_diffs if d <= 5)}/{len(venue_diffs)}")
+            click.echo(f"  Within ±10s:                           {sum(1 for d in venue_diffs if d <= 10)}/{len(venue_diffs)}")
+            click.echo()
+
+        if clustering_diffs:
+            avg_cluster_diff = sum(clustering_diffs) / len(clustering_diffs)
+            click.echo(f"Clustering Strategy:")
+            click.echo(f"  Average difference from ground truth:  {avg_cluster_diff:.2f}s")
+            click.echo(f"  Within ±10s:                           {sum(1 for d in clustering_diffs if d <= 10)}/{len(clustering_diffs)}")
+            click.echo(f"  Within ±30s:                           {sum(1 for d in clustering_diffs if d <= 30)}/{len(clustering_diffs)}")
             click.echo()
 
         # Generate output path
