@@ -361,18 +361,89 @@ CLUSTERING_MIN_SIZE = 3            # Minimum 3 co-mentions
 ```
 
 **Success Criteria:**
-- [ ] All clustering tests passing
-- [ ] Existing 31 running order tests still passing
-- [ ] CLI shows both strategies side-by-side
-- [ ] Summary stats show agreement rate
-- [ ] Observations documented for decision making
+- [x] All clustering tests passing ✅ (7/7 new tests)
+- [x] Existing 31 running order tests still passing ✅ (38/38 total)
+- [x] CLI shows both strategies side-by-side ✅
+- [x] Summary stats show agreement rate ✅
+- [x] Observations documented for decision making ✅
+
+**Validation Results (Episode 01):**
+
+| Match | Ground Truth | Venue | Clustering | Venue Diff | Cluster Diff | Agreement |
+|-------|--------------|-------|------------|------------|--------------|-----------|
+| 1 | 01:01 | 01:01 | 01:04 | +0.1s | +3.6s | ✓ (3.5s) |
+| 2 | 14:25 | 14:26 | 14:26 | +1.3s | +1.3s | ✓ (0.0s) ✨ |
+| 3 | 26:27 | 26:27 | 27:12 | +0.2s | +45.3s | ✗ (45.1s) ⚠️ |
+| 4 | 41:49 | 41:49 | - | +0.1s | - | - (not detected) |
+| 5 | 52:48 | 52:49 | 52:51 | +1.3s | +3.2s | ✓ (1.9s) |
+| 6 | 64:54 | 64:55 | 64:55 | +1.6s | +1.6s | ✓ (0.0s) ✨ |
+| 7 | 74:40 | 74:44 | 74:44 | +4.4s | +4.4s | ✓ (0.0s) ✨ |
+
+**Summary Statistics:**
+- **Detection Rate:** 6/7 (85.7%) - Match 4 not detected
+- **Agreement Rate:** 5/6 detected matches within ±10s (83%)
+- **Perfect Matches:** 3/6 (Matches 2, 6, 7) - clustering EXACTLY matches venue ✨
+- **Venue Accuracy:** Avg 1.27s, 7/7 within ±5s (100%)
+- **Clustering Accuracy:** Avg 9.89s, 5/6 within ±10s (83%)
+
+**Key Observations:**
+
+1. **Clustering performs surprisingly well** - 83% agreement with venue strategy
+2. **Three perfect matches** - Matches 2, 6, 7 have 0.0s difference (clustering = venue)
+3. **One outlier** - Match 3 clustering is 45s late (likely picked later cluster instead of earliest)
+4. **One failure** - Match 4 (Fulham vs Wolves) not detected at all
+   - Possible causes: Low mention density in transcript, or teams mentioned separately
+
+**Match 3 Investigation (45s outlier):**
+- Venue correctly detected at 26:27
+- Clustering detected at 27:12 (45s later)
+- Likely cause: Picked a later, denser cluster instead of earliest cluster
+- Suggests algorithm may need tuning to prefer "earliness" over "density" near highlights_start
+
+**Match 4 Investigation (not detected):**
+- Venue correctly detected at 41:49
+- Clustering returned None
+- Possible causes:
+  - Teams not co-mentioned within 20s window
+  - Density too low (< 0.1 mentions/sec)
+  - Cluster size too small (< 3 mentions)
+- Need to inspect transcript around 41:49 to diagnose
+
+**Conclusion & Recommendation:**
+
+✅ **Clustering strategy is VALIDATED** - Ready for cross-validation implementation
+
+**Strengths:**
+- High agreement rate (83%) with venue strategy
+- 3 perfect matches (Matches 2, 6, 7 exactly match venue)
+- Works entirely from transcript (independent of venue mentions)
+- Provides orthogonal validation signal (density vs linguistics)
+
+**Weaknesses:**
+- 1 failure (Match 4 not detected - 85.7% detection rate)
+- 1 outlier (Match 3 off by 45s - picked wrong cluster)
+- Less accurate than venue (avg 9.89s vs 1.27s)
+- Parameter tuning may be needed (density, window size, cluster selection)
+
+**Next Steps (Phase 2b-2 - Cross-Validation):**
+1. Implement agreement/disagreement logic
+2. Add confidence scoring based on strategy consensus
+3. Investigate Match 4 failure (inspect transcript)
+4. Consider tuning Match 3 (prefer earliness over density)
+5. Optional: Add OCR data to clustering for higher density
+
+**Decision:** PROCEED with cross-validation implementation. Clustering provides valuable
+independent validation even with 85% detection rate. The 3 perfect matches and 83%
+agreement rate demonstrate the approach is sound. Failures can be addressed with
+parameter tuning or by using venue as fallback (which already happens).
+
+---
 
 **What We're NOT Doing (Yet):**
-- ❌ Selection logic (which strategy to use)
-- ❌ Automated cross-validation
-- ❌ Confidence scoring based on agreement
-- ❌ OCR data integration (transcript-only)
-- ❌ Changing match_start values (keep using venue)
+- ❌ Automated cross-validation (Phase 2b-2)
+- ❌ Confidence scoring based on agreement (Phase 2b-2)
+- ❌ OCR data integration (transcript-only for now)
+- ❌ Changing match_start selection logic (venue remains primary)
 
 ---
 
