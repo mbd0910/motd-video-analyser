@@ -440,10 +440,253 @@ parameter tuning or by using venue as fallback (which already happens).
 
 ---
 
+### Phase 2b-1b: Algorithm Tuning Based on Debug Analysis (IN PROGRESS)
+
+**Goal:** Fix identified issues from debug output analysis to improve clustering accuracy from 6/7 (85.7%) to 7/7 (100%).
+
+---
+
+#### Debug Mode Implementation (COMPLETED ✅ - 2025-11-19)
+
+**Added:** `--debug` flag to CLI with comprehensive diagnostics
+
+**Features:**
+- Outputs `clustering_debug.json` with full decision-making data
+- Shows team mentions, co-mention windows, cluster selection, rejection reasons
+- Provides failure analysis and tuning recommendations
+- Includes insights and agreement analysis with venue strategy
+
+**Usage:**
+```bash
+python -m motd analyze-running-order motd_2025-26_2025-11-01 --debug
+
+# Inspect specific matches
+cat data/output/.../clustering_debug.json | jq '.matches[2]'  # Match 3 (outlier)
+cat data/output/.../clustering_debug.json | jq '.matches[3].clustering_result.diagnostics.window_rejections'  # Match 4 failures
+```
+
+**Key Data Exposed:**
+- All team mentions (timestamps for both teams)
+- All co-mention windows (start, density, mentions, team counts)
+- Valid vs invalid windows (with rejection reasons)
+- Selected cluster + top 3 alternative clusters
+- Search window metadata
+- Parameter values used
+
+---
+
+#### Key Issues Identified from Debug Output
+
+**Issue 1: Missing Sentence Extraction (CRITICAL - Causes Match 4 Failure)**
+
+**Problem:** Clustering searches individual transcript segments, not complete sentences. Whisper segments are arbitrary chunks, not sentence-aligned.
+
+**Current bug:**
+```python
+def _find_team_mentions(self, segments, team_name):
+    for segment in segments:  # ← Just segments, not sentences!
+        text = segment.get('text', '')
+        if self._fuzzy_team_match(text, team_name):
+            mentions.append(segment.get('start', 0))
+```
+
+**What it should do:**
+Use existing `_extract_sentences_from_segments()` method (already implemented and working in venue strategy).
+
+**Impact on Match 4 (Fulham vs Wolves):**
+
+Transcript around 2509s:
+```
+Segment 1 (2509s): "OK, bottom of the table, Wolves..."
+Segment 2 (2512s): "were hunting a first win at Fulham..."
+```
+
+- **Current algorithm:** Treats as separate → Wolves at 2509s, Fulham at 2512s → considered 3s apart → BUT in different segments!
+- **After windowing logic:** Next Wolves mention at 2729s (216s later!) → no co-mentions within 20s window → FAILURE
+- **Fixed algorithm:** Combine into sentence → "OK, bottom of the table, Wolves were hunting a first win at Fulham..." → Both teams in same sentence → Match 4 detected ✓
+
+**Evidence from debug output:**
+```json
+{
+  "team1_mentions": [2512.66, ...],  // Fulham
+  "team2_mentions": [2729.38, ...],  // Wolves (next mention 216s later!)
+  "failure_reason": "no_valid_cluster",
+  "failure_details": "No windows passed thresholds: min_density=0.1, min_size=3"
+}
+```
+
+**User verification:** Watched video at 2509s - both teams ARE mentioned in same sentence by presenter (Gabby Logan): _"OK, bottom of the table, Wolves were hunting a first win of the season at Fulham, who'd lost their last four"_
+
+---
+
+**Issue 2: Density Prioritized Over Earliness (Match 3 Outlier - 45s Error)**
+
+**Problem:** Algorithm picks densest cluster (density 0.25) instead of earliest cluster (density 0.15), causing 45s late detection.
+
+**Debug evidence from Match 3 (Man Utd vs Nottingham Forest):**
+```json
+{
+  "ground_truth": 1587,
+  "valid_windows": [
+    {"start": 1587.21, "density": 0.15, "mentions": 3},  // ← CORRECT (diff: +0.2s)
+    {"start": 1616.16, "density": 0.20, "mentions": 4},
+    {"start": 1632.34, "density": 0.25, "mentions": 5}   // ← SELECTED (diff: +45.3s!)
+  ],
+  "selected_cluster": {"start": 1632.34, "selection_reason": "highest_density"},
+  "insights": {
+    "detection_status": "outlier",
+    "recommendations": [
+      "Alternative cluster at 1587.21s is 45s closer to ground truth",
+      "Consider preferring earliness over density in cluster selection"
+    ]
+  }
+}
+```
+
+**Current logic:** `max(valid_windows, key=lambda w: w['density'])` - always pick highest density
+
+**Impact analysis across all matches:**
+- Match 1: Picked earliest (64.6s) ✓
+- Match 2: Picked earliest (866.3s) ✓ PERFECT
+- Match 3: Picked 1632s instead of 1587s ✗ (45s late!)
+- Match 5: Picked earliest (3171.2s) ✓
+- Match 6: Picked earliest (3896.6s) ✓ PERFECT
+- Match 7: Picked earliest (4483.5s) ✓ PERFECT
+
+**Conclusion:** 5 of 6 successful matches already picked earliest window. Pure density selection only caused problems in Match 3.
+
+**Proposed fix:** Hybrid approach - prefer earliest unless later cluster is significantly denser (2x threshold)
+
+```python
+earliest = min(valid_windows, key=lambda w: w['start'])
+densest = max(valid_windows, key=lambda w: w['density'])
+
+# Only pick denser cluster if it's SIGNIFICANTLY denser (2x)
+if densest['density'] >= 2 * earliest['density']:
+    return densest  # Much denser - worth the time penalty
+else:
+    return earliest  # Similar density - prefer earliness
+```
+
+**Why 2x threshold?**
+- Match 3: 0.25 / 0.15 = 1.67x → Would pick earliest (1587s) ✓
+- Protects against picking very sparse early mentions if a much denser cluster exists later
+- Balances earliness preference with density validation
+
+---
+
+#### Decisions Made
+
+**Decision 1: OCR Data in Clustering - NO (for now)**
+
+**Question:** Should clustering use OCR data (scoreboards) in addition to transcript?
+
+**Analysis:**
+- **OCR mentions come from scoreboards** (during highlights, not intro)
+- **Timing:** Scoreboards appear AFTER intro, during match footage
+- **Density difference:**
+  - Intro cluster (transcript): 2-3 mentions in 20s
+  - Highlights cluster (OCR): 40+ mentions in 20s (scoreboard every 5-10s)
+- **Impact:** Adding OCR would overwhelm transcript signal, algorithm would pick highlights region
+- **Result:** Detection would shift from `match_start` (~2509s) to `highlights_start` (~2555s)
+
+**Would effectively rediscover what scoreboard strategy already detects!**
+
+**Independence comparison:**
+| Aspect | Venue Strategy | Clustering (transcript) | Clustering (+ OCR) |
+|--------|----------------|------------------------|-------------------|
+| Signal | Linguistic pattern | Statistical density | Scoreboard density |
+| Detects | Intro start | Intro start | Highlights start ❌ |
+| Fails when | No venue mentioned | Teams not co-mentioned | Never (always scoreboards) |
+| Independence | ✓ Unique | ✓ Different | ✗ Redundant with scoreboard strategy |
+
+**Decision:** Keep clustering transcript-only to maintain focus on intro detection (match_start). This preserves independence from both venue strategy (different signal) and scoreboard strategy (different timing).
+
+**Future consideration:** Could use OCR as *validation* signal (does highlights start soon after cluster?) rather than *detection* signal.
+
+---
+
+**Decision 2: Sentence Extraction - YES (HIGH PRIORITY)**
+
+**Reasoning:**
+- Match 4 teams ARE co-mentioned in same sentence (~2509s) - verified by user watching video
+- Current bug: Whisper segments treated as independent units (not sentence-aligned)
+- Fix: Use existing `_extract_sentences_from_segments()` method (already working in venue strategy)
+- **Expected outcome:** Match 4 will be detected after fix (detection rate: 6/7 → 7/7)
+
+**Implementation:** Update `_find_team_mentions()` to combine segments into sentences before searching.
+
+---
+
+**Decision 3: Hybrid Earliness/Density - YES (AFTER sentence fix)**
+
+**Reasoning:**
+- 5 of 6 successful matches already picked earliest window naturally
+- Only Match 3 affected by pure density selection (45s error)
+- Hybrid approach (prefer earliest unless 2x denser) would fix Match 3 without breaking others
+- **Expected outcome:** Match 3 picks 1587s instead of 1632s (45s improvement)
+
+**Implementation:** Update `_identify_densest_cluster()` with 2x density threshold logic.
+
+---
+
+#### Implementation Plan
+
+**Step 1: Fix Sentence Extraction** (30 mins)
+- [ ] Update `_find_team_mentions()` to use `_extract_sentences_from_segments()`
+- [ ] Add unit test: Match 4 sentence-level co-mention detection
+- [ ] Run `--debug` mode on Episode 01
+- [ ] Verify Match 4 now detected (check `clustering_debug.json`)
+
+**Step 2: Implement Hybrid Earliness/Density** (15 mins)
+- [ ] Update `_identify_densest_cluster()` with 2x density threshold
+- [ ] Add unit test: Prefer earliest unless 2x density difference
+- [ ] Run `--debug` mode on Episode 01
+- [ ] Verify Match 3 now picks 1587s instead of 1632s
+
+**Step 3: Validation** (15 mins)
+- [ ] Run full analysis: `python -m motd analyze-running-order motd_2025-26_2025-11-01 --debug`
+- [ ] Compare before/after metrics
+- [ ] Document improvements in task file
+- [ ] Commit changes
+
+---
+
+#### Expected Outcomes
+
+**Before tuning (current):**
+- Detection rate: 6/7 (85.7%) - Match 4 failed
+- Agreement rate: 5/6 (83%) - Match 3 disagrees by 45s
+- Average accuracy: 9.89s from ground truth
+- Outliers: Match 3 (+45.3s), Match 4 (not detected)
+
+**After sentence extraction fix (predicted):**
+- Detection rate: 7/7 (100%) ← Match 4 fixed
+- Agreement rate: 5/7 (71%) ← Match 3 still outlier
+- Average accuracy: ~8-9s ← Match 4 adds some error, but less than before
+- Outliers: Match 3 (+45.3s)
+
+**After sentence + hybrid fixes (predicted):**
+- Detection rate: 7/7 (100%)
+- Agreement rate: 6-7/7 (85-100%) ← Match 3 fixed
+- Average accuracy: ~5-7s ← Both fixes reduce average significantly
+- Outliers: Minimal or none
+
+---
+
+#### Open Questions
+
+- [ ] After sentence extraction fix, reassess if hybrid logic still needed (may fix Match 3 too)
+- [ ] Should we lower min_size from 3 to 2? (may not be needed after sentence fix)
+- [ ] Consider adding OCR as validation signal (confidence boost when scoreboards appear soon after cluster)
+- [ ] Document parameter sensitivity for future episodes (different seasons, presentation styles)
+
+---
+
 **What We're NOT Doing (Yet):**
 - ❌ Automated cross-validation (Phase 2b-2)
 - ❌ Confidence scoring based on agreement (Phase 2b-2)
-- ❌ OCR data integration (transcript-only for now)
+- ❌ OCR data integration (decision: transcript-only for independence)
 - ❌ Changing match_start selection logic (venue remains primary)
 
 ---
