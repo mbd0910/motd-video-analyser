@@ -49,6 +49,11 @@ class RunningOrderDetector:
     # Transition phrases to skip when searching for team mentions
     TRANSITION_PHRASES = {'ok.', 'thank you.', 'thank you very much.'}
 
+    # Clustering strategy constants
+    CLUSTERING_WINDOW_SECONDS = 20.0  # Both teams must be mentioned within this window
+    CLUSTERING_MIN_DENSITY = 0.1      # Minimum mentions per second to qualify as cluster
+    CLUSTERING_MIN_SIZE = 3            # Minimum co-mentions to qualify as cluster
+
     def __init__(
         self,
         ocr_results: list[dict[str, Any]],
@@ -677,3 +682,234 @@ class RunningOrderDetector:
                 }
 
         return clusters
+
+    # ========================================================================
+    # Clustering Strategy Methods (Phase 2b-1a)
+    # ========================================================================
+
+    def _find_team_mentions(self, segments: list[dict], team_name: str) -> list[float]:
+        """
+        Extract all timestamps where a team is mentioned in transcript.
+
+        Uses existing fuzzy matching logic to identify team mentions across
+        segments. Returns chronologically ordered list of mention timestamps.
+
+        Args:
+            segments: Transcript segments (from transcript.json)
+            team_name: Full team name to search for
+
+        Returns:
+            List of timestamps (floats) where team is mentioned, in chronological order
+        """
+        mentions = []
+
+        for segment in segments:
+            text = segment.get('text', '')
+            timestamp = segment.get('start', 0)
+
+            if self._fuzzy_team_match(text, team_name):
+                mentions.append(timestamp)
+
+        return mentions
+
+    def _find_co_mention_windows(
+        self,
+        team1_mentions: list[float],
+        team2_mentions: list[float],
+        window_size: float = None
+    ) -> list[dict[str, Any]]:
+        """
+        Find temporal windows where both teams are co-mentioned within proximity.
+
+        Sliding window approach: For each mention of team1, count how many times
+        both teams appear in the next `window_size` seconds.
+
+        Args:
+            team1_mentions: Timestamps where team1 mentioned
+            team2_mentions: Timestamps where team2 mentioned
+            window_size: Maximum time between mentions (default: CLUSTERING_WINDOW_SECONDS)
+
+        Returns:
+            List of windows, each with:
+            - 'start': Earliest mention in window
+            - 'mentions': Total co-mentions in window
+            - 'density': Mentions per second
+            - 'team1_count': Mentions of team1
+            - 'team2_count': Mentions of team2
+        """
+        if window_size is None:
+            window_size = self.CLUSTERING_WINDOW_SECONDS
+
+        windows = []
+        all_mentions = sorted(
+            [(ts, 1) for ts in team1_mentions] + [(ts, 2) for ts in team2_mentions]
+        )
+
+        # Sliding window approach
+        for i, (start_ts, _) in enumerate(all_mentions):
+            window_end = start_ts + window_size
+
+            # Count mentions within window
+            team1_count = 0
+            team2_count = 0
+
+            for ts, team_id in all_mentions[i:]:
+                if ts > window_end:
+                    break
+
+                if team_id == 1:
+                    team1_count += 1
+                else:
+                    team2_count += 1
+
+            # Only create window if both teams mentioned
+            if team1_count > 0 and team2_count > 0:
+                total_mentions = team1_count + team2_count
+                density = total_mentions / window_size
+
+                windows.append({
+                    'start': start_ts,
+                    'mentions': total_mentions,
+                    'density': density,
+                    'team1_count': team1_count,
+                    'team2_count': team2_count
+                })
+
+        return windows
+
+    def _identify_densest_cluster(
+        self,
+        windows: list[dict[str, Any]],
+        search_start: float,
+        highlights_start: float,
+        min_density: float = None
+    ) -> Optional[dict[str, Any]]:
+        """
+        Identify the densest cluster of co-mentions before highlights_start.
+
+        Finds the temporal window with highest mention density (mentions/second)
+        within the search window, then returns the EARLIEST mention in that cluster
+        (not the center or latest).
+
+        Args:
+            windows: List of co-mention windows from _find_co_mention_windows()
+            search_start: Start of search window (previous match end or 0)
+            highlights_start: First scoreboard timestamp (end of search window)
+            min_density: Minimum density threshold (default: CLUSTERING_MIN_DENSITY)
+
+        Returns:
+            Cluster metadata dict with:
+            - 'timestamp': Earliest mention in cluster (match_start candidate)
+            - 'cluster_size': Number of co-mentions
+            - 'cluster_density': Mentions per second
+            Or None if no qualifying cluster found
+        """
+        if min_density is None:
+            min_density = self.CLUSTERING_MIN_DENSITY
+
+        # Filter to search window
+        valid_windows = [
+            w for w in windows
+            if search_start <= w['start'] < highlights_start
+            and w['density'] >= min_density
+            and w['mentions'] >= self.CLUSTERING_MIN_SIZE
+        ]
+
+        if not valid_windows:
+            return None
+
+        # Find densest window (highest density)
+        densest = max(valid_windows, key=lambda w: w['density'])
+
+        return {
+            'timestamp': densest['start'],  # Earliest mention in cluster
+            'cluster_size': densest['mentions'],
+            'cluster_density': densest['density']
+        }
+
+    def _detect_match_start_clustering(
+        self,
+        teams: tuple[str, str],
+        search_start: float,
+        highlights_start: float,
+        segments: list[dict],
+    ) -> Optional[dict[str, Any]]:
+        """
+        Strategy 3: Detect match_start via temporal density clustering.
+
+        Finds dense clusters where both teams are co-mentioned in close temporal
+        proximity (within CLUSTERING_WINDOW_SECONDS). Returns the earliest mention
+        in the densest cluster as the match_start candidate.
+
+        This provides independent validation of venue strategy using statistical
+        density rather than linguistic patterns.
+
+        Args:
+            teams: Team pair (normalized/sorted)
+            search_start: Start of search window (previous match end or 0)
+            highlights_start: First scoreboard timestamp (end of search window)
+            segments: Transcript segments
+
+        Returns:
+            Dict with:
+            - 'timestamp': earliest mention in densest cluster
+            - 'cluster_size': number of co-mentions in cluster
+            - 'cluster_density': mentions per second
+            - 'confidence': 0.0-1.0 based on cluster density
+            - 'window_seconds': window size used
+            Or None if no significant cluster found
+        """
+        team1, team2 = teams
+
+        # Extract all team mentions
+        team1_mentions = self._find_team_mentions(segments, team1)
+        team2_mentions = self._find_team_mentions(segments, team2)
+
+        if not team1_mentions or not team2_mentions:
+            return None
+
+        # Find co-mention windows
+        windows = self._find_co_mention_windows(
+            team1_mentions,
+            team2_mentions,
+            window_size=self.CLUSTERING_WINDOW_SECONDS
+        )
+
+        if not windows:
+            return None
+
+        # Identify densest cluster
+        cluster = self._identify_densest_cluster(
+            windows,
+            search_start=search_start,
+            highlights_start=highlights_start,
+            min_density=self.CLUSTERING_MIN_DENSITY
+        )
+
+        if not cluster:
+            return None
+
+        # Calculate confidence based on density
+        # Higher density = higher confidence
+        # Density of 0.5 mentions/sec = confidence 0.75
+        # Density of 1.0 mentions/sec = confidence 0.90
+        # Density of 2.0+ mentions/sec = confidence 0.95
+        density = cluster['cluster_density']
+        if density >= 2.0:
+            confidence = 0.95
+        elif density >= 1.0:
+            confidence = 0.90
+        elif density >= 0.5:
+            confidence = 0.80
+        elif density >= 0.2:
+            confidence = 0.70
+        else:
+            confidence = 0.60
+
+        return {
+            'timestamp': cluster['timestamp'],
+            'cluster_size': cluster['cluster_size'],
+            'cluster_density': cluster['cluster_density'],
+            'confidence': confidence,
+            'window_seconds': self.CLUSTERING_WINDOW_SECONDS
+        }
