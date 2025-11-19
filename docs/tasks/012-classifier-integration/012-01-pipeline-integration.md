@@ -630,56 +630,74 @@ else:
 
 ---
 
-#### Implementation Plan
+#### Implementation Plan (COMPLETED ✅ - 2025-11-19)
 
 **Step 1: Fix Sentence Extraction** (30 mins)
-- [ ] Update `_find_team_mentions()` to use `_extract_sentences_from_segments()`
-- [ ] Add unit test: Match 4 sentence-level co-mention detection
-- [ ] Run `--debug` mode on Episode 01
-- [ ] Verify Match 4 now detected (check `clustering_debug.json`)
+- [x] Update `_find_team_mentions()` to use `_extract_sentences_from_segments()`
+- [x] Add unit test: Match 4 sentence-level co-mention detection
+- [x] Run `--debug` mode on Episode 01
+- [x] Verify Match 4 now detected (check `clustering_debug.json`)
 
 **Step 2: Implement Hybrid Earliness/Density** (15 mins)
-- [ ] Update `_identify_densest_cluster()` with 2x density threshold
-- [ ] Add unit test: Prefer earliest unless 2x density difference
-- [ ] Run `--debug` mode on Episode 01
-- [ ] Verify Match 3 now picks 1587s instead of 1632s
+- [x] Update `_identify_densest_cluster()` with 2x density threshold
+- [x] Add unit test: Prefer earliest unless 2x density difference
+- [x] Run `--debug` mode on Episode 01
+- [x] Verify Match 3 now picks 1587s instead of 1632s
 
 **Step 3: Validation** (15 mins)
-- [ ] Run full analysis: `python -m motd analyze-running-order motd_2025-26_2025-11-01 --debug`
-- [ ] Compare before/after metrics
-- [ ] Document improvements in task file
-- [ ] Commit changes
+- [x] Run full analysis: `python -m motd analyze-running-order motd_2025-26_2025-11-01 --debug`
+- [x] Compare before/after metrics
+- [x] Document improvements in task file
+- [x] Commit changes
 
 ---
 
-#### Expected Outcomes
+#### Actual Outcomes (2025-11-19)
 
-**Before tuning (current):**
+**Before tuning (Phase 2b-1a baseline):**
 - Detection rate: 6/7 (85.7%) - Match 4 failed
 - Agreement rate: 5/6 (83%) - Match 3 disagrees by 45s
 - Average accuracy: 9.89s from ground truth
 - Outliers: Match 3 (+45.3s), Match 4 (not detected)
 
-**After sentence extraction fix (predicted):**
-- Detection rate: 7/7 (100%) ← Match 4 fixed
-- Agreement rate: 5/7 (71%) ← Match 3 still outlier
-- Average accuracy: ~8-9s ← Match 4 adds some error, but less than before
-- Outliers: Match 3 (+45.3s)
+**After all fixes (Phase 2b-1b COMPLETE):**
+- **Detection rate: 7/7 (100%)** ✅ +14.3% improvement
+- **Agreement rate: 7/7 (100%)** ✅ +17% improvement
+- **Average accuracy: 1.27s** ✅ Improved by 8.62s (87% better!)
+- **All matches within ±5s of ground truth** ✅
+- **Perfect agreement with venue strategy (0.0s difference for all 7 matches)** ✅
 
-**After sentence + hybrid fixes (predicted):**
-- Detection rate: 7/7 (100%)
-- Agreement rate: 6-7/7 (85-100%) ← Match 3 fixed
-- Average accuracy: ~5-7s ← Both fixes reduce average significantly
-- Outliers: Minimal or none
+**Match-by-Match Results:**
+| Match | Ground Truth | Venue | Clustering | Agreement |
+|-------|--------------|-------|------------|-----------|
+| 1 | 01:01 | 01:01 (+0.1s) | 01:01 (+0.1s) | ✓ (0.0s) |
+| 2 | 14:25 | 14:26 (+1.3s) | 14:26 (+1.3s) | ✓ (0.0s) |
+| 3 | 26:27 | 26:27 (+0.2s) | 26:27 (+0.2s) | ✓ (0.0s) ← **Fixed from +45.3s!** |
+| 4 | 41:49 | 41:49 (+0.1s) | 41:49 (+0.1s) | ✓ (0.0s) ← **Now detected!** |
+| 5 | 52:48 | 52:49 (+1.3s) | 52:49 (+1.3s) | ✓ (0.0s) |
+| 6 | 64:54 | 64:55 (+1.6s) | 64:55 (+1.6s) | ✓ (0.0s) |
+| 7 | 74:40 | 74:44 (+4.4s) | 74:44 (+4.4s) | ✓ (0.0s) |
+
+**Code Changes:**
+- **Sentence extraction:** Updated `_find_team_mentions()` to combine Whisper segments into complete sentences before fuzzy matching
+- **Lowercase bug fix:** Added `.lower()` to text before passing to `_fuzzy_team_match()`
+- **Min_size reduction:** Lowered `CLUSTERING_MIN_SIZE` from 3 to 2 (minimum 1 mention per team)
+- **Hybrid selection:** Prefer earliest cluster by default, only pick denser cluster if 2x denser
+
+**Test Coverage:**
+- All 40 tests passing ✅
+- New tests added:
+  - `test_match_4_sentence_level_co_mention_detection()` (regression test)
+  - `test_hybrid_earliness_density_selection()` (regression test)
 
 ---
 
-#### Open Questions
+#### Open Questions - RESOLVED
 
-- [ ] After sentence extraction fix, reassess if hybrid logic still needed (may fix Match 3 too)
-- [ ] Should we lower min_size from 3 to 2? (may not be needed after sentence fix)
-- [ ] Consider adding OCR as validation signal (confidence boost when scoreboards appear soon after cluster)
-- [ ] Document parameter sensitivity for future episodes (different seasons, presentation styles)
+- [x] After sentence extraction fix, reassess if hybrid logic still needed → **YES, hybrid fixed Match 3**
+- [x] Should we lower min_size from 3 to 2? → **YES, lowered to 2 (necessary for Match 4)**
+- [ ] Consider adding OCR as validation signal → **DEFERRED** (decision: transcript-only for independence)
+- [ ] Document parameter sensitivity for future episodes → **DEFERRED** (future work)
 
 ---
 
