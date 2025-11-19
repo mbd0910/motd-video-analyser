@@ -190,6 +190,53 @@ class ProcessedScene(BaseModel):
     }
 
 
+class BoundaryValidation(BaseModel):
+    """
+    Cross-validation result for match boundary detection.
+
+    Compares venue (primary) vs clustering (validator) strategies to ensure
+    detection accuracy and flag discrepancies for manual review.
+    """
+    status: str = Field(..., description="Validation status: 'validated', 'minor_discrepancy', 'major_discrepancy'")
+    venue_timestamp: float | None = Field(None, ge=0, description="Venue strategy timestamp (primary)")
+    clustering_timestamp: float | None = Field(None, ge=0, description="Clustering strategy timestamp (validator)")
+    difference_seconds: float | None = Field(None, description="Absolute difference between strategies (seconds)")
+    agreement: bool = Field(..., description="True if strategies agree within ±10s")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence based on agreement (1.0=validated, 0.8=minor, 0.5=major)")
+
+    @field_validator('status')
+    @classmethod
+    def validate_status(cls, v: str) -> str:
+        """Ensure status is one of allowed values."""
+        allowed = {'validated', 'minor_discrepancy', 'major_discrepancy', 'clustering_failed'}
+        if v not in allowed:
+            raise ValueError(f'status must be one of {allowed}, got {v}')
+        return v
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "status": "validated",
+                    "venue_timestamp": 2509.06,
+                    "clustering_timestamp": 2509.06,
+                    "difference_seconds": 0.0,
+                    "agreement": True,
+                    "confidence": 1.0
+                },
+                {
+                    "status": "minor_discrepancy",
+                    "venue_timestamp": 1587.21,
+                    "clustering_timestamp": 1616.16,
+                    "difference_seconds": 28.95,
+                    "agreement": False,
+                    "confidence": 0.8
+                }
+            ]
+        }
+    }
+
+
 class MatchBoundary(BaseModel):
     """
     Detected boundaries for a single match.
@@ -227,6 +274,16 @@ class MatchBoundary(BaseModel):
     venue_result: dict[str, Any] | None = Field(
         None,
         description="Venue strategy result with timestamp and venue details"
+    )
+    clustering_result: dict[str, Any] | None = Field(
+        None,
+        description="Clustering strategy result with timestamp, density, and cluster metadata"
+    )
+
+    # Cross-validation (venue as primary, clustering as validator)
+    validation: BoundaryValidation | None = Field(
+        None,
+        description="Cross-validation result comparing venue vs clustering strategies"
     )
 
     model_config = {
@@ -316,6 +373,7 @@ __all__ = [
     'TeamMatch',
     'OCRResult',
     'ProcessedScene',
+    'BoundaryValidation',
     'MatchBoundary',
     'RunningOrderResult'
 ]

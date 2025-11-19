@@ -49,6 +49,16 @@ class RunningOrderDetector:
     # Transition phrases to skip when searching for team mentions
     TRANSITION_PHRASES = {'ok.', 'thank you.', 'thank you very much.'}
 
+    # Clustering strategy constants
+    CLUSTERING_WINDOW_SECONDS = 20.0  # Both teams must be mentioned within this window
+    CLUSTERING_MIN_DENSITY = 0.1      # Minimum mentions per second to qualify as cluster
+    CLUSTERING_MIN_SIZE = 2            # Minimum co-mentions to qualify as cluster (1 per team minimum)
+
+    # Cross-validation thresholds (seconds)
+    VALIDATION_PERFECT_THRESHOLD = 10.0    # ≤10s difference = "validated" (confidence 1.0)
+    VALIDATION_MINOR_THRESHOLD = 30.0      # ≤30s difference = "minor_discrepancy" (confidence 0.8)
+    # >30s difference = "major_discrepancy" (confidence 0.5)
+
     def __init__(
         self,
         ocr_results: list[dict[str, Any]],
@@ -217,21 +227,28 @@ class RunningOrderDetector:
             disagreements=[]
         )
 
-    def detect_match_boundaries(self, running_order: RunningOrderResult) -> RunningOrderResult:
+    def detect_match_boundaries(
+        self,
+        running_order: RunningOrderResult,
+        include_clustering_diagnostics: bool = False
+    ) -> RunningOrderResult:
         """
-        Detect match_start and match_end using 2 strategies.
+        Detect match_start and match_end using 3 independent strategies.
 
-        Strategy 1: Team Mention Detection (both teams within 10s)
-        Strategy 2: Venue Detection (venue mentioned in transcript)
+        Strategy 1: Team Mention Detection (both teams within 10s) - fallback
+        Strategy 2: Venue Detection (venue mentioned in transcript) - PRIMARY
+        Strategy 3: Clustering (temporal density of team co-mentions) - OBSERVATION
 
-        For now, both results are recorded in the output for analysis.
-        match_start uses team mention result (existing behavior).
+        All three results are recorded for analysis/comparison.
+        match_start uses venue (preferred) or team mention (fallback).
+        Clustering stored for side-by-side comparison only.
 
         Args:
             running_order: RunningOrderResult with highlights_start/end populated
+            include_clustering_diagnostics: If True, include detailed diagnostic data in clustering results
 
         Returns:
-            Updated RunningOrderResult with boundaries and both strategy results
+            Updated RunningOrderResult with boundaries and all three strategy results
         """
         # Get transcript segments
         segments = self.transcript.get('segments', [])
@@ -263,7 +280,7 @@ class RunningOrderDetector:
                 'strategy': 'team_mention'
             } if team_mention_timestamp else None
 
-            # Strategy 2: Venue Detection (NEW)
+            # Strategy 2: Venue Detection
             venue_result = self._detect_match_start_venue(
                 teams=match.teams,
                 search_start=search_start,
@@ -271,19 +288,38 @@ class RunningOrderDetector:
                 segments=segments
             )
 
+            # Strategy 3: Clustering (OBSERVATION ONLY)
+            clustering_result = self._detect_match_start_clustering(
+                teams=match.teams,
+                search_start=search_start,
+                highlights_start=match.highlights_start,
+                segments=segments,
+                include_diagnostics=include_clustering_diagnostics
+            )
+
             # Choose best strategy result:
-            # - Prefer venue (more accurate after backward search + team validation)
+            # - Prefer venue (most accurate, ±5s)
             # - Fallback to team mention if venue not found
+            # - Clustering used for validation
             if venue_result and venue_result.get('timestamp'):
                 match_start = venue_result['timestamp']
             else:
                 match_start = team_mention_timestamp
 
-            # Create updated match with BOTH strategy results
+            # Cross-validate venue (primary) vs clustering (validator)
+            validation = self._create_boundary_validation(
+                venue_result=venue_result,
+                clustering_result=clustering_result
+            )
+
+            # Create updated match with ALL THREE strategy results + validation
             updated_match = match.model_copy(update={
                 'match_start': match_start,
+                'confidence': validation.confidence if validation else 1.0,
                 'team_mention_result': team_mention_result,
-                'venue_result': venue_result
+                'venue_result': venue_result,
+                'clustering_result': clustering_result,
+                'validation': validation
             })
             updated_matches.append(updated_match)
 
@@ -677,3 +713,415 @@ class RunningOrderDetector:
                 }
 
         return clusters
+
+    # ========================================================================
+    # Clustering Strategy Methods (Phase 2b-1a)
+    # ========================================================================
+
+    def _find_team_mentions(self, segments: list[dict], team_name: str) -> list[float]:
+        """
+        Extract all timestamps where a team is mentioned in transcript.
+
+        Uses sentence extraction to combine Whisper segments into complete sentences
+        before fuzzy matching. This prevents false negatives where team names are
+        split across segment boundaries.
+
+        Args:
+            segments: Transcript segments (from transcript.json)
+            team_name: Full team name to search for
+
+        Returns:
+            List of timestamps (floats) where team is mentioned, in chronological order
+
+        Note:
+            Uses _extract_sentences_from_segments() to handle multi-segment sentences.
+            Example: "OK, bottom of the table, Wolves" + "were hunting a first win at Fulham"
+            → Combined into single sentence before matching
+        """
+        mentions = []
+
+        # Extract complete sentences from segments
+        sentences = self._extract_sentences_from_segments(segments)
+
+        for sentence in sentences:
+            text = sentence.get('text', '').lower()  # Lowercase for fuzzy matching
+            timestamp = sentence.get('start', 0)
+
+            if self._fuzzy_team_match(text, team_name):
+                mentions.append(timestamp)
+
+        return mentions
+
+    def _find_co_mention_windows(
+        self,
+        team1_mentions: list[float],
+        team2_mentions: list[float],
+        window_size: float = None
+    ) -> list[dict[str, Any]]:
+        """
+        Find temporal windows where both teams are co-mentioned within proximity.
+
+        Sliding window approach: For each mention of team1, count how many times
+        both teams appear in the next `window_size` seconds.
+
+        Args:
+            team1_mentions: Timestamps where team1 mentioned
+            team2_mentions: Timestamps where team2 mentioned
+            window_size: Maximum time between mentions (default: CLUSTERING_WINDOW_SECONDS)
+
+        Returns:
+            List of windows, each with:
+            - 'start': Earliest mention in window
+            - 'mentions': Total co-mentions in window
+            - 'density': Mentions per second
+            - 'team1_count': Mentions of team1
+            - 'team2_count': Mentions of team2
+        """
+        if window_size is None:
+            window_size = self.CLUSTERING_WINDOW_SECONDS
+
+        windows = []
+        all_mentions = sorted(
+            [(ts, 1) for ts in team1_mentions] + [(ts, 2) for ts in team2_mentions]
+        )
+
+        # Sliding window approach
+        for i, (start_ts, _) in enumerate(all_mentions):
+            window_end = start_ts + window_size
+
+            # Count mentions within window
+            team1_count = 0
+            team2_count = 0
+
+            for ts, team_id in all_mentions[i:]:
+                if ts > window_end:
+                    break
+
+                if team_id == 1:
+                    team1_count += 1
+                else:
+                    team2_count += 1
+
+            # Only create window if both teams mentioned
+            if team1_count > 0 and team2_count > 0:
+                total_mentions = team1_count + team2_count
+                density = total_mentions / window_size
+
+                windows.append({
+                    'start': start_ts,
+                    'mentions': total_mentions,
+                    'density': density,
+                    'team1_count': team1_count,
+                    'team2_count': team2_count
+                })
+
+        return windows
+
+    def _identify_densest_cluster(
+        self,
+        windows: list[dict[str, Any]],
+        search_start: float,
+        highlights_start: float,
+        min_density: float = None
+    ) -> Optional[dict[str, Any]]:
+        """
+        Identify the densest cluster of co-mentions before highlights_start.
+
+        Finds the temporal window with highest mention density (mentions/second)
+        within the search window, then returns the EARLIEST mention in that cluster
+        (not the center or latest).
+
+        Args:
+            windows: List of co-mention windows from _find_co_mention_windows()
+            search_start: Start of search window (previous match end or 0)
+            highlights_start: First scoreboard timestamp (end of search window)
+            min_density: Minimum density threshold (default: CLUSTERING_MIN_DENSITY)
+
+        Returns:
+            Cluster metadata dict with:
+            - 'timestamp': Earliest mention in cluster (match_start candidate)
+            - 'cluster_size': Number of co-mentions
+            - 'cluster_density': Mentions per second
+            Or None if no qualifying cluster found
+        """
+        if min_density is None:
+            min_density = self.CLUSTERING_MIN_DENSITY
+
+        # Filter to search window
+        valid_windows = [
+            w for w in windows
+            if search_start <= w['start'] < highlights_start
+            and w['density'] >= min_density
+            and w['mentions'] >= self.CLUSTERING_MIN_SIZE
+        ]
+
+        if not valid_windows:
+            return None
+
+        # Hybrid selection: Prefer earliest unless later cluster is 2x denser
+        # Rationale: Intro typically starts immediately when host begins talking
+        # Only pick later cluster if it's SIGNIFICANTLY denser (much more confident)
+        earliest = min(valid_windows, key=lambda w: w['start'])
+        densest = max(valid_windows, key=lambda w: w['density'])
+
+        # If densest cluster is 2x denser than earliest, use it (much higher confidence)
+        # Otherwise, prefer earliness (intro starts when host starts talking)
+        if densest['density'] >= 2 * earliest['density']:
+            selected = densest
+        else:
+            selected = earliest
+
+        return {
+            'timestamp': selected['start'],  # Earliest mention in selected cluster
+            'cluster_size': selected['mentions'],
+            'cluster_density': selected['density']
+        }
+
+    def _detect_match_start_clustering(
+        self,
+        teams: tuple[str, str],
+        search_start: float,
+        highlights_start: float,
+        segments: list[dict],
+        include_diagnostics: bool = False
+    ) -> Optional[dict[str, Any]]:
+        """
+        Strategy 3: Detect match_start via temporal density clustering.
+
+        Finds dense clusters where both teams are co-mentioned in close temporal
+        proximity (within CLUSTERING_WINDOW_SECONDS). Returns the earliest mention
+        in the densest cluster as the match_start candidate.
+
+        This provides independent validation of venue strategy using statistical
+        density rather than linguistic patterns.
+
+        Args:
+            teams: Team pair (normalized/sorted)
+            search_start: Start of search window (previous match end or 0)
+            highlights_start: First scoreboard timestamp (end of search window)
+            segments: Transcript segments
+            include_diagnostics: If True, include detailed diagnostic data
+
+        Returns:
+            Dict with:
+            - 'timestamp': earliest mention in densest cluster
+            - 'cluster_size': number of co-mentions in cluster
+            - 'cluster_density': mentions per second
+            - 'confidence': 0.0-1.0 based on cluster density
+            - 'window_seconds': window size used
+            - 'diagnostics': (if include_diagnostics=True) detailed analysis
+            Or None if no significant cluster found
+        """
+        team1, team2 = teams
+
+        # Extract all team mentions
+        team1_mentions = self._find_team_mentions(segments, team1)
+        team2_mentions = self._find_team_mentions(segments, team2)
+
+        # Build diagnostics structure if requested
+        diagnostics = None
+        if include_diagnostics:
+            diagnostics = {
+                'team1_mentions': team1_mentions,
+                'team2_mentions': team2_mentions,
+                'team1': team1,
+                'team2': team2,
+                'search_window': {
+                    'start': search_start,
+                    'end': highlights_start,
+                    'duration': highlights_start - search_start
+                }
+            }
+
+        if not team1_mentions or not team2_mentions:
+            if include_diagnostics:
+                diagnostics['failure_reason'] = 'no_mentions'
+                diagnostics['failure_details'] = (
+                    f"Team1 ({team1}): {len(team1_mentions)} mentions, "
+                    f"Team2 ({team2}): {len(team2_mentions)} mentions"
+                )
+                return {'diagnostics': diagnostics}
+            return None
+
+        # Find co-mention windows
+        windows = self._find_co_mention_windows(
+            team1_mentions,
+            team2_mentions,
+            window_size=self.CLUSTERING_WINDOW_SECONDS
+        )
+
+        if include_diagnostics:
+            diagnostics['all_windows'] = windows
+            diagnostics['total_windows'] = len(windows)
+
+        if not windows:
+            if include_diagnostics:
+                diagnostics['failure_reason'] = 'no_windows'
+                diagnostics['failure_details'] = (
+                    f"No windows found where both teams mentioned within {self.CLUSTERING_WINDOW_SECONDS}s"
+                )
+                return {'diagnostics': diagnostics}
+            return None
+
+        # Identify densest cluster
+        cluster = self._identify_densest_cluster(
+            windows,
+            search_start=search_start,
+            highlights_start=highlights_start,
+            min_density=self.CLUSTERING_MIN_DENSITY
+        )
+
+        # Filter windows to valid ones (for diagnostics)
+        if include_diagnostics:
+            valid_windows = [
+                w for w in windows
+                if search_start <= w['start'] < highlights_start
+                and w['density'] >= self.CLUSTERING_MIN_DENSITY
+                and w['mentions'] >= self.CLUSTERING_MIN_SIZE
+            ]
+            diagnostics['valid_windows'] = valid_windows
+            diagnostics['invalid_windows_count'] = len(windows) - len(valid_windows)
+
+        if not cluster:
+            if include_diagnostics:
+                diagnostics['failure_reason'] = 'no_valid_cluster'
+                diagnostics['failure_details'] = (
+                    f"No windows passed thresholds: "
+                    f"min_density={self.CLUSTERING_MIN_DENSITY}, "
+                    f"min_size={self.CLUSTERING_MIN_SIZE}"
+                )
+                # Add rejection reasons for each window
+                diagnostics['window_rejections'] = []
+                for w in windows:
+                    rejection = {'window': w, 'reasons': []}
+                    if w['start'] < search_start or w['start'] >= highlights_start:
+                        rejection['reasons'].append('outside_search_window')
+                    if w['density'] < self.CLUSTERING_MIN_DENSITY:
+                        rejection['reasons'].append(f'density_too_low ({w["density"]:.2f} < {self.CLUSTERING_MIN_DENSITY})')
+                    if w['mentions'] < self.CLUSTERING_MIN_SIZE:
+                        rejection['reasons'].append(f'cluster_too_small ({w["mentions"]} < {self.CLUSTERING_MIN_SIZE})')
+                    if rejection['reasons']:
+                        diagnostics['window_rejections'].append(rejection)
+
+                return {'diagnostics': diagnostics}
+            return None
+
+        # Calculate confidence based on density
+        density = cluster['cluster_density']
+        if density >= 2.0:
+            confidence = 0.95
+        elif density >= 1.0:
+            confidence = 0.90
+        elif density >= 0.5:
+            confidence = 0.80
+        elif density >= 0.2:
+            confidence = 0.70
+        else:
+            confidence = 0.60
+
+        result = {
+            'timestamp': cluster['timestamp'],
+            'cluster_size': cluster['cluster_size'],
+            'cluster_density': cluster['cluster_density'],
+            'confidence': confidence,
+            'window_seconds': self.CLUSTERING_WINDOW_SECONDS
+        }
+
+        # Add diagnostics if requested
+        if include_diagnostics:
+            diagnostics['selected_cluster'] = cluster
+            diagnostics['selection_reason'] = 'highest_density'
+
+            # Find alternative clusters (other valid windows)
+            valid_windows_for_alternatives = [
+                w for w in windows
+                if search_start <= w['start'] < highlights_start
+                and w['density'] >= self.CLUSTERING_MIN_DENSITY
+                and w['mentions'] >= self.CLUSTERING_MIN_SIZE
+                and w['start'] != cluster['timestamp']  # Exclude selected
+            ]
+
+            # Sort by density (descending) and take top 3
+            alternative_clusters = sorted(
+                valid_windows_for_alternatives,
+                key=lambda w: w['density'],
+                reverse=True
+            )[:3]
+
+            diagnostics['alternative_clusters'] = alternative_clusters
+            result['diagnostics'] = diagnostics
+
+        return result
+
+    def _create_boundary_validation(
+        self,
+        venue_result: dict[str, Any] | None,
+        clustering_result: dict[str, Any] | None
+    ) -> 'BoundaryValidation | None':
+        """
+        Create cross-validation result comparing venue (primary) vs clustering (validator).
+
+        Venue is the authoritative source for match_start. Clustering provides independent
+        validation - discrepancies are flagged for manual review.
+
+        Validation Status Logic:
+        - ≤{VALIDATION_PERFECT_THRESHOLD}s difference: "validated" (confidence 1.0) - Perfect agreement
+        - ≤{VALIDATION_MINOR_THRESHOLD}s difference: "minor_discrepancy" (confidence 0.8) - Flag for review
+        - >{VALIDATION_MINOR_THRESHOLD}s difference: "major_discrepancy" (confidence 0.5) - Manual review required
+        - Clustering failed: "clustering_failed" (confidence 0.7) - Venue only, less confident
+
+        Args:
+            venue_result: Venue strategy result with timestamp
+            clustering_result: Clustering strategy result with timestamp
+
+        Returns:
+            BoundaryValidation model or None if venue not found
+        """
+        from motd.pipeline.models import BoundaryValidation
+
+        # If venue didn't detect anything, can't validate
+        if not venue_result or not venue_result.get('timestamp'):
+            return None
+
+        venue_ts = venue_result['timestamp']
+
+        # Check if clustering succeeded
+        if not clustering_result or not clustering_result.get('timestamp'):
+            # Clustering failed - venue only, lower confidence
+            return BoundaryValidation(
+                status='clustering_failed',
+                venue_timestamp=venue_ts,
+                clustering_timestamp=None,
+                difference_seconds=None,
+                agreement=False,
+                confidence=0.7
+            )
+
+        clustering_ts = clustering_result['timestamp']
+        diff = abs(venue_ts - clustering_ts)
+
+        # Determine validation status and confidence
+        if diff <= self.VALIDATION_PERFECT_THRESHOLD:
+            # Perfect agreement - high confidence
+            status = 'validated'
+            agreement = True
+            confidence = 1.0
+        elif diff <= self.VALIDATION_MINOR_THRESHOLD:
+            # Minor discrepancy - flag for review but acceptable
+            status = 'minor_discrepancy'
+            agreement = False
+            confidence = 0.8
+        else:
+            # Major discrepancy - manual review required
+            status = 'major_discrepancy'
+            agreement = False
+            confidence = 0.5
+
+        return BoundaryValidation(
+            status=status,
+            venue_timestamp=venue_ts,
+            clustering_timestamp=clustering_ts,
+            difference_seconds=diff,
+            agreement=agreement,
+            confidence=confidence
+        )

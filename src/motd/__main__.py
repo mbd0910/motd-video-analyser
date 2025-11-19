@@ -26,6 +26,11 @@ from motd.pipeline.factory import ServiceFactory
 from motd.pipeline.models import Scene
 from motd.transcription import AudioExtractor, WhisperTranscriber
 from motd.analysis.running_order_detector import RunningOrderDetector
+from motd.cli.running_order_output import (
+    display_running_order_results,
+    display_validation_summary
+)
+from motd.cli.diagnostics import generate_clustering_diagnostics
 
 
 def load_config(config_path: Path = Path("config/config.yaml")) -> dict[str, Any]:
@@ -762,10 +767,17 @@ def transcribe_command(
     default=Path('config/config.yaml'),
     help='Path to config file'
 )
+@click.option(
+    '--debug',
+    is_flag=True,
+    default=False,
+    help='Enable debug mode with detailed clustering diagnostics'
+)
 def analyze_running_order_command(
     episode_id: str,
     output: Path | None,
-    config: Path
+    config: Path,
+    debug: bool
 ):
     """
     Analyze running order and detect match boundaries for an episode.
@@ -865,33 +877,43 @@ def analyze_running_order_command(
 
         # Detect match boundaries
         click.echo("Detecting match boundaries...")
-        result = detector.detect_match_boundaries(running_order)
+        result = detector.detect_match_boundaries(
+            running_order,
+            include_clustering_diagnostics=debug
+        )
         click.echo(f"  ✓ Detected all match boundaries\n")
 
+        # Ground truth for validation (from visual_patterns.md + manual verification)
+        # TODO: Make this optional (Task 013) - only needed for algorithm development
+        GROUND_TRUTH_INTROS = {
+            1: 61,    # 00:01:01 - Liverpool vs Aston Villa
+            2: 865,   # 00:14:25 - Arsenal vs Burnley
+            3: 1587,  # 00:26:27 - Nottingham Forest vs Man Utd
+            4: 2509,  # 00:41:49 - Fulham vs Wolves
+            5: 3168,  # 00:52:48 - Tottenham vs Chelsea
+            6: 3894,  # 01:04:54 - Brighton vs Leeds
+            7: 4480,  # 01:14:40 - Crystal Palace vs Brentford
+        }
+
         # Display results
-        click.echo(f"{'='*60}")
-        click.echo("RUNNING ORDER WITH BOUNDARIES")
-        click.echo(f"{'='*60}\n")
+        venue_diffs, clustering_diffs = display_running_order_results(
+            result,
+            GROUND_TRUTH_INTROS,
+            fixtures
+        )
 
-        for i, match in enumerate(result.matches, 1):
-            # Format timestamps as MM:SS
-            match_start_str = f"{int(match.match_start // 60):02d}:{int(match.match_start % 60):02d}"
-            highlights_start_str = f"{int(match.highlights_start // 60):02d}:{int(match.highlights_start % 60):02d}"
-            highlights_end_str = f"{int(match.highlights_end // 60):02d}:{int(match.highlights_end % 60):02d}"
-            match_end_str = f"{int(match.match_end // 60):02d}:{int(match.match_end % 60):02d}"
+        # Display summary statistics
+        display_validation_summary(result, venue_diffs, clustering_diffs)
 
-            # Calculate durations
-            intro_duration = match.highlights_start - match.match_start
-            highlights_duration = match.highlights_end - match.highlights_start
-            postmatch_duration = match.match_end - match.highlights_end
-            total_duration = match.match_end - match.match_start
-
-            click.echo(f"Match {i}: {match.teams[0]} vs {match.teams[1]}")
-            click.echo(f"  Intro:       {match_start_str} → {highlights_start_str} ({intro_duration:.0f}s)")
-            click.echo(f"  Highlights:  {highlights_start_str} → {highlights_end_str} ({highlights_duration:.0f}s)")
-            click.echo(f"  Post-match:  {highlights_end_str} → {match_end_str} ({postmatch_duration:.0f}s)")
-            click.echo(f"  Total:       {match_start_str} → {match_end_str} ({total_duration:.0f}s)")
-            click.echo()
+        # Generate debug diagnostics if requested
+        if debug:
+            generate_clustering_diagnostics(
+                result,
+                GROUND_TRUTH_INTROS,
+                detector,
+                episode_id,
+                Path('data/output')
+            )
 
         # Generate output path
         if output is None:
@@ -904,6 +926,8 @@ def analyze_running_order_command(
 
         click.echo(f"{'='*60}")
         click.echo(f"✓ Running order saved to: {output}")
+        if debug:
+            click.echo(f"✓ Debug diagnostics saved to: {Path(f'data/output/{episode_id}/clustering_debug.json')}")
         click.echo(f"{'='*60}\n")
 
         logger.info(f"Running order analysis complete: {output}")
