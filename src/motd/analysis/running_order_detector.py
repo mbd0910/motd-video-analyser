@@ -731,7 +731,7 @@ class RunningOrderDetector:
         sentences = self._extract_sentences_from_segments(segments)
 
         for sentence in sentences:
-            text = sentence.get('text', '')
+            text = sentence.get('text', '').lower()  # Lowercase for fuzzy matching
             timestamp = sentence.get('start', 0)
 
             if self._fuzzy_team_match(text, team_name):
