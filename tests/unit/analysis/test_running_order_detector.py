@@ -727,6 +727,71 @@ class TestClusteringStrategy:
             if match.highlights_end:
                 search_start = match.highlights_end
 
+    def test_match_4_sentence_level_co_mention_detection(self, detector, transcript):
+        """
+        Test Match 4 (Fulham vs Wolves) sentence-level co-mention detection.
+
+        Regression test for critical bug: Match 4 teams ARE co-mentioned in same sentence
+        at ~2509s ("OK, bottom of the table, Wolves were hunting a first win at Fulham"),
+        but Whisper splits this across segments:
+        - Segment 1 (2509s): "OK, bottom of the table, Wolves..."
+        - Segment 2 (2512s): "were hunting a first win at Fulham..."
+
+        Without sentence extraction, clustering treats these as separate mentions →
+        next Wolves mention is 216s later → no co-mentions within 20s window → FAILURE.
+
+        With sentence extraction, segments combine into single sentence → both teams
+        detected in same sentence → Match 4 detected ✓
+        """
+        segments = transcript.get('segments', [])
+
+        # Match 4: Fulham vs Wolves
+        # Ground truth intro: 2509s (41:49)
+        # highlights_start: ~2555s (first scoreboard)
+
+        fulham_mentions = detector._find_team_mentions(segments, 'Fulham')
+        wolves_mentions = detector._find_team_mentions(segments, 'Wolverhampton Wanderers')
+
+        # Both teams should be found in transcript
+        assert len(fulham_mentions) > 0, "Should find Fulham mentions"
+        assert len(wolves_mentions) > 0, "Should find Wolves mentions"
+
+        # CRITICAL: With sentence extraction, should find co-mentions within 20s window
+        # (Sentence at 2509s contains both teams)
+        windows = detector._find_co_mention_windows(
+            fulham_mentions,
+            wolves_mentions,
+            window_size=20.0
+        )
+
+        # Filter to windows before highlights_start (~2555s) and after Match 3 end (~1900s)
+        intro_windows = [
+            w for w in windows
+            if 1900.0 < w['start'] < 2555.0
+        ]
+
+        assert len(intro_windows) > 0, \
+            "Should find co-mention window for Match 4 intro (~2509s) with sentence extraction"
+
+        # Identify densest cluster
+        cluster = detector._identify_densest_cluster(
+            windows,
+            search_start=1900.0,  # After Match 3 ends
+            highlights_start=2555.0,  # Match 4 first scoreboard
+            min_density=0.1
+        )
+
+        assert cluster is not None, \
+            "Clustering should detect Match 4 with sentence extraction (previously failed)"
+
+        # Cluster should be near ground truth (2509s)
+        ground_truth = self.GROUND_TRUTH_INTROS[4]
+        diff = abs(cluster['timestamp'] - ground_truth)
+
+        assert diff < 30.0, \
+            f"Match 4 cluster should be within 30s of ground truth {ground_truth}s " \
+            f"(got {cluster['timestamp']}s, diff: {diff}s)"
+
     def test_clustering_strategy_integration(self, detector):
         """
         Integration test: _detect_match_start_clustering() method.

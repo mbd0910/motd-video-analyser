@@ -52,7 +52,7 @@ class RunningOrderDetector:
     # Clustering strategy constants
     CLUSTERING_WINDOW_SECONDS = 20.0  # Both teams must be mentioned within this window
     CLUSTERING_MIN_DENSITY = 0.1      # Minimum mentions per second to qualify as cluster
-    CLUSTERING_MIN_SIZE = 3            # Minimum co-mentions to qualify as cluster
+    CLUSTERING_MIN_SIZE = 2            # Minimum co-mentions to qualify as cluster (1 per team minimum)
 
     def __init__(
         self,
@@ -709,8 +709,9 @@ class RunningOrderDetector:
         """
         Extract all timestamps where a team is mentioned in transcript.
 
-        Uses existing fuzzy matching logic to identify team mentions across
-        segments. Returns chronologically ordered list of mention timestamps.
+        Uses sentence extraction to combine Whisper segments into complete sentences
+        before fuzzy matching. This prevents false negatives where team names are
+        split across segment boundaries.
 
         Args:
             segments: Transcript segments (from transcript.json)
@@ -718,12 +719,20 @@ class RunningOrderDetector:
 
         Returns:
             List of timestamps (floats) where team is mentioned, in chronological order
+
+        Note:
+            Uses _extract_sentences_from_segments() to handle multi-segment sentences.
+            Example: "OK, bottom of the table, Wolves" + "were hunting a first win at Fulham"
+            → Combined into single sentence before matching
         """
         mentions = []
 
-        for segment in segments:
-            text = segment.get('text', '')
-            timestamp = segment.get('start', 0)
+        # Extract complete sentences from segments
+        sentences = self._extract_sentences_from_segments(segments)
+
+        for sentence in sentences:
+            text = sentence.get('text', '')
+            timestamp = sentence.get('start', 0)
 
             if self._fuzzy_team_match(text, team_name):
                 mentions.append(timestamp)
