@@ -316,42 +316,43 @@ Add `venue` field to fixtures:
 5. Return EARLIEST mention in that cluster (not center)
 
 **Implementation Tasks:**
-- [ ] Write test cases first (`TestClusteringStrategy` class)
-  - [ ] `test_extracts_team_mentions_from_transcript()`
-  - [ ] `test_finds_co_mention_pairs_within_window()`
-  - [ ] `test_identifies_dense_clusters()`
-  - [ ] `test_returns_earliest_mention_in_cluster()`
-  - [ ] `test_ignores_isolated_preview_mentions()`
-  - [ ] `test_clustering_produces_reasonable_timestamps()`
+- [x] Write test cases first (`TestClusteringStrategy` class)
+  - [x] `test_extracts_team_mentions_from_transcript()`
+  - [x] `test_finds_co_mention_pairs_within_window()`
+  - [x] `test_identifies_dense_clusters()`
+  - [x] `test_returns_earliest_mention_in_cluster()`
+  - [x] `test_ignores_isolated_preview_mentions()`
+  - [x] `test_clustering_produces_reasonable_timestamps()`
+  - [x] `test_clustering_strategy_integration()`
 
-- [ ] Implement helper methods in `RunningOrderDetector`:
-  - [ ] `_find_team_mentions()` - Extract timestamps where team mentioned
-  - [ ] `_find_co_mention_windows()` - Find temporal co-occurrence windows
-  - [ ] `_identify_densest_cluster()` - Select densest cluster before highlights
+- [x] Implement helper methods in `RunningOrderDetector`:
+  - [x] `_find_team_mentions()` - Extract timestamps where team mentioned
+  - [x] `_find_co_mention_windows()` - Find temporal co-occurrence windows
+  - [x] `_identify_densest_cluster()` - Select densest cluster before highlights
 
-- [ ] Implement main clustering method:
-  - [ ] `_detect_match_start_clustering()` - Return cluster metadata + timestamp
+- [x] Implement main clustering method:
+  - [x] `_detect_match_start_clustering()` - Return cluster metadata + timestamp
 
-- [ ] Integrate into `detect_match_boundaries()`:
-  - [ ] Call clustering strategy alongside venue strategy
-  - [ ] Store both results (no selection logic yet)
-  - [ ] Keep existing match_start logic unchanged (observation only)
+- [x] Integrate into `detect_match_boundaries()`:
+  - [x] Call clustering strategy alongside venue strategy
+  - [x] Store both results (no selection logic yet)
+  - [x] Keep existing match_start logic unchanged (observation only)
 
-- [ ] Update Pydantic model:
-  - [ ] Add `clustering_result` field to `MatchBoundary`
+- [x] Update Pydantic model:
+  - [x] Add `clustering_result` field to `MatchBoundary`
 
-- [ ] Update CLI output for comparison:
-  - [ ] Show venue AND clustering results side-by-side
-  - [ ] Display difference from ground truth for both
-  - [ ] Show agreement/disagreement (seconds difference)
-  - [ ] Add summary statistics at end
+- [x] Update CLI output for comparison:
+  - [x] Show venue AND clustering results side-by-side
+  - [x] Display difference from ground truth for both
+  - [x] Show agreement/disagreement (seconds difference)
+  - [x] Add summary statistics at end
 
-- [ ] Validation & observation:
-  - [ ] Run on Episode 01 (all 7 matches)
-  - [ ] Document which matches have agreement (±10s)
-  - [ ] Identify failure modes
-  - [ ] Experiment with parameters (window size, density threshold)
-  - [ ] Decide: proceed with cross-validation or venue-only
+- [x] Validation & observation:
+  - [x] Run on Episode 01 (all 7 matches)
+  - [x] Document which matches have agreement (±10s)
+  - [x] Identify failure modes
+  - [x] Experiment with parameters (window size, density threshold)
+  - [x] Decide: proceed with cross-validation or venue-only ✅ PROCEED
 
 **Parameters to Tune:**
 ```python
