@@ -845,13 +845,23 @@ class RunningOrderDetector:
         if not valid_windows:
             return None
 
-        # Find densest window (highest density)
+        # Hybrid selection: Prefer earliest unless later cluster is 2x denser
+        # Rationale: Intro typically starts immediately when host begins talking
+        # Only pick later cluster if it's SIGNIFICANTLY denser (much more confident)
+        earliest = min(valid_windows, key=lambda w: w['start'])
         densest = max(valid_windows, key=lambda w: w['density'])
 
+        # If densest cluster is 2x denser than earliest, use it (much higher confidence)
+        # Otherwise, prefer earliness (intro starts when host starts talking)
+        if densest['density'] >= 2 * earliest['density']:
+            selected = densest
+        else:
+            selected = earliest
+
         return {
-            'timestamp': densest['start'],  # Earliest mention in cluster
-            'cluster_size': densest['mentions'],
-            'cluster_density': densest['density']
+            'timestamp': selected['start'],  # Earliest mention in selected cluster
+            'cluster_size': selected['mentions'],
+            'cluster_density': selected['density']
         }
 
     def _detect_match_start_clustering(

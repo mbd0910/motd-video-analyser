@@ -792,6 +792,58 @@ class TestClusteringStrategy:
             f"Match 4 cluster should be within 30s of ground truth {ground_truth}s " \
             f"(got {cluster['timestamp']}s, diff: {diff}s)"
 
+    def test_hybrid_earliness_density_selection(self, detector, transcript):
+        """
+        Test hybrid cluster selection: Prefer earliest unless 2x denser.
+
+        Match 3 regression test: Multiple valid clusters exist around intro:
+        - 1587s: density 0.15, mentions 3 ← EARLIEST, CORRECT
+        - 1616s: density 0.20, mentions 4 ← Denser but not 2x
+        - 1627s: density 0.20, mentions 4
+
+        Pure density selection picks 1616s (29s late).
+        Hybrid selection picks 1587s (correct).
+        """
+        segments = transcript.get('segments', [])
+
+        # Match 3: Man Utd vs Nottingham Forest
+        # Ground truth: 1587s
+        # highlights_start: ~1620s
+
+        manutd_mentions = detector._find_team_mentions(segments, 'Manchester United')
+        forest_mentions = detector._find_team_mentions(segments, 'Nottingham Forest')
+
+        windows = detector._find_co_mention_windows(
+            manutd_mentions,
+            forest_mentions,
+            window_size=20.0
+        )
+
+        # Identify cluster with hybrid logic
+        cluster = detector._identify_densest_cluster(
+            windows,
+            search_start=900.0,  # After Match 2 ends
+            highlights_start=1620.0,  # Match 3 first scoreboard
+            min_density=0.1
+        )
+
+        assert cluster is not None, "Should find cluster for Match 3"
+
+        # Should select earliest cluster (1587s), NOT denser cluster (1616s)
+        ground_truth = self.GROUND_TRUTH_INTROS[3]
+        diff = abs(cluster['timestamp'] - ground_truth)
+
+        # Should be within 5s of ground truth (1587s)
+        assert diff < 5.0, \
+            f"Hybrid selection should pick earliest cluster (expected ~{ground_truth}s, " \
+            f"got {cluster['timestamp']}s, diff: {diff}s). " \
+            f"Pure density selection would pick 1616s (29s late)."
+
+        # Verify it picked the earliest cluster (density 0.15, not 0.20)
+        assert 0.14 <= cluster['cluster_density'] <= 0.16, \
+            f"Should pick earliest cluster with density ~0.15 " \
+            f"(got {cluster['cluster_density']})"
+
     def test_clustering_strategy_integration(self, detector):
         """
         Integration test: _detect_match_start_clustering() method.
