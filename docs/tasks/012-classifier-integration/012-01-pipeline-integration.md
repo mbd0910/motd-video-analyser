@@ -298,21 +298,89 @@ Add `venue` field to fixtures:
 
 ---
 
-### Phase 2b: Team Mention Strategy Validation (REMAINING)
+### Phase 2b-1a: Clustering Strategy Implementation (NEW - IN PROGRESS)
 
-**Goal:** Validate and improve team mention detection strategy
+**Goal:** Implement temporal density clustering as an independent strategy for match boundary detection. Output BOTH venue and clustering results side-by-side for manual comparison.
 
-**Current Status:**
-- Team mention strategy EXISTS (basic implementation in place)
-- Uses backward search + earliest pair logic (commit 74c9df7)
-- NOT validated against all 7 matches this session
-- Needs sentence extraction approach applied (like venue strategy)
+**Why Clustering?**
+- Provides independent validation of venue strategy (like scoreboards + FT graphics for running order)
+- Uses statistical density regardless of linguistic patterns
+- Detects "bursts" of team co-mentions in transcript
+- Handles cases where venue isn't mentioned explicitly
 
-**Work Remaining:**
-1. Apply sentence extraction improvements from venue strategy
-2. Validate against all 7 matches with ground truth
-3. Compare results with venue strategy (document which performs better)
-4. Implement cross-validation logging between strategies
+**Algorithm Concept:**
+1. Extract all team mentions from transcript (both teams)
+2. Find windows where both teams co-occur (within 20s proximity)
+3. Calculate density (mentions per second) for each window
+4. Identify densest cluster before `highlights_start`
+5. Return EARLIEST mention in that cluster (not center)
+
+**Implementation Tasks:**
+- [ ] Write test cases first (`TestClusteringStrategy` class)
+  - [ ] `test_extracts_team_mentions_from_transcript()`
+  - [ ] `test_finds_co_mention_pairs_within_window()`
+  - [ ] `test_identifies_dense_clusters()`
+  - [ ] `test_returns_earliest_mention_in_cluster()`
+  - [ ] `test_ignores_isolated_preview_mentions()`
+  - [ ] `test_clustering_produces_reasonable_timestamps()`
+
+- [ ] Implement helper methods in `RunningOrderDetector`:
+  - [ ] `_find_team_mentions()` - Extract timestamps where team mentioned
+  - [ ] `_find_co_mention_windows()` - Find temporal co-occurrence windows
+  - [ ] `_identify_densest_cluster()` - Select densest cluster before highlights
+
+- [ ] Implement main clustering method:
+  - [ ] `_detect_match_start_clustering()` - Return cluster metadata + timestamp
+
+- [ ] Integrate into `detect_match_boundaries()`:
+  - [ ] Call clustering strategy alongside venue strategy
+  - [ ] Store both results (no selection logic yet)
+  - [ ] Keep existing match_start logic unchanged (observation only)
+
+- [ ] Update Pydantic model:
+  - [ ] Add `clustering_result` field to `MatchBoundary`
+
+- [ ] Update CLI output for comparison:
+  - [ ] Show venue AND clustering results side-by-side
+  - [ ] Display difference from ground truth for both
+  - [ ] Show agreement/disagreement (seconds difference)
+  - [ ] Add summary statistics at end
+
+- [ ] Validation & observation:
+  - [ ] Run on Episode 01 (all 7 matches)
+  - [ ] Document which matches have agreement (±10s)
+  - [ ] Identify failure modes
+  - [ ] Experiment with parameters (window size, density threshold)
+  - [ ] Decide: proceed with cross-validation or venue-only
+
+**Parameters to Tune:**
+```python
+CLUSTERING_WINDOW_SECONDS = 20.0   # Both teams within 20s
+CLUSTERING_MIN_DENSITY = 0.1       # 0.1 mentions/sec minimum
+CLUSTERING_MIN_SIZE = 3            # Minimum 3 co-mentions
+```
+
+**Success Criteria:**
+- [ ] All clustering tests passing
+- [ ] Existing 31 running order tests still passing
+- [ ] CLI shows both strategies side-by-side
+- [ ] Summary stats show agreement rate
+- [ ] Observations documented for decision making
+
+**What We're NOT Doing (Yet):**
+- ❌ Selection logic (which strategy to use)
+- ❌ Automated cross-validation
+- ❌ Confidence scoring based on agreement
+- ❌ OCR data integration (transcript-only)
+- ❌ Changing match_start values (keep using venue)
+
+---
+
+### Phase 2b: Team Mention Strategy Validation (DEFERRED)
+
+**Status:** DEFERRED - Replaced by Phase 2b-1a (Clustering Strategy)
+
+**Rationale:** Clustering provides better independent validation than improving team mention strategy. Team mention already exists as fallback. Focus on orthogonal signals (venue + clustering) first.
 
 **Updated method in RunningOrderDetector:**
 ```python

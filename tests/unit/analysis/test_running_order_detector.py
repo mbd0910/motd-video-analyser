@@ -499,3 +499,270 @@ class TestVenueStrategyImprovements:
         assert match2.venue_result is not None
         assert match2.venue_result['timestamp'] == 866.30, \
             f"Match 2 should select earliest team sentence at 866.30s, got {match2.venue_result['timestamp']}s"
+
+
+class TestClusteringStrategy:
+    """
+    Test Strategy 3: Temporal density clustering for match boundary detection.
+
+    Tests clustering-based detection that finds dense co-occurrence patterns
+    of team mentions in transcript to identify match introduction boundaries.
+    """
+
+    # Ground truth intro timestamps (from visual_patterns.md)
+    GROUND_TRUTH_INTROS = {
+        1: 61,    # 00:01:01 - Liverpool vs Aston Villa
+        2: 865,   # 00:14:25 - Arsenal vs Burnley
+        3: 1587,  # 00:26:27 - Nottingham Forest vs Man Utd
+        4: 2509,  # 00:41:49 - Fulham vs Wolves
+        5: 3168,  # 00:52:48 - Tottenham vs Chelsea
+        6: 3894,  # 01:04:54 - Brighton vs Leeds
+        7: 4480,  # 01:14:40 - Crystal Palace vs Brentford
+    }
+
+    def test_finds_team_mentions_in_transcript(self, detector, transcript):
+        """Should extract all timestamps where a team is mentioned."""
+        segments = transcript.get('segments', [])
+
+        # Test with Liverpool (should appear multiple times)
+        liverpool_mentions = detector._find_team_mentions(segments, 'Liverpool')
+
+        assert len(liverpool_mentions) > 0, "Should find Liverpool mentions in transcript"
+        assert all(isinstance(ts, float) for ts in liverpool_mentions), "All mentions should be timestamps"
+        assert all(ts >= 0 for ts in liverpool_mentions), "All timestamps should be non-negative"
+
+        # Test with Aston Villa
+        villa_mentions = detector._find_team_mentions(segments, 'Aston Villa')
+
+        assert len(villa_mentions) > 0, "Should find Aston Villa mentions"
+
+        # Mentions should be chronologically ordered (segments are ordered)
+        for i in range(len(liverpool_mentions) - 1):
+            assert liverpool_mentions[i] <= liverpool_mentions[i + 1], \
+                "Mentions should be in chronological order"
+
+    def test_finds_co_mention_windows(self, detector, transcript):
+        """Should identify windows where both teams are mentioned within proximity."""
+        segments = transcript.get('segments', [])
+
+        # Match 1: Liverpool vs Aston Villa
+        liverpool_mentions = detector._find_team_mentions(segments, 'Liverpool')
+        villa_mentions = detector._find_team_mentions(segments, 'Aston Villa')
+
+        # Find co-occurrence windows (20s default)
+        windows = detector._find_co_mention_windows(
+            liverpool_mentions,
+            villa_mentions,
+            window_size=20.0
+        )
+
+        assert len(windows) > 0, "Should find co-mention windows for Liverpool vs Villa"
+
+        # Each window should have metadata
+        for window in windows:
+            assert 'start' in window, "Window should have start timestamp"
+            assert 'mentions' in window, "Window should have mention count"
+            assert 'density' in window, "Window should have density score"
+            assert window['mentions'] >= 2, "Window should have at least 2 mentions (one per team)"
+            assert window['density'] > 0, "Density should be positive"
+
+    def test_identifies_dense_clusters(self, detector, transcript):
+        """Should identify dense clusters and return earliest mention."""
+        segments = transcript.get('segments', [])
+
+        # Match 1: Liverpool vs Aston Villa
+        # highlights_start is around 112s (first scoreboard)
+        # Expected intro cluster around 61s
+
+        liverpool_mentions = detector._find_team_mentions(segments, 'Liverpool')
+        villa_mentions = detector._find_team_mentions(segments, 'Aston Villa')
+
+        windows = detector._find_co_mention_windows(
+            liverpool_mentions,
+            villa_mentions,
+            window_size=20.0
+        )
+
+        # Identify densest cluster before highlights_start
+        cluster = detector._identify_densest_cluster(
+            windows,
+            search_start=0.0,
+            highlights_start=112.0,  # Match 1 first scoreboard
+            min_density=0.05  # Low threshold for testing
+        )
+
+        assert cluster is not None, "Should find a cluster for Match 1"
+        assert 'timestamp' in cluster, "Cluster should have timestamp"
+        assert 'cluster_size' in cluster, "Cluster should have size"
+        assert 'cluster_density' in cluster, "Cluster should have density"
+
+        # Cluster timestamp should be before highlights_start
+        assert cluster['timestamp'] < 112.0, "Cluster should be before highlights"
+
+        # Should be reasonably close to ground truth (±30s)
+        ground_truth = self.GROUND_TRUTH_INTROS[1]
+        diff = abs(cluster['timestamp'] - ground_truth)
+        assert diff < 30.0, f"Cluster should be within 30s of ground truth (diff: {diff}s)"
+
+    def test_returns_earliest_mention_in_cluster(self, detector, transcript):
+        """Should return EARLIEST mention in cluster, not center or latest."""
+        segments = transcript.get('segments', [])
+
+        # Match 2: Arsenal vs Burnley
+        # Ground truth: 865s
+        # Cluster likely spans 865-880s
+        # Should return 865s (earliest), not ~872s (center)
+
+        arsenal_mentions = detector._find_team_mentions(segments, 'Arsenal')
+        burnley_mentions = detector._find_team_mentions(segments, 'Burnley')
+
+        windows = detector._find_co_mention_windows(
+            arsenal_mentions,
+            burnley_mentions,
+            window_size=20.0
+        )
+
+        cluster = detector._identify_densest_cluster(
+            windows,
+            search_start=600.0,  # After Match 1 ends (~607s)
+            highlights_start=900.0,  # Match 2 first scoreboard
+            min_density=0.05
+        )
+
+        assert cluster is not None, "Should find cluster for Match 2"
+
+        # Cluster timestamp should be close to start (865s), not middle
+        ground_truth = self.GROUND_TRUTH_INTROS[2]
+        diff = abs(cluster['timestamp'] - ground_truth)
+
+        # Should be within 10s of ground truth start
+        assert diff < 15.0, \
+            f"Should return earliest mention in cluster (expected ~{ground_truth}s, got {cluster['timestamp']}s, diff: {diff}s)"
+
+    def test_ignores_isolated_preview_mentions(self, detector, transcript):
+        """Should reject scattered low-density mentions, select dense intro cluster."""
+        segments = transcript.get('segments', [])
+
+        # Teams might be mentioned earlier in episode (e.g., "coming up later...")
+        # These should be rejected in favor of dense intro cluster
+
+        # Match 3: Nottingham Forest vs Man Utd
+        # Ground truth intro: 1587s
+
+        forest_mentions = detector._find_team_mentions(segments, 'Nottingham Forest')
+        manutd_mentions = detector._find_team_mentions(segments, 'Manchester United')
+
+        windows = detector._find_co_mention_windows(
+            forest_mentions,
+            manutd_mentions,
+            window_size=20.0
+        )
+
+        cluster = detector._identify_densest_cluster(
+            windows,
+            search_start=900.0,  # After Match 2 ends
+            highlights_start=1620.0,  # Match 3 first scoreboard
+            min_density=0.1  # Higher threshold to filter scattered mentions
+        )
+
+        # If cluster found, should be near ground truth, not early preview
+        if cluster:
+            ground_truth = self.GROUND_TRUTH_INTROS[3]
+            diff = abs(cluster['timestamp'] - ground_truth)
+
+            # Should be within 60s of actual intro (not hundreds of seconds early)
+            assert diff < 60.0, \
+                f"Should find dense intro cluster near {ground_truth}s, not scattered mentions (got {cluster['timestamp']}s, diff: {diff}s)"
+
+    def test_clustering_produces_reasonable_timestamps(self, detector):
+        """
+        Integration test: Run clustering on all 7 matches, verify sanity checks.
+
+        Sanity checks:
+        - Timestamp is within search window (search_start < timestamp < highlights_start)
+        - Timestamp is before highlights_start
+        - Timestamp is after search_start
+        """
+        base_result = detector.detect_running_order()
+
+        # We'll manually call clustering for each match
+        segments = detector.transcript.get('segments', [])
+        search_start = 0.0
+
+        for i, match in enumerate(base_result.matches, 1):
+            team1, team2 = match.teams
+            highlights_start = match.highlights_start
+
+            # Extract mentions
+            team1_mentions = detector._find_team_mentions(segments, team1)
+            team2_mentions = detector._find_team_mentions(segments, team2)
+
+            # Find windows
+            windows = detector._find_co_mention_windows(
+                team1_mentions,
+                team2_mentions,
+                window_size=20.0
+            )
+
+            # Identify cluster
+            cluster = detector._identify_densest_cluster(
+                windows,
+                search_start=search_start,
+                highlights_start=highlights_start,
+                min_density=0.05
+            )
+
+            # If cluster found, verify sanity
+            if cluster:
+                timestamp = cluster['timestamp']
+
+                # Sanity check: within search window
+                assert timestamp >= search_start, \
+                    f"Match {i}: Cluster timestamp ({timestamp}s) should be >= search_start ({search_start}s)"
+
+                assert timestamp < highlights_start, \
+                    f"Match {i}: Cluster timestamp ({timestamp}s) should be < highlights_start ({highlights_start}s)"
+
+            # Update search_start for next match
+            if match.highlights_end:
+                search_start = match.highlights_end
+
+    def test_clustering_strategy_integration(self, detector):
+        """
+        Integration test: _detect_match_start_clustering() method.
+
+        Tests the main clustering method that will be called by detect_match_boundaries().
+        """
+        base_result = detector.detect_running_order()
+        segments = detector.transcript.get('segments', [])
+
+        # Test Match 1: Liverpool vs Aston Villa
+        match1 = base_result.matches[0]
+
+        clustering_result = detector._detect_match_start_clustering(
+            teams=match1.teams,
+            search_start=0.0,
+            highlights_start=match1.highlights_start,
+            segments=segments
+        )
+
+        # Should return a result
+        assert clustering_result is not None, "Clustering should find a result for Match 1"
+
+        # Result should have expected structure
+        assert 'timestamp' in clustering_result
+        assert 'cluster_size' in clustering_result
+        assert 'cluster_density' in clustering_result
+        assert 'confidence' in clustering_result
+        assert 'window_seconds' in clustering_result
+
+        # Timestamp should be reasonable (±60s of ground truth)
+        ground_truth = self.GROUND_TRUTH_INTROS[1]
+        diff = abs(clustering_result['timestamp'] - ground_truth)
+
+        assert diff < 60.0, \
+            f"Match 1 clustering should be within 60s of ground truth {ground_truth}s (got {clustering_result['timestamp']}s, diff: {diff}s)"
+
+        # Confidence should be between 0 and 1
+        assert 0.0 <= clustering_result['confidence'] <= 1.0, \
+            "Confidence should be between 0.0 and 1.0"
