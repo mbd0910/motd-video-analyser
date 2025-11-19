@@ -222,7 +222,11 @@ class RunningOrderDetector:
             disagreements=[]
         )
 
-    def detect_match_boundaries(self, running_order: RunningOrderResult) -> RunningOrderResult:
+    def detect_match_boundaries(
+        self,
+        running_order: RunningOrderResult,
+        include_clustering_diagnostics: bool = False
+    ) -> RunningOrderResult:
         """
         Detect match_start and match_end using 3 independent strategies.
 
@@ -236,6 +240,7 @@ class RunningOrderDetector:
 
         Args:
             running_order: RunningOrderResult with highlights_start/end populated
+            include_clustering_diagnostics: If True, include detailed diagnostic data in clustering results
 
         Returns:
             Updated RunningOrderResult with boundaries and all three strategy results
@@ -283,7 +288,8 @@ class RunningOrderDetector:
                 teams=match.teams,
                 search_start=search_start,
                 highlights_start=match.highlights_start,
-                segments=segments
+                segments=segments,
+                include_diagnostics=include_clustering_diagnostics
             )
 
             # Choose best strategy result:
@@ -845,6 +851,7 @@ class RunningOrderDetector:
         search_start: float,
         highlights_start: float,
         segments: list[dict],
+        include_diagnostics: bool = False
     ) -> Optional[dict[str, Any]]:
         """
         Strategy 3: Detect match_start via temporal density clustering.
@@ -861,6 +868,7 @@ class RunningOrderDetector:
             search_start: Start of search window (previous match end or 0)
             highlights_start: First scoreboard timestamp (end of search window)
             segments: Transcript segments
+            include_diagnostics: If True, include detailed diagnostic data
 
         Returns:
             Dict with:
@@ -869,6 +877,7 @@ class RunningOrderDetector:
             - 'cluster_density': mentions per second
             - 'confidence': 0.0-1.0 based on cluster density
             - 'window_seconds': window size used
+            - 'diagnostics': (if include_diagnostics=True) detailed analysis
             Or None if no significant cluster found
         """
         team1, team2 = teams
@@ -877,7 +886,29 @@ class RunningOrderDetector:
         team1_mentions = self._find_team_mentions(segments, team1)
         team2_mentions = self._find_team_mentions(segments, team2)
 
+        # Build diagnostics structure if requested
+        diagnostics = None
+        if include_diagnostics:
+            diagnostics = {
+                'team1_mentions': team1_mentions,
+                'team2_mentions': team2_mentions,
+                'team1': team1,
+                'team2': team2,
+                'search_window': {
+                    'start': search_start,
+                    'end': highlights_start,
+                    'duration': highlights_start - search_start
+                }
+            }
+
         if not team1_mentions or not team2_mentions:
+            if include_diagnostics:
+                diagnostics['failure_reason'] = 'no_mentions'
+                diagnostics['failure_details'] = (
+                    f"Team1 ({team1}): {len(team1_mentions)} mentions, "
+                    f"Team2 ({team2}): {len(team2_mentions)} mentions"
+                )
+                return {'diagnostics': diagnostics}
             return None
 
         # Find co-mention windows
@@ -887,7 +918,17 @@ class RunningOrderDetector:
             window_size=self.CLUSTERING_WINDOW_SECONDS
         )
 
+        if include_diagnostics:
+            diagnostics['all_windows'] = windows
+            diagnostics['total_windows'] = len(windows)
+
         if not windows:
+            if include_diagnostics:
+                diagnostics['failure_reason'] = 'no_windows'
+                diagnostics['failure_details'] = (
+                    f"No windows found where both teams mentioned within {self.CLUSTERING_WINDOW_SECONDS}s"
+                )
+                return {'diagnostics': diagnostics}
             return None
 
         # Identify densest cluster
@@ -898,14 +939,42 @@ class RunningOrderDetector:
             min_density=self.CLUSTERING_MIN_DENSITY
         )
 
+        # Filter windows to valid ones (for diagnostics)
+        if include_diagnostics:
+            valid_windows = [
+                w for w in windows
+                if search_start <= w['start'] < highlights_start
+                and w['density'] >= self.CLUSTERING_MIN_DENSITY
+                and w['mentions'] >= self.CLUSTERING_MIN_SIZE
+            ]
+            diagnostics['valid_windows'] = valid_windows
+            diagnostics['invalid_windows_count'] = len(windows) - len(valid_windows)
+
         if not cluster:
+            if include_diagnostics:
+                diagnostics['failure_reason'] = 'no_valid_cluster'
+                diagnostics['failure_details'] = (
+                    f"No windows passed thresholds: "
+                    f"min_density={self.CLUSTERING_MIN_DENSITY}, "
+                    f"min_size={self.CLUSTERING_MIN_SIZE}"
+                )
+                # Add rejection reasons for each window
+                diagnostics['window_rejections'] = []
+                for w in windows:
+                    rejection = {'window': w, 'reasons': []}
+                    if w['start'] < search_start or w['start'] >= highlights_start:
+                        rejection['reasons'].append('outside_search_window')
+                    if w['density'] < self.CLUSTERING_MIN_DENSITY:
+                        rejection['reasons'].append(f'density_too_low ({w["density"]:.2f} < {self.CLUSTERING_MIN_DENSITY})')
+                    if w['mentions'] < self.CLUSTERING_MIN_SIZE:
+                        rejection['reasons'].append(f'cluster_too_small ({w["mentions"]} < {self.CLUSTERING_MIN_SIZE})')
+                    if rejection['reasons']:
+                        diagnostics['window_rejections'].append(rejection)
+
+                return {'diagnostics': diagnostics}
             return None
 
         # Calculate confidence based on density
-        # Higher density = higher confidence
-        # Density of 0.5 mentions/sec = confidence 0.75
-        # Density of 1.0 mentions/sec = confidence 0.90
-        # Density of 2.0+ mentions/sec = confidence 0.95
         density = cluster['cluster_density']
         if density >= 2.0:
             confidence = 0.95
@@ -918,10 +987,36 @@ class RunningOrderDetector:
         else:
             confidence = 0.60
 
-        return {
+        result = {
             'timestamp': cluster['timestamp'],
             'cluster_size': cluster['cluster_size'],
             'cluster_density': cluster['cluster_density'],
             'confidence': confidence,
             'window_seconds': self.CLUSTERING_WINDOW_SECONDS
         }
+
+        # Add diagnostics if requested
+        if include_diagnostics:
+            diagnostics['selected_cluster'] = cluster
+            diagnostics['selection_reason'] = 'highest_density'
+
+            # Find alternative clusters (other valid windows)
+            valid_windows_for_alternatives = [
+                w for w in windows
+                if search_start <= w['start'] < highlights_start
+                and w['density'] >= self.CLUSTERING_MIN_DENSITY
+                and w['mentions'] >= self.CLUSTERING_MIN_SIZE
+                and w['start'] != cluster['timestamp']  # Exclude selected
+            ]
+
+            # Sort by density (descending) and take top 3
+            alternative_clusters = sorted(
+                valid_windows_for_alternatives,
+                key=lambda w: w['density'],
+                reverse=True
+            )[:3]
+
+            diagnostics['alternative_clusters'] = alternative_clusters
+            result['diagnostics'] = diagnostics
+
+        return result
