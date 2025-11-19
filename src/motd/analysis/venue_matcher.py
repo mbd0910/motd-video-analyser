@@ -58,28 +58,24 @@ class VenueMatcher:
         self._build_indices()
 
     def _build_indices(self) -> None:
-        """Build lookup dictionaries for fast matching."""
+        """
+        Build lookup dictionary for stadium name matching only.
+
+        NOTE: We intentionally do NOT index aliases or additional_references to
+        prevent false positives. Fuzzy matching on stadium names provides sufficient
+        coverage while avoiding matches like "that lane" → "The Lane" (Tottenham alias).
+
+        Aliases and additional_references are kept in the JSON for documentation purposes.
+        """
         self.stadium_index = {}  # {stadium_clean: venue_data}
-        self.alias_index = {}  # {alias_clean: venue_data}
-        self.additional_ref_index = {}  # {ref_clean: venue_data}
 
         for venue in self.venues:
             team = venue["team"]
             stadium = venue["stadium"]
 
-            # Stadium name index - use cleaned keys
+            # Stadium name index only - use cleaned keys
             cleaned_stadium = self._clean_text(stadium)
             self.stadium_index[cleaned_stadium] = venue
-
-            # Alias index - use cleaned keys
-            for alias in venue.get("aliases", []):
-                cleaned_alias = self._clean_text(alias)
-                self.alias_index[cleaned_alias] = venue
-
-            # Additional references index - use cleaned keys
-            for ref in venue.get("additional_references", []):
-                cleaned_ref = self._clean_text(ref)
-                self.additional_ref_index[cleaned_ref] = venue
 
     def match_venue(
         self, text: str, team_context: Optional[str] = None, threshold: float = 0.65
@@ -113,29 +109,15 @@ class VenueMatcher:
         # Clean text for matching
         cleaned_text = self._clean_text(text)
 
-        # Try stadium name match (highest confidence)
+        # Try stadium name match ONLY (no aliases to prevent false positives)
         match = self._try_index_match(
             cleaned_text, self.stadium_index, confidence=1.0, source="stadium"
         )
         if match and match.confidence >= threshold:
             return match
 
-        # Try alias match (high confidence)
-        match = self._try_index_match(
-            cleaned_text, self.alias_index, confidence=0.9, source="alias"
-        )
-        if match and match.confidence >= threshold:
-            return match
-
-        # Try additional reference match (medium confidence)
-        match = self._try_index_match(
-            cleaned_text,
-            self.additional_ref_index,
-            confidence=0.7,
-            source="additional_reference",
-        )
-        if match and match.confidence >= threshold:
-            return match
+        # REMOVED: Alias matching (caused false positives like "that lane" matching "The Lane")
+        # REMOVED: Additional reference matching (too ambiguous for reliable detection)
 
         return None
 
@@ -143,7 +125,7 @@ class VenueMatcher:
         """
         Clean and normalize text for matching.
 
-        Removes common prepositions and articles to improve matching.
+        Removes common prepositions, articles, and punctuation to improve matching.
 
         Args:
             text: Raw text
@@ -151,6 +133,8 @@ class VenueMatcher:
         Returns:
             Cleaned text
         """
+        import string
+
         # Remove common prepositions/articles at start
         patterns = [
             r"^at\s+",
@@ -160,6 +144,8 @@ class VenueMatcher:
         ]
 
         cleaned = text.lower().strip()
+        # Remove punctuation to avoid threshold issues (e.g., "Park." vs "Park")
+        cleaned = cleaned.translate(str.maketrans('', '', string.punctuation))
         for pattern in patterns:
             cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
 
@@ -186,8 +172,8 @@ class VenueMatcher:
         best_score = 0.0
 
         for key, venue in index.items():
-            # Try fuzzy match
-            score = fuzz.ratio(cleaned_text, key) / 100.0
+            # Try fuzzy match using partial_ratio to find venue names within longer sentences
+            score = fuzz.partial_ratio(cleaned_text, key) / 100.0
 
             if score > best_score:
                 best_score = score

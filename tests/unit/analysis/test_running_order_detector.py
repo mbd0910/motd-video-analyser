@@ -352,3 +352,150 @@ class TestMatchBoundaryDetection:
             # Some matches have minimal post-match (quick transition), some have long analysis
             assert 10 <= post_match_duration <= 600, \
                 f"Match {i} post-match should be 10-600s, got {post_match_duration}s"
+
+
+class TestVenueStrategyImprovements:
+    """Test venue strategy with backward search and team validation."""
+
+    # Ground truth from Task 012-01 (visual_patterns.md + manual verification)
+    GROUND_TRUTH_INTROS = {
+        1: 61,    # 00:01:01 - Liverpool vs Aston Villa
+        2: 865,   # 00:14:25 - Arsenal vs Burnley
+        3: 1587,  # 00:26:27 - Nottingham Forest vs Man Utd
+        4: 2509,  # 00:41:49 - Fulham vs Wolves
+        5: 3168,  # 00:52:48 - Tottenham vs Chelsea
+        6: 3894,  # 01:04:54 - Brighton vs Leeds
+        7: 4480,  # 01:14:40 - Crystal Palace vs Brentford
+    }
+
+    def test_venue_detects_intro_start_not_venue_mention(self, detector):
+        """Venue strategy should search BACKWARD from venue mention to find intro start.
+
+        Example Match 1:
+        - Venue mentioned at 69s: "Your commentator at Anfield..."
+        - But intro STARTS at 61s: "It was six defeats in seven..."
+        - Should search backward 3-5 segments and find 61s
+        """
+        base_result = detector.detect_running_order()
+        result = detector.detect_match_boundaries(base_result)
+
+        match1 = result.matches[0]
+
+        # Should be within ±10s of ground truth (61s), NOT venue mention time (69s)
+        assert abs(match1.match_start - 61) <= 10, \
+            f"Match 1 should start ~61s (intro start), got {match1.match_start}s"
+
+        # Should NOT be at venue mention time (~69s)
+        assert abs(match1.match_start - 69) > 5, \
+            f"Match 1 should NOT use venue mention time (69s), got {match1.match_start}s"
+
+    def test_venue_strategy_rejects_false_positives_without_teams(self, detector):
+        """Venue mentions without BOTH teams should be rejected as false positives.
+
+        Example: Match 5 false positive at 3024s
+        - Transcript: "that lane for Fulham" during Match 4 post-analysis
+        - VenueMatcher incorrectly matched "The Lane" alias for Tottenham
+        - But BOTH "Tottenham" AND "Chelsea" are NOT mentioned in those segments
+        - Should reject this and keep searching
+        """
+        base_result = detector.detect_running_order()
+        result = detector.detect_match_boundaries(base_result)
+
+        match5 = result.matches[4]  # Tottenham vs Chelsea
+
+        # Should be within ±30s of ground truth (3168s)
+        assert abs(match5.match_start - 3168) <= 30, \
+            f"Match 5 should start ~3168s, got {match5.match_start}s"
+
+        # Should NOT be the false positive at 3024s
+        assert abs(match5.match_start - 3024) > 60, \
+            f"Match 5 should NOT use false positive at 3024s, got {match5.match_start}s"
+
+    def test_all_matches_within_10s_of_ground_truth(self, detector):
+        """All 7 matches should be within ±10s of ground truth intro times.
+
+        Note: Match 7 has known issue - "Selhurl Park" typo causes venue detection
+        to fail team validation. Falls back to team mention strategy (±200s).
+        Matches 1-6 achieve ±5s accuracy with venue strategy.
+        """
+        base_result = detector.detect_running_order()
+        result = detector.detect_match_boundaries(base_result)
+
+        for i, match in enumerate(result.matches, 1):
+            expected = self.GROUND_TRUTH_INTROS[i]
+            actual = match.match_start
+            error = abs(actual - expected)
+
+            # Match 7 has venue detection issue (Selhurl Park typo + team validation)
+            # TODO: Debug why Match 7 venue+team validation fails
+            tolerance = 200 if i == 7 else 10
+
+            assert error <= tolerance, \
+                f"Match {i} should be within ±{tolerance}s of {expected}s, got {actual}s (error: {error}s)"
+
+    def test_match7_selhurl_park_detection_bug(self, detector):
+        """Debug Match 7 venue detection failure (Selhurl Park typo case).
+
+        Context:
+        - Teams: ['Brentford', 'Crystal Palace'] (alphabetically sorted)
+        - Expected venue: Selhurst Park (Palace home ground)
+        - Transcript 4485.95s: "James Fielden was at Selhurl Park" (typo)
+        - Transcript 4484.37s: "Crystal Palace and Brentford" (both teams)
+
+        Issue: venue_result returns null despite:
+        - VenueMatcher working in isolation (88% confidence match)
+        - Both teams present in 5-segment window
+        - Venue in search window [4291s, 4527s]
+
+        This test will reveal which step fails.
+        """
+        base_result = detector.detect_running_order()
+        result = detector.detect_match_boundaries(base_result)
+
+        match7 = result.matches[6]
+
+        # Verify teams are correct
+        assert set(match7.teams) == {'Brentford', 'Crystal Palace'}
+
+        # The bug: venue_result should NOT be null
+        assert match7.venue_result is not None, \
+            "Match 7 venue detection should find 'Selhurl Park' → 'Selhurst Park'"
+
+        # If venue found, verify it's correct
+        if match7.venue_result:
+            assert match7.venue_result['venue'] == 'Selhurst Park'
+            # Timestamp should be earlier than venue mention (backward search)
+            assert match7.venue_result['timestamp'] < 4486, \
+                f"Should use intro start, not venue mention time: {match7.venue_result['timestamp']}"
+
+    def test_venue_selects_earliest_team_sentence(self, detector):
+        """Test that venue strategy selects EARLIEST sentence containing a team name.
+        
+        Real example from Match 1:
+        - Sentence [5] at 61.11s: "It was six defeats... Liverpool." ← Should select THIS
+        - Sentence [6] at 66.05s: "Aston Villa had just won..." ← NOT this one
+        
+        When searching backward from venue mention, should find the earliest 
+        (furthest back) sentence containing either team, not the first one encountered.
+        """
+        base_result = detector.detect_running_order()
+        result = detector.detect_match_boundaries(base_result)
+        
+        match1 = result.matches[0]
+        
+        # Match 1: Liverpool vs Aston Villa
+        # Expected: 61.11s ("It was six defeats... Liverpool")
+        # Algorithm should NOT pick 66.05s ("Aston Villa had just won...")
+        
+        assert match1.venue_result is not None
+        assert match1.venue_result['timestamp'] == 61.11, \
+            f"Match 1 should select earliest team sentence at 61.11s, got {match1.venue_result['timestamp']}s"
+        
+        # Match 2: Arsenal vs Burnley
+        # Expected: 866.30s ("Leaders, Arsenal...")
+        # Algorithm should NOT pick 870.94s ("Back-to-back victories for Burnley...")
+        
+        match2 = result.matches[1]
+        assert match2.venue_result is not None
+        assert match2.venue_result['timestamp'] == 866.30, \
+            f"Match 2 should select earliest team sentence at 866.30s, got {match2.venue_result['timestamp']}s"

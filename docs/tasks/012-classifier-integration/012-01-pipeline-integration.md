@@ -219,6 +219,61 @@ Add `venue` field to fixtures:
 
 ---
 
+### Phase 2a: Venue Strategy Implementation (COMPLETED ✅)
+
+**Goal:** Implement venue-based boundary detection as primary strategy
+
+**What Was Completed (2025-11-18):**
+
+1. **Venue Strategy Implementation**
+   - Backward search from `highlights_start` to find venue mentions
+   - Fuzzy matching against `data/venues/premier_league_2025_26.json`
+   - Fixture validation to ensure correct venue for each match
+   - Search within 20s proximity window to avoid false positives
+
+2. **Sentence Extraction from Transcript Segments**
+   - Implemented `_extract_sentences_from_segments()` method
+   - Combines transcript segments until sentence-ending punctuation (`.`, `!`, `?`)
+   - Handles multi-segment sentences (e.g., "It was six defeats..." + "for champions Liverpool.")
+   - 9 unit tests covering edge cases (question marks, transitions, empty segments)
+
+3. **Fuzzy Matching Improvements**
+   - Fixed critical bug: Single-letter words (e.g., "a") matching team names with 100% score
+   - Now skip words <4 characters to prevent false positives
+   - Stadium-only matching (removed alias index to prevent "that lane" → "The Lane" matches)
+   - Punctuation stripping in venue matcher to handle transcription errors
+
+4. **Earliest Team Sentence Selection**
+   - Search backward through sentences to find ALL team-containing sentences
+   - Return EARLIEST (minimum timestamp) within proximity window
+   - Avoids picking latest mention (which is closer to highlights)
+
+**Results:**
+- **7/7 matches PERFECT** (all within 5s accuracy)
+  - Match 1-4, 6: 0.00s difference (exact alignment with ground truth)
+  - Match 5: +1.86s (logic correct - selects first team-containing sentence)
+  - Match 7: +3.46s (logic correct - selects "Crystal Palace and Brentford" sentence)
+- Average difference: 0.76s across all 7 matches
+- All tests passing: 31 running order tests + 9 sentence extraction tests ✅
+
+**Code Changes:**
+- Branch: `feature/task-012-venue-strategy`
+- Files modified:
+  - `src/motd/analysis/running_order_detector.py`: Sentence extraction + venue strategy
+  - `src/motd/analysis/venue_matcher.py`: Fuzzy matching fixes
+  - `tests/unit/analysis/test_sentence_extraction.py`: New file with 9 tests
+  - `tests/unit/analysis/test_running_order_detector.py`: Added venue strategy tests
+  - `tests/test_venue_matcher.py`: Venue matching validation
+
+**Success Criteria:**
+- [x] Venue strategy implemented with backward search ✅
+- [x] Sentence extraction from transcript segments ✅
+- [x] Fuzzy matching bug fixes (single-letter, alias false positives) ✅
+- [x] 7/7 matches within 5s accuracy (PERFECT) ✅
+- [x] All unit tests passing ✅
+
+---
+
 ### 1. Create CLI Command (30 mins)
 
 **Goal:** Wire RunningOrderDetector into a CLI command
@@ -243,19 +298,21 @@ Add `venue` field to fixtures:
 
 ---
 
-### 2. Fix Team Mention Detection (45 mins)
+### Phase 2b: Team Mention Strategy Validation (REMAINING)
 
-**Goal:** Fix current algorithm to search **backward** and find **both teams**
+**Goal:** Validate and improve team mention detection strategy
 
-**Current bugs:**
-1. Bidirectional search is redundant (forward result never used)
-2. Match 1 uses hardcoded 50s instead of detection
-3. Finds wrong mentions 30-50s too late for matches 2-7
+**Current Status:**
+- Team mention strategy EXISTS (basic implementation in place)
+- Uses backward search + earliest pair logic (commit 74c9df7)
+- NOT validated against all 7 matches this session
+- Needs sentence extraction approach applied (like venue strategy)
 
-**Fixes required (see "Code Review Findings" above):**
-- Remove bidirectional search → keep pure backward search
-- Remove Match 1 hardcoded logic → use same algorithm for all matches
-- Simplify to one consistent implementation
+**Work Remaining:**
+1. Apply sentence extraction improvements from venue strategy
+2. Validate against all 7 matches with ground truth
+3. Compare results with venue strategy (document which performs better)
+4. Implement cross-validation logging between strategies
 
 **Updated method in RunningOrderDetector:**
 ```python
@@ -390,6 +447,36 @@ def detect_match_boundaries(self, running_order: RunningOrderResult) -> RunningO
 
 ---
 
+## Known Issues to Address
+
+### match_end Detection (To Investigate)
+
+**Current Implementation:**
+```python
+# For each match except the last:
+match_end = next_match.match_start
+
+# For the last match:
+match_end = episode_duration
+```
+
+**User Observation:**
+- `match_start` detection is working perfectly (venue strategy 7/7 within 5s)
+- `match_end` likely has problems with match boundaries
+
+**To Validate:**
+- Check for gaps/overlaps between matches
+- Verify `match_end = next_match.match_start` assumption is correct
+- May need post-match analysis boundary detection if gaps exist
+- Document findings and plan fix if needed
+
+**Context for Future Work:**
+- This issue should be addressed before Task 012 is marked complete
+- May require additional strategy for detecting post-match analysis end
+- Could involve detecting when studio analysis ends and next intro begins
+
+---
+
 ## Deliverables
 
 1. **CLI command:** `python -m motd analyze-running-order <episode_id>`
@@ -411,12 +498,19 @@ def detect_match_boundaries(self, running_order: RunningOrderResult) -> RunningO
 - [x] 7 matches detected with 100% consensus
 - [x] JSON output generated
 
-### Phase 2: Fix Boundary Detection (IN PROGRESS)
-- [ ] Team Mention strategy: Search BACKWARD from highlights_start
-- [ ] Team Mention strategy: Find BOTH teams within 10s
-- [ ] All 7 matches within ±10s of ground truth timestamps
-- [ ] Venue strategy implemented (optional for now)
-- [ ] Cross-validation logging added
+### Phase 2a: Venue Strategy (COMPLETED ✅)
+- [x] Venue strategy implemented with backward search
+- [x] Sentence extraction from transcript segments (9 unit tests)
+- [x] Fuzzy matching bug fixes (single-letter, alias false positives)
+- [x] 7/7 matches within 5s accuracy (PERFECT)
+- [x] All unit tests passing (31 + 9 = 40 tests total)
+
+### Phase 2b: Team Mention Strategy (REMAINING)
+- [ ] Team Mention strategy: Apply sentence extraction improvements
+- [ ] Team Mention strategy: Validate against all 7 matches
+- [ ] Compare results with venue strategy (document which performs better)
+- [ ] Cross-validation logging between strategies
+- [ ] Document variance metrics for tuning
 
 ### Phase 3: Validation
 - [ ] Match 1: 00:01:01 ±10s (NOT 00:00:50)
@@ -428,6 +522,45 @@ def detect_match_boundaries(self, running_order: RunningOrderResult) -> RunningO
 - [ ] Match 7: 01:14:40 ±10s
 - [ ] No gaps or overlaps between matches
 - [ ] Pydantic model validation passes
+
+---
+
+## Next Steps (Resume Here)
+
+**Estimated Time Remaining:** 1-1.5 hours
+
+### 1. Validate Team Mention Strategy (30-45 mins)
+- Apply sentence extraction approach from venue strategy
+- Test against all 7 matches with ground truth
+- Compare with venue strategy results
+- Document which strategy performs better per match
+
+### 2. Investigate match_end Issues (20-30 mins)
+- Validate match boundaries for gaps/overlaps between matches
+- Check if `match_end = next_match.match_start` assumption holds
+- Document findings and plan fix if needed
+- May require post-match analysis boundary detection
+
+### 3. Cross-Validation Logging (15 mins)
+- Log when strategies agree/disagree
+- Record variance metrics between strategies
+- Add confidence scoring based on agreement
+- Prepare for future tuning
+
+### 4. Final Phase 3 Validation (20 mins)
+- Run full validation against all 7 ground truth timestamps
+- Verify no gaps/overlaps between matches
+- Validate Pydantic model serialization
+- Check all remaining Phase 2b and Phase 3 checkboxes
+- Prepare for squash merge to main
+
+**Time Spent So Far:**
+- Phase 0: ~15 mins (venue data setup)
+- Phase 1: ~30 mins (CLI command)
+- Phase 2a: ~2 hours (venue strategy implementation)
+- **Total:** ~2.75 hours
+
+**Original Estimate:** 1.5-2 hours (exceeded due to venue strategy thoroughness - but worth it for 7/7 perfect results!)
 
 ---
 

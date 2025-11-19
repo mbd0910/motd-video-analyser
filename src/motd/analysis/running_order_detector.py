@@ -39,6 +39,16 @@ class RunningOrderDetector:
     Follows dependency injection pattern: Takes processed data, not file paths.
     """
 
+    # Venue strategy constants
+    MAX_VENUE_LOOKBACK_SECONDS = 20.0  # Maximum time before venue mention to search for team mentions
+
+    # Fuzzy matching constants
+    MIN_WORD_LENGTH_FOR_FUZZY_MATCH = 4  # Prevent single-letter false positives (e.g., "a" matching "Aston")
+    FUZZY_MATCH_THRESHOLD = 0.80  # Minimum confidence for fuzzy team name matching
+
+    # Transition phrases to skip when searching for team mentions
+    TRANSITION_PHRASES = {'ok.', 'thank you.', 'thank you very much.'}
+
     def __init__(
         self,
         ocr_results: list[dict[str, Any]],
@@ -261,9 +271,13 @@ class RunningOrderDetector:
                 segments=segments
             )
 
-            # For now: use team mention as match_start (existing behavior)
-            # Later we'll add cross-validation to choose between them
-            match_start = team_mention_timestamp
+            # Choose best strategy result:
+            # - Prefer venue (more accurate after backward search + team validation)
+            # - Fallback to team mention if venue not found
+            if venue_result and venue_result.get('timestamp'):
+                match_start = venue_result['timestamp']
+            else:
+                match_start = team_mention_timestamp
 
             # Create updated match with BOTH strategy results
             updated_match = match.model_copy(update={
@@ -358,6 +372,56 @@ class RunningOrderDetector:
         # Fallback: No valid team mentions found, assume 60s before highlights
         return max(search_start, highlights_start - 60.0)
 
+    def _extract_sentences_from_segments(
+        self, segments: list[dict]
+    ) -> list[dict[str, Any]]:
+        """
+        Extract sentences from transcript segments by combining segments
+        until we hit one ending with sentence-ending punctuation.
+
+        Args:
+            segments: List of transcript segments (ordered by timestamp)
+
+        Returns:
+            List of sentences with start timestamp and text
+            Each sentence dict contains:
+            - 'start': timestamp of first segment in sentence
+            - 'text': complete sentence text
+        """
+        if not segments:
+            return []
+
+        sentences = []
+        current_parts = []
+        current_start = None
+
+        for segment in segments:
+            text = segment.get('text', '').strip()
+            if not text:
+                continue
+
+            # Start new sentence if needed
+            if current_start is None:
+                current_start = segment.get('start', 0)
+
+            current_parts.append(text)
+
+            # Check if this segment ends with sentence-ending punctuation
+            if text.endswith('.') or text.endswith('!') or text.endswith('?'):
+                # Complete sentence
+                sentence_text = ' '.join(current_parts)
+                sentences.append({'start': current_start, 'text': sentence_text})
+                # Reset
+                current_parts = []
+                current_start = None
+
+        # Handle incomplete sentence at end
+        if current_parts:
+            sentence_text = ' '.join(current_parts)
+            sentences.append({'start': current_start, 'text': sentence_text})
+
+        return sentences
+
     def _detect_match_start_venue(
         self,
         teams: tuple[str, str],
@@ -409,17 +473,58 @@ class RunningOrderDetector:
                 })
 
         if venue_mentions:
-            # Choose EARLIEST mention (same logic as team mentions)
-            # This finds the actual intro, not later commentary
-            earliest = min(venue_mentions, key=lambda m: m['timestamp'])
-            return {
-                'timestamp': earliest['timestamp'],
-                'venue': earliest['venue'],
-                'confidence': earliest['confidence'],
-                'matched_text': earliest['matched_text'],
-                'source': earliest['source']
-            }
+            # For each venue mention, search backward through SENTENCES for team mentions
+            for venue_mention in sorted(venue_mentions, key=lambda m: m['timestamp']):
+                venue_timestamp = venue_mention['timestamp']
 
+                # Get segments before and including venue mention (8-10 segments for safety)
+                intro_segments = [
+                    s for s in relevant_segments
+                    if s.get('start', 0) <= venue_timestamp
+                ]
+                search_window = intro_segments[-10:] if len(intro_segments) >= 10 else intro_segments
+
+                # Extract sentences from these segments
+                sentences = self._extract_sentences_from_segments(search_window)
+
+                # Search backward through sentences to find ALL sentences containing team names
+                # within reasonable proximity of the venue mention
+                # Then return the EARLIEST one (minimum timestamp)
+                team_sentences = []
+
+                for sentence in reversed(sentences):
+                    text = sentence['text'].lower()
+                    sentence_time = sentence['start']
+
+                    # Only consider sentences within lookback window before venue mention
+                    if venue_timestamp - sentence_time > self.MAX_VENUE_LOOKBACK_SECONDS:
+                        continue
+
+                    # Skip pure transition sentences
+                    if text.strip().lower() in self.TRANSITION_PHRASES:
+                        continue
+
+                    # Check if sentence contains at least one team name
+                    has_team = (
+                        self._fuzzy_team_match(text, teams[0]) or
+                        self._fuzzy_team_match(text, teams[1])
+                    )
+
+                    if has_team:
+                        team_sentences.append(sentence)
+
+                # Return the earliest sentence containing a team name
+                if team_sentences:
+                    earliest = min(team_sentences, key=lambda s: s['start'])
+                    return {
+                        'timestamp': earliest['start'],
+                        'venue': venue_mention['venue'],
+                        'confidence': venue_mention['confidence'],
+                        'matched_text': venue_mention['matched_text'],
+                        'source': venue_mention['source']
+                    }
+
+        # No valid venue mention found (either no venue or no team validation)
         return None
 
     def _find_fixture_for_teams(self, teams: tuple[str, str]) -> Optional[dict]:
@@ -442,14 +547,15 @@ class RunningOrderDetector:
 
         return None
 
-    def _fuzzy_team_match(self, text: str, team_name: str, threshold: float = 0.80) -> bool:
+    def _fuzzy_team_match(self, text: str, team_name: str) -> bool:
         """
         Check if team name appears in text using fuzzy matching.
+
+        Uses class constant FUZZY_MATCH_THRESHOLD (0.80) for consistency.
 
         Args:
             text: Transcript text (lowercased)
             team_name: Team name to search for
-            threshold: Fuzzy match threshold (default 0.80)
 
         Returns:
             True if team name found in text
@@ -464,9 +570,13 @@ class RunningOrderDetector:
         # Fuzzy match against words in text
         words = text.split()
         for word in words:
+            # Skip very short words to avoid false positives (e.g., "a" matching "Aston")
+            if len(word) < self.MIN_WORD_LENGTH_FOR_FUZZY_MATCH:
+                continue
+
             # Try fuzzy matching
             score = fuzz.partial_ratio(team_lower, word) / 100.0
-            if score >= threshold:
+            if score >= self.FUZZY_MATCH_THRESHOLD:
                 return True
 
         # Handle common variations using team alternates from JSON
