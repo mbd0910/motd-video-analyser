@@ -345,6 +345,160 @@ tests/fixtures/
 
 ---
 
+## TDD for Pipeline Stage Features
+
+**Pattern**: RED → GREEN → REFACTOR
+
+**When to use**: Implementing new detection logic or algorithms in multi-stage pipelines (e.g., interlude detection, table review detection, match boundary detection).
+
+### Workflow Steps
+
+#### 1. RED Phase: Write Failing Tests
+
+Write **5+ tests** covering:
+- ✅ **Happy path** (real data from cached episodes)
+- ✅ **Validation edge cases** (insufficient signals, threshold boundaries)
+- ✅ **False positives** (keyword matches that should be rejected)
+- ✅ **Variations** (multiple valid phrasings/patterns)
+- ✅ **Integration** (method composition, end-to-end flow)
+
+**Expected outcome**: All new tests fail (method doesn't exist or returns None)
+
+```python
+# Example: RED phase for table review detection
+class TestTableReviewDetection:
+    def test_detect_table_review_match7_dual_signal(self, detector, transcript):
+        """Should detect table review at ~4977s with foreign team validation."""
+        result = detector._detect_table_review(...)  # ❌ AttributeError (method doesn't exist)
+        assert result is not None
+        assert 4975 <= result <= 4980
+
+    def test_table_review_insufficient_foreign_teams(self, detector):
+        """Should reject if <2 foreign teams mentioned after keyword."""
+        # Test implementation...
+
+    # ... 3 more tests
+```
+
+#### 2. GREEN Phase: Minimal Implementation
+
+- Implement **just enough code** to pass all tests
+- Don't optimize yet (focus on correctness)
+- Verify **100% test pass rate** (new + existing tests)
+
+**Expected outcome**: All tests pass (e.g., 57/57 if you added 5 tests to 52 existing)
+
+```python
+# Example: GREEN phase implementation
+def _detect_table_review(self, teams, highlights_end, episode_duration, segments, all_teams):
+    """Detect league table review using keyword + foreign team validation."""
+    # 1. Filter segments in post-match window
+    gap_segments = [s for s in segments if highlights_end <= s.get('start', 0) < episode_duration]
+
+    # 2. Extract sentences for keyword detection
+    sentences = self._extract_sentences_from_segments(gap_segments)
+
+    # 3. Search for table keyword
+    for sentence in sentences:
+        if "table" in sentence['text'].lower() and any(kw in sentence['text'].lower() for kw in ["look", "league"]):
+            keyword_timestamp = sentence['start']
+
+            # 4. Validate with foreign team mentions
+            foreign_teams = {team for seg in segments for team in all_teams if team not in teams and self._fuzzy_team_match(seg['text'], team)}
+
+            if len(foreign_teams) >= 2:
+                return keyword_timestamp  # ✅ Tests pass
+
+    return None
+```
+
+#### 3. REFACTOR Phase: Improve Code Quality
+
+- Extract magic numbers to constants
+- Remove duplication (DRY principle)
+- Improve naming/documentation
+- **Critical**: Re-run tests after each refactor to catch regressions
+
+**Expected outcome**: Same test pass rate (57/57), cleaner code
+
+```python
+# Example: REFACTOR phase improvements
+# - Extracted validation logic to separate section
+# - Added detailed comments
+# - Improved variable names (keyword_timestamp → table_keyword_timestamp)
+# Tests still pass: 57/57 ✅
+```
+
+---
+
+### Handling Test Failures
+
+**If tests fail during GREEN phase:**
+- ❌ **Don't modify tests** to match implementation (defeats purpose of TDD)
+- ✅ **Fix implementation** to match test expectations
+- ✅ **If test expectations are wrong**, restart RED phase with corrected tests
+
+**If tests fail during REFACTOR phase:**
+- ❌ **Don't commit refactor** (you broke functionality)
+- ✅ **Revert changes**, identify which refactor broke tests
+- ✅ **Fix refactor** or split into smaller steps
+
+---
+
+### Real Example: Task 012-02 (League Table Detection)
+
+**RED Phase** ([commit 919ee7d](https://github.com/.../commit/919ee7d)):
+```python
+# 5 tests written, all failing (method doesn't exist)
+def test_detect_table_review_match7_dual_signal(self, detector, transcript):
+    result = detector._detect_table_review(...)  # ❌ AttributeError
+    assert result is not None
+    assert 4970 <= result <= 4975
+
+# Run: pytest → 5 new failures, 52 existing pass
+# Status: ❌ 52/57 tests passing
+```
+
+**GREEN Phase** ([commit b2c7e7e](https://github.com/.../commit/b2c7e7e)):
+```python
+# Method implemented, all 57 tests passing
+def _detect_table_review(self, teams, highlights_end, episode_duration, segments, all_teams):
+    # Keyword detection logic...
+    # Foreign team validation logic...
+    return table_keyword_timestamp  # ✅ Tests pass
+
+# Run: pytest → All tests pass
+# Status: ✅ 57/57 tests passing
+```
+
+**REFACTOR Phase** ([commit 4fc786c](https://github.com/.../commit/4fc786c)):
+```python
+# Removed INTERLUDE_BUFFER_SECONDS constant (simplified)
+# Updated docstrings for clarity
+# Tests updated to match new expectations (still passing)
+
+# Run: pytest → All tests pass
+# Status: ✅ 57/57 tests passing (cleaner code, same functionality)
+```
+
+**Outcome**: 5 new tests added, 0 regressions, 100% pass rate maintained throughout.
+
+---
+
+### Benefits of TDD for Pipeline Features
+
+- ✅ **Prevents scope creep** (only implement what tests require)
+- ✅ **Documents behavior** (tests = specification)
+- ✅ **Catches regressions** (refactors can't break existing functionality)
+- ✅ **Builds confidence** (always working code, never stuck in broken state)
+- ✅ **Faster debugging** (failing test pinpoints exact issue)
+
+**See also**:
+- [Code Quality Checklist - Testing Section](code_quality_checklist.md#testing)
+- [Task 012-02 Phase 6](../../docs/tasks/012-classifier-integration/012-02-match-end-detection.md#phase-6-implementation-results-2025-11-20) (real TDD example)
+
+---
+
 ## Summary
 
 **Test priorities**:

@@ -621,6 +621,227 @@ for i in range(0, len(frame_paths), 10):
 
 ---
 
+## Sentence-Level Transcript Analysis
+
+**Problem**: Transcript segments from faster-whisper are arbitrary chunks (~5-10 seconds) that don't respect sentence boundaries.
+
+**When to use**: Keyword detection requiring precise timestamps (±0s accuracy vs ±segment_duration error).
+
+### Why Sentence Extraction Matters
+
+**Transcript segments are not sentences:**
+```python
+# Example: faster-whisper output (arbitrary 5s chunks)
+segments = [
+    {
+        'start': 100.0,
+        'end': 105.0,
+        'text': 'Great tackle by the defender. Now they',
+        'words': [...]
+    },
+    {
+        'start': 105.0,
+        'end': 110.0,
+        'text': 'counter attack quickly down the wing.',
+        'words': [...]
+    }
+]
+```
+
+**Problems with segment-level search:**
+1. ❌ **Timestamp imprecision**: Keyword at 103s gets segment timestamp (100s) → ±5s error
+2. ❌ **Split sentences**: "Now they counter attack" split across segments (harder to match)
+3. ❌ **No semantic boundaries**: Segments don't align with natural speech units
+
+### Pattern: Extract Sentences with Precise Timestamps
+
+**Conceptual approach:**
+1. Use word-level timestamps from faster-whisper (when available)
+2. Detect sentence boundaries (periods, question marks, exclamation points)
+3. Assign each sentence its **actual start time** (first word timestamp, not segment start)
+4. Search sentences as atomic units
+
+**Benefits:**
+- ✅ **Precision**: ±0s timestamp accuracy (sentence start, not segment start)
+- ✅ **Reliability**: Avoids mid-sentence keyword matches
+- ✅ **Natural units**: Sentences are semantic boundaries (better for keyword detection)
+
+**Trade-offs:**
+- ❌ **Overhead**: Additional processing step (extract sentences from segments)
+- ❌ **Complexity**: Requires word-level timestamp data from transcription
+- ❌ **Dependency**: Assumes transcription provides word timestamps (faster-whisper does, some APIs don't)
+
+### Implementation Strategies
+
+#### Strategy 1: Word-Level Timestamps (Recommended)
+
+If your transcription library provides word-level timestamps (faster-whisper does):
+
+```python
+def extract_sentences_from_segments(segments: list[dict]) -> list[dict]:
+    """
+    Extract sentences using word-level timestamps for precision.
+
+    Requires transcription with word_timestamps=True.
+    """
+    sentences = []
+
+    for segment in segments:
+        if 'words' not in segment or not segment['words']:
+            continue
+
+        words = segment['words']
+        current_sentence = []
+        sentence_start = words[0]['start']
+
+        for i, word_info in enumerate(words):
+            word = word_info['word'].strip()
+            current_sentence.append(word)
+
+            # Detect sentence boundary
+            is_last_word = (i == len(words) - 1)
+            ends_sentence = word.endswith(('.', '!', '?'))
+
+            if ends_sentence or is_last_word:
+                sentences.append({
+                    'text': ' '.join(current_sentence),
+                    'start': sentence_start  # ✅ Precise timestamp!
+                })
+
+                # Reset for next sentence
+                if i < len(words) - 1:
+                    current_sentence = []
+                    sentence_start = words[i + 1]['start']
+
+    return sentences
+```
+
+**Example output:**
+```python
+# Input: Segment (100s - 110s)
+# Output: Sentences with precise timestamps
+[
+    {'text': 'Great tackle by the defender.', 'start': 100.0},
+    {'text': 'Now they counter attack quickly down the wing.', 'start': 103.2}
+    #                                                                  ^^^^^^
+    #                                                         Precise timestamp!
+]
+```
+
+#### Strategy 2: Regex Splitting (Fallback)
+
+If word-level timestamps are unavailable, use regex (loses precision):
+
+```python
+import re
+
+def extract_sentences_simple(segments: list[dict]) -> list[dict]:
+    """
+    Extract sentences using regex (FALLBACK - loses timestamp precision).
+
+    ⚠️ All sentences inherit segment start timestamp (±segment_duration error).
+    """
+    sentences = []
+
+    for segment in segments:
+        text = segment.get('text', '')
+        segment_start = segment['start']
+
+        # Split on sentence boundaries
+        raw_sentences = re.split(r'[.!?]+', text)
+
+        for sentence in raw_sentences:
+            sentence = sentence.strip()
+            if sentence:
+                sentences.append({
+                    'text': sentence,
+                    'start': segment_start  # ⚠️ Segment start (not sentence start)
+                })
+
+    return sentences
+```
+
+**⚠️ Limitation**: All sentences get segment start timestamp (not precise).
+
+### Alternative: Configure Transcription for Sentence Output
+
+**Instead of post-processing**, some transcription services support sentence-level chunking:
+
+```python
+# ⚠️ faster-whisper doesn't support this natively
+# But some cloud APIs do (Whisper API, AssemblyAI, etc.)
+
+# Example (hypothetical):
+segments = model.transcribe(
+    "video.mp4",
+    chunk_strategy="sentence"  # If supported
+)
+
+# Would output sentences directly (no extraction needed)
+```
+
+**Check your transcription library** for sentence-level output options before implementing extraction.
+
+### Real-World Example: Task 012-02 (Interlude/Table Detection)
+
+**Use case**: Detect "Let's look at the table" keyword in transcript for precise match boundaries.
+
+**Without sentence extraction:**
+```python
+# ❌ Searching segments directly
+for segment in segments:
+    if "table" in segment['text'].lower():
+        return segment['start']  # ±5s error (segment start)
+```
+
+**With sentence extraction:**
+```python
+# ✅ Extract sentences first
+sentences = extract_sentences_from_segments(segments)
+
+# Search sentences (precise timestamps)
+for sentence in sentences:
+    text = sentence['text'].lower()
+    if "table" in text and any(kw in text for kw in ["look", "league", "quick"]):
+        return sentence['start']  # ±0s precision (sentence start)
+```
+
+**Result** (Episode 01, Match 7):
+- Segment start: 4974.00s
+- Sentence start: **4977.53s** (3.53s improvement)
+- Actual keyword: "OK, let's have a quick look at the table." (starts 4977.53s)
+- **Error reduced from ±5s to ±0s**
+
+**See also**: [running_order_detector.py:1246-1280](../../src/motd/analysis/running_order_detector.py#L1246-L1280)
+
+### When NOT to Use Sentence Extraction
+
+❌ **Skip sentence extraction if:**
+1. Timestamp precision doesn't matter (rough segmentation is fine)
+2. Transcription doesn't provide word-level timestamps
+3. Keywords span multiple sentences (need paragraph-level context)
+4. Performance overhead isn't justified (simple searches, small datasets)
+
+✅ **Use simpler segment-level search for:**
+- Rough timestamp matching (±5-10s acceptable)
+- Counting keyword occurrences (don't need precise timing)
+- Full-text search (finding content, not boundaries)
+
+### Summary
+
+**Pattern**: Extract sentences from transcript segments for precise keyword detection.
+
+**Key principle**: Transcript segments are arbitrary chunks. When you need precise boundaries (±0s), extract sentences with word-level timestamps.
+
+**Trade-off**: Precision vs complexity (sentence extraction adds overhead).
+
+**Decision guide**:
+- Need ±0s precision → Extract sentences
+- ±5s acceptable → Use segments directly
+- No word timestamps → Consider alternative transcription service or accept segment-level precision
+
+---
+
 ## Summary
 
 **Critical patterns**:

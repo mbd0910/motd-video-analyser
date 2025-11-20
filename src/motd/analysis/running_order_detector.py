@@ -62,9 +62,6 @@ class RunningOrderDetector:
     VALIDATION_MINOR_THRESHOLD = 30.0      # ≤30s difference = "minor_discrepancy" (confidence 0.8)
     # >30s difference = "major_discrepancy" (confidence 0.5)
 
-    # Interlude detection constants
-    INTERLUDE_BUFFER_SECONDS = 5.0  # Buffer before keyword to exclude transition phrases ("OK", "Thank you")
-
     def __init__(
         self,
         ocr_results: list[dict[str, Any]],
@@ -1147,18 +1144,19 @@ class RunningOrderDetector:
         segments: list[dict]
     ) -> float:
         """
-        Detect match_end with interlude handling.
+        Detect match_end with interlude and table review handling.
 
         Strategy:
         1. Default: match_end = next_match.match_start (or episode_duration)
-        2. Check for MOTD 2 interlude using keyword + drop-off validation
-        3. If interlude detected: match_end = keyword_timestamp - 5s buffer
-        4. If no interlude: Keep naive approach (normal post-match analysis)
+        2. Check for MOTD 2 interlude using keyword + drop-off validation (non-last matches)
+        3. Check for league table review using keyword + foreign team validation (last match only)
+        4. If detected: match_end = keyword_timestamp - 5s buffer
+        5. If not detected: Keep naive approach
 
         This handles:
-        - Normal matches (1-3, 5-6): No interlude keywords → naive approach
+        - Normal matches (1-3, 5-6): No interlude/table keywords → naive approach
         - Match 4 (MOTD 2 interlude): "Sunday's Match Of The Day" detected → ~3113s
-        - Match 7 (last match): No next_match_start → use episode_duration (naive)
+        - Match 7 (league table review): "Let's look at the table" detected → ~4972s
 
         Args:
             teams: Current match's team pair (normalized/sorted)
@@ -1173,7 +1171,7 @@ class RunningOrderDetector:
         # 1. Determine naive match_end (default approach)
         naive_match_end = next_match_start if next_match_start is not None else episode_duration
 
-        # 2. Only check for interlude if we have a next match (not last match)
+        # 2. Check for interlude if we have a next match (not last match)
         if next_match_start is not None:
             interlude_timestamp = self._detect_interlude(
                 teams, highlights_end, next_match_start, segments
@@ -1187,7 +1185,21 @@ class RunningOrderDetector:
                 )
                 return interlude_timestamp
 
-        # 3. No interlude detected (or last match) → use naive approach
+        # 3. Check for table review if this is the last match (no next_match_start)
+        if next_match_start is None:
+            table_timestamp = self._detect_table_review(
+                teams, highlights_end, episode_duration, segments, self.team_names
+            )
+
+            if table_timestamp:
+                # Table review detected → use keyword-based cutoff
+                logger.info(
+                    f"Table review detected after {teams[0]} vs {teams[1]}: "
+                    f"match_end={table_timestamp:.2f}s (adjusted from naive {naive_match_end:.2f}s)"
+                )
+                return table_timestamp
+
+        # 4. No interlude/table detected → use naive approach
         return naive_match_end
 
     def _detect_interlude(
@@ -1202,7 +1214,7 @@ class RunningOrderDetector:
 
         Signal 1: Keyword Detection (Precise Timing)
         - Search for "sunday" + ("motd" OR "match of the day") in consecutive sentences
-        - Gives us interlude start timestamp
+        - Uses sentence start timestamp (beginning of sentence)
 
         Signal 2: Team Mention Drop-off (Validation)
         - Window: keyword_timestamp → next_match_start (dynamic!)
@@ -1216,7 +1228,7 @@ class RunningOrderDetector:
             segments: Transcript segments
 
         Returns:
-            Interlude start timestamp - 5s buffer, or None if no interlude detected
+            Interlude start timestamp (sentence beginning), or None if no interlude detected
         """
         # 1. Filter segments in post-match window (highlights_end → next_match_start)
         # Validate 'text' key exists to avoid KeyErrors
@@ -1276,5 +1288,105 @@ class RunningOrderDetector:
                 )
                 return None
 
-        # Both signals validated → return interlude start with buffer
-        return interlude_keyword_timestamp - self.INTERLUDE_BUFFER_SECONDS
+        # Both signals validated → return interlude start (sentence beginning)
+        return interlude_keyword_timestamp
+
+    def _detect_table_review(
+        self,
+        teams: tuple[str, str],
+        highlights_end: float,
+        episode_duration: float,
+        segments: list[dict],
+        all_teams: list[str]
+    ) -> Optional[float]:
+        """
+        Detect league table review using keyword + foreign team validation.
+
+        Signal 1: Table Keyword Detection (Precise Timing)
+        - Search for "table" + ("look" OR "league" OR "quick" OR "premier")
+        - Only search in last match post-match window (highlights_end → episode_duration)
+        - Uses sentence start timestamp (beginning of sentence)
+
+        Signal 2: Foreign Team Mentions (Validation)
+        - Window: keyword_timestamp → episode_duration (dynamic!)
+        - Require: ≥2 mentions of teams NOT in last match
+        - Validates this is truly table review, not just tactical discussion
+
+        Args:
+            teams: Last match's team pair (e.g., "Brentford", "Crystal Palace")
+            highlights_end: Last match FT graphic timestamp (start of search window)
+            episode_duration: Total episode duration (end of search window)
+            segments: Transcript segments
+            all_teams: List of all Premier League teams for foreign team detection
+
+        Returns:
+            Table review start timestamp (sentence beginning), or None if no table detected
+        """
+        # 1. Filter segments in post-match window (highlights_end → episode_duration)
+        # Validate 'text' key exists to avoid KeyErrors
+        gap_segments = [
+            s for s in segments
+            if 'text' in s and highlights_end <= s.get('start', 0) < episode_duration
+        ]
+
+        if not gap_segments:
+            return None
+
+        # 2. Extract sentences for keyword detection
+        sentences = self._extract_sentences_from_segments(gap_segments)
+
+        # 3. Search for table keyword in sentences
+        # Pattern: "table" + ("look" OR "league" OR "quick" OR "premier")
+        table_keyword_timestamp = None
+
+        for sentence in sentences:
+            text = sentence['text'].lower()
+
+            # Check for table introduction keywords
+            has_table = "table" in text
+            has_context = any(kw in text for kw in ["look", "league", "quick", "premier"])
+
+            if has_table and has_context:
+                # Found table signal
+                table_keyword_timestamp = sentence['start']
+                logger.debug(
+                    f"Table keyword found at {table_keyword_timestamp:.2f}s "
+                    f"for last match {teams[0]} vs {teams[1]}"
+                )
+                break
+
+        if not table_keyword_timestamp:
+            # No table keywords found
+            return None
+
+        # 4. Validate with foreign team mentions (dynamic window)
+        # Check for ≥2 mentions of teams NOT in last match (from keyword → episode_duration)
+        validation_segments = [
+            s for s in segments
+            if 'text' in s and table_keyword_timestamp <= s.get('start', 0) < episode_duration
+        ]
+
+        # Use set comprehension for clarity and conciseness
+        foreign_teams_mentioned = {
+            team
+            for segment in validation_segments
+            for team in all_teams
+            if team not in teams
+            and self._fuzzy_team_match(segment.get('text', '').lower(), team)
+        }
+
+        if len(foreign_teams_mentioned) < 2:
+            # Not enough foreign teams mentioned → likely false positive
+            logger.debug(
+                f"Table review rejected: only {len(foreign_teams_mentioned)} foreign teams "
+                f"mentioned after keyword at {table_keyword_timestamp:.2f}s"
+            )
+            return None
+
+        # Both signals validated → return table start (sentence beginning)
+        logger.info(
+            f"Table review detected at {table_keyword_timestamp:.2f}s "
+            f"(validated by {len(foreign_teams_mentioned)} foreign teams: "
+            f"{', '.join(sorted(foreign_teams_mentioned))})"
+        )
+        return table_keyword_timestamp

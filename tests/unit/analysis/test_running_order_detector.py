@@ -305,11 +305,11 @@ class TestMatchBoundaryDetection:
             next_match = result.matches[i + 1]
 
             # Match 4 has an interlude (MOTD 2) after it
-            # Match 4 ends at ~3113s, Match 5 starts at ~3169s (56s gap)
+            # Match 4 ends at ~3118s (interlude), Match 5 starts at ~3169s (51s gap)
             if i == 3:  # Match 4 (0-indexed)
                 gap = next_match.match_start - current.match_end
-                assert 50 <= gap <= 60, \
-                    f"Match 4 interlude gap should be 50-60s, got {gap}s"
+                assert 48 <= gap <= 54, \
+                    f"Match 4 interlude gap should be 48-54s, got {gap}s"
             else:
                 # All other matches: no gaps
                 assert current.match_end == next_match.match_start, \
@@ -327,15 +327,21 @@ class TestMatchBoundaryDetection:
             f"First match should start 0-120s, got {first_match.match_start}s"
 
     def test_last_match_end_is_episode_duration(self, detector):
-        """Last match should end at episode duration."""
+        """Last match should end before episode duration (excludes table review)."""
         base_result = detector.detect_running_order()
         result = detector.detect_match_boundaries(base_result)
 
         last_match = result.matches[-1]
         episode_duration = detector.transcript.get('duration', 0)
 
-        assert last_match.match_end == episode_duration, \
-            f"Last match should end at episode duration ({episode_duration}s), got {last_match.match_end}s"
+        # With table detection: Match 7 ends ~4977s (table keyword at sentence start)
+        # Without table detection: Match 7 ends at episode_duration (5039s)
+        assert last_match.match_end < episode_duration, \
+            f"Last match should end before episode duration ({episode_duration}s), got {last_match.match_end}s"
+
+        # Specific validation for Episode 01: table detected at ~4977s
+        assert 4975 <= last_match.match_end <= 4980, \
+            f"Expected Match 7 to end ~4977s (table review excluded), got {last_match.match_end}s"
 
     def test_intro_duration_reasonable(self, detector):
         """Intro duration (match_start to highlights_start) should be 3-180s."""
@@ -999,9 +1005,9 @@ class TestInterludeDetection:
 
         result = detector._detect_interlude(teams, highlights_end, next_match_start, segments)
 
-        # Expected: keyword at 3118s - 5s buffer = 3113s
+        # Expected: keyword at 3118s (sentence start, no buffer)
         assert result is not None, "Should detect interlude"
-        assert 3110 <= result <= 3116, f"Expected ~3113s, got {result}"
+        assert 3116 <= result <= 3120, f"Expected ~3118s, got {result}"
 
     def test_no_interlude_normal_matches(self, detector, transcript):
         """Matches 1-3, 5-6: Should NOT detect interlude (no keywords)."""
@@ -1027,7 +1033,7 @@ class TestInterludeDetection:
         result = detector._detect_interlude(teams, 2881.0, 3169.0, segments)
 
         assert result is not None, "Should detect keyword in consecutive sentences"
-        assert 3113 <= result <= 3116
+        assert 3116 <= result <= 3120
 
     def test_interlude_false_positive_teams_mentioned(self, detector):
         """Should reject interlude if teams mentioned in drop-off window."""
@@ -1053,8 +1059,8 @@ class TestInterludeDetection:
             teams, highlights_end, next_match_start, episode_duration, segments
         )
 
-        # Should return interlude start (3113s), not naive (3169s)
-        assert 3110 <= result <= 3116, f"Expected ~3113s interlude cutoff, got {result}"
+        # Should return interlude start (3118s), not naive (3169s)
+        assert 3116 <= result <= 3120, f"Expected ~3118s interlude cutoff, got {result}"
 
     def test_match_end_naive_when_no_interlude(self, detector, transcript):
         """_detect_match_end should use naive approach when no interlude."""
@@ -1070,3 +1076,109 @@ class TestInterludeDetection:
 
         # Should return naive approach (next match start)
         assert result == 866.0, f"Expected naive 866s, got {result}"
+
+
+class TestTableReviewDetection:
+    """Test league table review detection using keyword + foreign team validation."""
+
+    def test_detect_table_review_match7_dual_signal(self, detector, transcript):
+        """Match 7: Should detect table review at ~4977s with foreign team validation."""
+        teams = ('Brentford', 'Crystal Palace')
+        highlights_end = 4841.0  # Match 7 FT graphic
+        episode_duration = 5039.0
+        segments = transcript['segments']
+
+        # All 20 Premier League teams (2025/26)
+        all_teams = [
+            'Arsenal', 'Liverpool', 'Manchester United', 'Chelsea', 'Tottenham Hotspur',
+            'Manchester City', 'Newcastle United', 'Brighton & Hove Albion', 'Aston Villa',
+            'Wolverhampton Wanderers', 'Fulham', 'Brentford', 'Crystal Palace', 'Everton',
+            'Nottingham Forest', 'West Ham United', 'Bournemouth', 'Burnley', 'Leeds United',
+            'Sunderland'
+        ]
+
+        result = detector._detect_table_review(
+            teams, highlights_end, episode_duration, segments, all_teams
+        )
+
+        # Expected: keyword at 4977.53s (sentence start, no buffer)
+        assert result is not None, "Should detect table review"
+        assert 4975 <= result <= 4980, f"Expected ~4977s, got {result}"
+
+    def test_table_review_insufficient_foreign_teams(self, detector):
+        """Should reject if <2 foreign teams mentioned after keyword."""
+        teams = ('Brentford', 'Crystal Palace')
+        segments = [
+            {'start': 4977.0, 'text': "Let's look at the table."},
+            {'start': 4980.0, 'text': "Arsenal are top."},  # Only 1 foreign team
+            {'start': 4985.0, 'text': "Great performance today."},
+        ]
+        all_teams = ['Arsenal', 'Liverpool', 'Manchester United', 'Chelsea']
+
+        result = detector._detect_table_review(teams, 4841.0, 5039.0, segments, all_teams)
+
+        assert result is None, "Should reject: <2 foreign teams mentioned"
+
+    def test_table_keyword_before_validation_window(self, detector):
+        """Foreign teams mentioned BEFORE keyword should be ignored."""
+        teams = ('Brentford', 'Crystal Palace')
+        segments = [
+            {'start': 4973.0, 'text': "Liverpool were knocked out."},  # Pre-keyword (ignored)
+            {'start': 4977.0, 'text': "Let's look at the table."},  # Keyword
+            {'start': 4980.0, 'text': "Arsenal are top."},  # Post-keyword (only 1!)
+        ]
+        all_teams = ['Arsenal', 'Liverpool', 'Manchester United', 'Chelsea']
+
+        result = detector._detect_table_review(teams, 4841.0, 5039.0, segments, all_teams)
+
+        # Liverpool at 4973s should be ignored (before keyword at 4977s)
+        # Only Arsenal counts → <2 foreign teams → None
+        assert result is None, "Liverpool at 4973s should be ignored (pre-keyword)"
+
+    def test_table_keyword_variations(self, detector):
+        """Should detect table with various keyword phrasings."""
+        teams = ('Brentford', 'Crystal Palace')
+        all_teams = ['Arsenal', 'Liverpool', 'Manchester United', 'Chelsea']
+
+        # Test variation 1: "quick look at the table"
+        segments1 = [
+            {'start': 4977.0, 'text': "Let's have a quick look at the table."},
+            {'start': 4980.0, 'text': "Arsenal are top."},
+            {'start': 4985.0, 'text': "Liverpool in second."},
+        ]
+        result1 = detector._detect_table_review(teams, 4841.0, 5039.0, segments1, all_teams)
+        assert result1 is not None, "Should detect 'quick look at table'"
+
+        # Test variation 2: "Premier League table"
+        segments2 = [
+            {'start': 4977.0, 'text': "The Premier League table shows..."},
+            {'start': 4980.0, 'text': "Arsenal are top."},
+            {'start': 4985.0, 'text': "Chelsea in third."},
+        ]
+        result2 = detector._detect_table_review(teams, 4841.0, 5039.0, segments2, all_teams)
+        assert result2 is not None, "Should detect 'Premier League table'"
+
+        # Test variation 3: "league table" without context
+        segments3 = [
+            {'start': 4977.0, 'text': "A look at the league."},  # Missing "table"
+            {'start': 4980.0, 'text': "Arsenal are top."},
+            {'start': 4985.0, 'text': "Liverpool in second."},
+        ]
+        result3 = detector._detect_table_review(teams, 4841.0, 5039.0, segments3, all_teams)
+        assert result3 is None, "Should NOT detect without 'table' keyword"
+
+    def test_match_end_uses_table_detection_last_match(self, detector, transcript):
+        """_detect_match_end should use table detection for last match (Match 7)."""
+        teams = ('Brentford', 'Crystal Palace')
+        highlights_end = 4841.0
+        next_match_start = None  # Last match indicator
+        episode_duration = 5039.0
+        segments = transcript['segments']
+
+        result = detector._detect_match_end(
+            teams, highlights_end, next_match_start, episode_duration, segments
+        )
+
+        # Should return table cutoff (~4977s), not naive (5039s)
+        assert result < 5000, f"Expected table cutoff <5000s, got {result}"
+        assert 4975 <= result <= 4980, f"Expected ~4977s table cutoff, got {result}"
