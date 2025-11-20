@@ -101,6 +101,10 @@ def display_running_order_results(
         click.echo(f"    Highlights:  {highlights_start_str} → {highlights_end_str} ({highlights_duration:.0f}s)")
         click.echo(f"    Post-match:  {highlights_end_str} → {match_end_str} ({postmatch_duration:.0f}s)")
         click.echo(f"    Total:       {match_start_str} → {match_end_str} ({total_duration:.0f}s)")
+
+        # Display gap analysis (Phase 1: Task 012-02)
+        _display_gap_analysis(match, i, result.matches)
+
         click.echo()
 
     return venue_diffs, clustering_diffs
@@ -128,6 +132,39 @@ def _display_validation_status(match: MatchBoundary) -> None:
     elif val.status == 'clustering_failed':
         # Clustering didn't detect - lower confidence but acceptable
         click.echo(f"    Validation:        ⓘ venue only (clustering failed, confidence {val.confidence})")
+
+
+def _display_gap_analysis(match: MatchBoundary, match_number: int, all_matches: list[MatchBoundary]) -> None:
+    """
+    Display gap analysis between current match's highlights_end and next match's match_start.
+
+    Part of Task 012-02: Helps identify where interludes/long analysis periods occur.
+
+    Args:
+        match: Current match boundary
+        match_number: Match position (1-7)
+        all_matches: All matches in running order
+    """
+    # For all matches except the last, show the gap to next match
+    if match_number < len(all_matches):
+        next_match = all_matches[match_number]  # match_number is 1-indexed
+        gap_seconds = next_match.match_start - match.highlights_end
+        gap_mm = int(gap_seconds // 60)
+        gap_ss = int(gap_seconds % 60)
+
+        # Flag if gap is suspiciously long (>120s = 2 minutes)
+        # Typical post-match analysis: 30-90s
+        # Long gap suggests interlude or extended analysis
+        if gap_seconds > 120:
+            flag = click.style(" ⚠️ LONG GAP (potential interlude)", fg='yellow', bold=True)
+        else:
+            flag = ""
+
+        click.echo(f"\n  Gap Analysis:")
+        click.echo(f"    highlights_end → next match_start: {gap_mm:02d}:{gap_ss:02d} ({gap_seconds:.0f}s){flag}")
+
+        if gap_seconds > 120:
+            click.echo(click.style(f"    → Gap includes post-match analysis + potential interlude/review", fg='yellow', dim=True))
 
 
 def display_validation_summary(

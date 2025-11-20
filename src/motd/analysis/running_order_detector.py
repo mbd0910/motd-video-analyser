@@ -15,9 +15,12 @@ from typing import Any, TypedDict, Optional
 from rapidfuzz import fuzz
 from pathlib import Path
 import json
+import logging
 
 from motd.pipeline.models import MatchBoundary, RunningOrderResult
 from motd.analysis.venue_matcher import VenueMatcher
+
+logger = logging.getLogger(__name__)
 
 
 class TeamData(TypedDict, total=False):
@@ -58,6 +61,9 @@ class RunningOrderDetector:
     VALIDATION_PERFECT_THRESHOLD = 10.0    # ≤10s difference = "validated" (confidence 1.0)
     VALIDATION_MINOR_THRESHOLD = 30.0      # ≤30s difference = "minor_discrepancy" (confidence 0.8)
     # >30s difference = "major_discrepancy" (confidence 0.5)
+
+    # Interlude detection constants
+    INTERLUDE_BUFFER_SECONDS = 5.0  # Buffer before keyword to exclude transition phrases ("OK", "Thank you")
 
     def __init__(
         self,
@@ -323,16 +329,22 @@ class RunningOrderDetector:
             })
             updated_matches.append(updated_match)
 
-        # Second pass: Set match_end = next match's match_start
+        # Second pass: Detect match_end using team mention gap analysis
         for i, match in enumerate(updated_matches):
-            if i < len(updated_matches) - 1:
-                # match_end = next match's match_start (no gaps)
-                match_end = updated_matches[i + 1].match_start
-            else:
-                # Last match: match_end = episode duration
-                match_end = episode_duration
+            # Determine next match's start (None for last match)
+            next_match_start = updated_matches[i + 1].match_start if i < len(updated_matches) - 1 else None
 
-            # Update match with match_end
+            # Detect match_end using backward search for team mentions
+            # Only adjusts if teams stop being mentioned >30s before next match
+            match_end = self._detect_match_end(
+                teams=match.teams,
+                highlights_end=match.highlights_end,
+                next_match_start=next_match_start,
+                episode_duration=episode_duration,
+                segments=segments
+            )
+
+            # Update match with detected match_end
             updated_matches[i] = match.model_copy(update={'match_end': match_end})
 
         # Return updated result
@@ -1125,3 +1137,144 @@ class RunningOrderDetector:
             agreement=agreement,
             confidence=confidence
         )
+
+    def _detect_match_end(
+        self,
+        teams: tuple[str, str],
+        highlights_end: float,
+        next_match_start: float | None,
+        episode_duration: float,
+        segments: list[dict]
+    ) -> float:
+        """
+        Detect match_end with interlude handling.
+
+        Strategy:
+        1. Default: match_end = next_match.match_start (or episode_duration)
+        2. Check for MOTD 2 interlude using keyword + drop-off validation
+        3. If interlude detected: match_end = keyword_timestamp - 5s buffer
+        4. If no interlude: Keep naive approach (normal post-match analysis)
+
+        This handles:
+        - Normal matches (1-3, 5-6): No interlude keywords → naive approach
+        - Match 4 (MOTD 2 interlude): "Sunday's Match Of The Day" detected → ~3113s
+        - Match 7 (last match): No next_match_start → use episode_duration (naive)
+
+        Args:
+            teams: Current match's team pair (normalized/sorted)
+            highlights_end: FT graphic timestamp (start of search window)
+            next_match_start: Next match's intro timestamp (None for last match)
+            episode_duration: Total episode duration (fallback for last match)
+            segments: Transcript segments
+
+        Returns:
+            match_end timestamp (seconds)
+        """
+        # 1. Determine naive match_end (default approach)
+        naive_match_end = next_match_start if next_match_start is not None else episode_duration
+
+        # 2. Only check for interlude if we have a next match (not last match)
+        if next_match_start is not None:
+            interlude_timestamp = self._detect_interlude(
+                teams, highlights_end, next_match_start, segments
+            )
+
+            if interlude_timestamp:
+                # Interlude detected → use keyword-based cutoff
+                logger.info(
+                    f"Interlude detected after {teams[0]} vs {teams[1]}: "
+                    f"match_end={interlude_timestamp:.2f}s (adjusted from naive {naive_match_end:.2f}s)"
+                )
+                return interlude_timestamp
+
+        # 3. No interlude detected (or last match) → use naive approach
+        return naive_match_end
+
+    def _detect_interlude(
+        self,
+        teams: tuple[str, str],
+        highlights_end: float,
+        next_match_start: float,
+        segments: list[dict]
+    ) -> Optional[float]:
+        """
+        Detect MOTD 2 interlude using keyword + drop-off validation.
+
+        Signal 1: Keyword Detection (Precise Timing)
+        - Search for "sunday" + ("motd" OR "match of the day") in consecutive sentences
+        - Gives us interlude start timestamp
+
+        Signal 2: Team Mention Drop-off (Validation)
+        - Window: keyword_timestamp → next_match_start (dynamic!)
+        - Require: Zero mentions of BOTH teams from previous match
+        - Validates this is truly an interlude, not just commentary reference
+
+        Args:
+            teams: Team pair from previous match (e.g., "Fulham", "Wolverhampton Wanderers")
+            highlights_end: FT graphic timestamp (start of search window)
+            next_match_start: Next match intro timestamp (end of drop-off window)
+            segments: Transcript segments
+
+        Returns:
+            Interlude start timestamp - 5s buffer, or None if no interlude detected
+        """
+        # 1. Filter segments in post-match window (highlights_end → next_match_start)
+        # Validate 'text' key exists to avoid KeyErrors
+        gap_segments = [
+            s for s in segments
+            if 'text' in s and highlights_end <= s.get('start', 0) < next_match_start
+        ]
+
+        if not gap_segments:
+            return None
+
+        # 2. Extract sentences for keyword detection
+        sentences = self._extract_sentences_from_segments(gap_segments)
+
+        # 3. Search for interlude keyword in consecutive sentences
+        # Pattern: "sunday" + ("motd" OR "match of the day") in same/consecutive sentences
+        interlude_keyword_timestamp = None
+
+        for i, sentence in enumerate(sentences):
+            text_current = sentence['text'].lower()
+
+            # Check previous sentence too (handles split across sentences)
+            text_prev = sentences[i-1]['text'].lower() if i > 0 else ""
+            text_combined = text_prev + " " + text_current
+
+            has_sunday = "sunday" in text_combined
+            has_motd = ("motd" in text_combined or "match of the day" in text_combined)
+
+            if has_sunday and has_motd:
+                # Found interlude signal
+                interlude_keyword_timestamp = sentence['start']
+                logger.debug(
+                    f"Interlude keyword found at {interlude_keyword_timestamp:.2f}s "
+                    f"for {teams[0]} vs {teams[1]}"
+                )
+                break
+
+        if not interlude_keyword_timestamp:
+            # No interlude keywords found
+            return None
+
+        # 4. Validate with team mention drop-off (dynamic window)
+        # Check for zero team mentions from keyword → next_match_start
+        dropoff_segments = [
+            s for s in segments
+            if 'text' in s and interlude_keyword_timestamp <= s.get('start', 0) < next_match_start
+        ]
+
+        for segment in dropoff_segments:
+            text = segment.get('text', '').lower()
+            if (self._fuzzy_team_match(text, teams[0]) or
+                self._fuzzy_team_match(text, teams[1])):
+                # Team mentioned during supposed interlude → false positive
+                logger.debug(
+                    f"Interlude rejected: team mentioned at {segment.get('start', 0):.2f}s "
+                    f"during supposed interlude for {teams[0]} vs {teams[1]}"
+                )
+                return None
+
+        # Both signals validated → return interlude start with buffer
+        return interlude_keyword_timestamp - self.INTERLUDE_BUFFER_SECONDS

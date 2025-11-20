@@ -296,7 +296,7 @@ class TestMatchBoundaryDetection:
                 f"Match {i}: highlights_end ({match.highlights_end}s) should be before match_end ({match.match_end}s)"
 
     def test_match_end_equals_next_match_start(self, detector):
-        """Each match_end should equal the next match's match_start (no gaps)."""
+        """Each match_end should equal the next match's match_start (no gaps), except for interludes."""
         base_result = detector.detect_running_order()
         result = detector.detect_match_boundaries(base_result)
 
@@ -304,8 +304,16 @@ class TestMatchBoundaryDetection:
             current = result.matches[i]
             next_match = result.matches[i + 1]
 
-            assert current.match_end == next_match.match_start, \
-                f"Match {i+1} end ({current.match_end}s) should equal Match {i+2} start ({next_match.match_start}s)"
+            # Match 4 has an interlude (MOTD 2) after it
+            # Match 4 ends at ~3113s, Match 5 starts at ~3169s (56s gap)
+            if i == 3:  # Match 4 (0-indexed)
+                gap = next_match.match_start - current.match_end
+                assert 50 <= gap <= 60, \
+                    f"Match 4 interlude gap should be 50-60s, got {gap}s"
+            else:
+                # All other matches: no gaps
+                assert current.match_end == next_match.match_start, \
+                    f"Match {i+1} end ({current.match_end}s) should equal Match {i+2} start ({next_match.match_start}s)"
 
     def test_first_match_start_reasonable(self, detector):
         """First match should start near episode beginning (after intro ~50s)."""
@@ -977,3 +985,88 @@ class TestBoundaryValidation:
             
             # Confidence should match validation confidence
             assert match.confidence == match.validation.confidence
+
+
+class TestInterludeDetection:
+    """Test interlude detection using keyword + drop-off validation."""
+
+    def test_detect_interlude_match4_motd2(self, detector, transcript):
+        """Match 4 (Fulham vs Wolves): Should detect MOTD 2 interlude at ~3118s."""
+        teams = ('Fulham', 'Wolverhampton Wanderers')
+        highlights_end = 2881.0  # FT graphic timestamp (from task doc)
+        next_match_start = 3169.0  # Match 5 start
+        segments = transcript['segments']
+
+        result = detector._detect_interlude(teams, highlights_end, next_match_start, segments)
+
+        # Expected: keyword at 3118s - 5s buffer = 3113s
+        assert result is not None, "Should detect interlude"
+        assert 3110 <= result <= 3116, f"Expected ~3113s, got {result}"
+
+    def test_no_interlude_normal_matches(self, detector, transcript):
+        """Matches 1-3, 5-6: Should NOT detect interlude (no keywords)."""
+        # Test Match 1 (Liverpool vs Villa)
+        teams = ('Aston Villa', 'Liverpool')
+        highlights_end = 607.0
+        next_match_start = 866.0
+        segments = transcript['segments']
+
+        result = detector._detect_interlude(teams, highlights_end, next_match_start, segments)
+        assert result is None, "Match 1 should have no interlude"
+
+    def test_interlude_keyword_in_consecutive_sentences(self, detector):
+        """Should detect keyword split across consecutive sentences."""
+        teams = ('Fulham', 'Wolverhampton Wanderers')
+        segments = [
+            {'start': 3000.0, 'text': 'Great analysis there.'},
+            {'start': 3118.0, 'text': "Two games on Sunday's"},
+            {'start': 3119.0, 'text': 'Match Of The Day.'},
+            {'start': 3123.0, 'text': "That's an absolutely stunning goal!"},
+        ]
+
+        result = detector._detect_interlude(teams, 2881.0, 3169.0, segments)
+
+        assert result is not None, "Should detect keyword in consecutive sentences"
+        assert 3113 <= result <= 3116
+
+    def test_interlude_false_positive_teams_mentioned(self, detector):
+        """Should reject interlude if teams mentioned in drop-off window."""
+        teams = ('Fulham', 'Wolverhampton Wanderers')
+        segments = [
+            {'start': 3118.0, 'text': "Sunday's Match Of The Day."},
+            {'start': 3130.0, 'text': "Fulham were brilliant today."},  # Team mention!
+        ]
+
+        result = detector._detect_interlude(teams, 2881.0, 3169.0, segments)
+
+        assert result is None, "Should reject: team mentioned during supposed interlude"
+
+    def test_match_end_uses_interlude_detection(self, detector, transcript):
+        """_detect_match_end should use interlude detection for Match 4."""
+        teams = ('Fulham', 'Wolverhampton Wanderers')
+        highlights_end = 2881.0
+        next_match_start = 3169.0
+        episode_duration = 5039.0
+        segments = transcript['segments']
+
+        result = detector._detect_match_end(
+            teams, highlights_end, next_match_start, episode_duration, segments
+        )
+
+        # Should return interlude start (3113s), not naive (3169s)
+        assert 3110 <= result <= 3116, f"Expected ~3113s interlude cutoff, got {result}"
+
+    def test_match_end_naive_when_no_interlude(self, detector, transcript):
+        """_detect_match_end should use naive approach when no interlude."""
+        teams = ('Aston Villa', 'Liverpool')
+        highlights_end = 607.0
+        next_match_start = 866.0
+        episode_duration = 5039.0
+        segments = transcript['segments']
+
+        result = detector._detect_match_end(
+            teams, highlights_end, next_match_start, episode_duration, segments
+        )
+
+        # Should return naive approach (next match start)
+        assert result == 866.0, f"Expected naive 866s, got {result}"
