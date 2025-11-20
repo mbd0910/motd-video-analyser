@@ -170,11 +170,13 @@ For detailed comparisons of alternatives, see [tech-tradeoffs.md](tech-tradeoffs
 | Component | Library | Rationale |
 |-----------|---------|-----------|
 | **Scene Detection** | PySceneDetect | Purpose-built for scene transitions, handles fades/dissolves |
-| **OCR** | EasyOCR | Better accuracy on stylized sports graphics, GPU support |
-| **Transcription** | Whisper (local, large-v3) | State-of-the-art accuracy, runs well on M3 Pro |
+| **OCR** | EasyOCR | Better accuracy on stylized sports graphics, GPU support (MPS on Apple Silicon) |
+| **Transcription** | **faster-whisper** (large-v3) | 4x faster than openai-whisper (CTranslate2 optimized), state-of-the-art accuracy |
+| **Fuzzy Matching** | rapidfuzz | Team names, venue aliases, high-performance Levenshtein distance |
+| **Type Safety** | Pydantic v2 | Runtime validation, clear data contracts, JSON serialization |
 | **Video Processing** | ffmpeg + opencv-python | Industry standard, comprehensive functionality |
 | **Configuration** | PyYAML | Simple, human-readable config files |
-| **CLI** | argparse (or click) | Standard Python CLI framework |
+| **CLI** | argparse | Standard Python CLI framework |
 
 ---
 
@@ -221,23 +223,45 @@ For detailed comparisons of alternatives, see [tech-tradeoffs.md](tech-tradeoffs
 
 ### 4.2 OCR Processing
 
-**Purpose**: Extract team names from scoreboard graphics and validate against known fixtures
+**Purpose**: Extract team names from FT graphics and scoreboards, validate against known fixtures
 
 **Input**:
-- Key frames from scene detection
-- Config: ROI coordinates, team names list, fixtures data
-- Episode date (from manifest)
+- Frames from **hybrid extraction strategy** (scene changes + 2-second intervals)
+- Config: ROI coordinates (720p), team names list, fixtures data
+- Episode manifest (expected matches for this episode)
 
-**Process**:
-1. Load key frame
-2. Crop to regions of interest:
-   - Top-left: `[0, 0, 400, 100]` (scoreboard)
-   - Bottom-right: `[800, 600, 1120, 480]` (formation graphic - for 1920x1080 resolution)
-3. Run EasyOCR on cropped regions
-4. Match extracted text against team name list (fuzzy matching)
-5. Cross-reference with fixture data for episode date (limits search to 6-8 expected matches)
-6. If fixture match found with confidence > 0.7, boost confidence and use canonical team names
-7. If no fixture match or low confidence, flag for manual review
+**Hybrid Frame Extraction Strategy** (Task 011b):
+1. **Phase 1**: Extract frames at scene change timestamps (PySceneDetect ContentDetector)
+2. **Phase 2**: Extract frames at 2.0-second intervals (regular sampling)
+3. **Phase 3**: Deduplicate frames within 1.0 second of each other
+4. **Result**: ~2,600 frames per 90-minute video (scene changes + intervals - duplicates)
+
+**OCR Process**:
+1. Load extracted frame
+2. Crop to **three regions of interest** (720p coordinates):
+   - **FT Score** (PRIMARY - 90-95% accuracy): `x:157, y:545, width:966, height:140` (lower-middle)
+   - **Scoreboard** (BACKUP - 75-85% accuracy): `x:0, y:0, width:370, height:70` (top-left)
+   - **Formation** (VALIDATION only): `x:533, y:400, width:747, height:320` (bottom-right)
+3. Run EasyOCR (GPU-accelerated) on cropped regions
+4. **FT Graphic Validation** (Business Rule 1):
+   - Require ≥1 team detected (allows opponent inference)
+   - Require score pattern: `\d+\s*[-–—|]?\s*\d+` (handles BBC's pipe separator)
+   - Require FT text: One of [FT, FULL TIME, FULL-TIME, FULLTIME]
+5. Match extracted text against team name list (fuzzy matching via rapidfuzz)
+6. **Episode Manifest Constraint** (Business Rule 2):
+   - Cross-reference with episode manifest (limits search to 14 teams in 7 expected matches)
+   - +10% confidence boost for expected teams
+   - Filter false positives (replays, promos, rival mentions)
+7. **Opponent Inference** (Business Rule 3):
+   - If only 1 team detected + FT validation passes → infer opponent from fixtures
+   - Use home_team/away_team pairing from episode manifest
+   - Assign confidence 0.75 (lower than OCR-detected team)
+   - Mark as `inferred_from_fixture`
+   - **Impact**: Recovers ~70% of single-team FT graphics
+
+**Multi-Pass Strategy**:
+- **Pass 1**: Prioritize FT graphics (mark match boundaries for segment classifier)
+- **Pass 2**: Accept scoreboards if no FT found (fallback for running order)
 
 **Output** (`cache/{episode_id}/ocr_results.json`):
 ```json
@@ -280,28 +304,50 @@ For detailed comparisons of alternatives, see [tech-tradeoffs.md](tech-tradeoffs
 
 ---
 
-### 4.3 Fixture Matching
+### 4.3 Fixture Matching & Episode Manifest
 
-**Purpose**: Validate OCR results against known fixture data to improve accuracy
+**Purpose**: Validate OCR results against episode manifest to improve accuracy and reduce search space
 
 **Input**:
 - OCR results with detected teams
-- Fixture data for the season
-- Episode date (from manifest)
+- **Episode manifest** (`data/episodes/episode_manifest.json`) - expected matches for this specific episode
+- Full fixture data for season (`data/fixtures/premier_league_2025_26.json`)
+
+**Episode Manifest Structure**:
+```json
+{
+  "episode_id": "motd_2025-26_2025-11-01",
+  "broadcast_date": "2025-11-01",
+  "expected_matches": [
+    "2025-11-01-liverpool-astonvilla",
+    "2025-11-01-burnley-arsenal"
+  ]
+}
+```
 
 **Process**:
-1. Load fixtures for episode date (±1 day tolerance for recording delays)
-2. Extract candidate matches (typically 6-8 fixtures per episode)
+1. Load episode manifest to get expected matches (7 matches = 14 teams)
+2. **Search space reduction**: Only search against expected teams (30% reduction vs full 20-team PL)
 3. For each OCR team pair:
-   - Calculate similarity score against each fixture (using fuzzy matching)
-   - Find best matching fixture
+   - Calculate fuzzy similarity score against expected fixtures (rapidfuzz)
+   - Find best matching fixture from manifest
    - If similarity > 0.7, consider it a match
-4. Apply fixture data to OCR results:
-   - Use canonical team names from fixtures
+4. **Apply fixture data to OCR results**:
+   - Use canonical team names from fixtures (corrects OCR errors)
    - Add home/away designation
    - Add fixture_id for traceability
-   - Boost confidence score (+0.10 to +0.20)
-5. Output enriched results with fixture metadata
+   - **Confidence boost**: +10% for teams in episode manifest
+5. **Opponent inference** (if 1 team detected):
+   - Match detected team to expected fixtures
+   - Infer opponent from home_team/away_team pairing
+   - Confidence: 0.75 (lower than OCR-detected)
+6. Output enriched results with fixture metadata
+
+**Benefits**:
+- **Search space reduction**: 14 teams (7 matches) vs 20 teams (190 possible pairings)
+- **Higher accuracy**: Manifest constraint filters false positives (replays, promos, rival mentions)
+- **Opponent recovery**: Single-team FT graphics can be completed using fixture pairing
+- **Canonical names**: OCR errors automatically corrected (e.g., "Arsen" → "Arsenal")
 
 **Output** (`cache/{episode_id}/fixture_matches.json`):
 ```json
@@ -385,99 +431,353 @@ For detailed comparisons of alternatives, see [tech-tradeoffs.md](tech-tradeoffs
 
 ---
 
-### 4.5 Analysis & Classification
+### 4.5 Running Order Detection
 
-**Purpose**: Combine all data to classify segments and detect team mentions
+**Purpose**: Determine which teams appear in which order using OCR detections
+
+**Status**: ✅ Task 011 Complete (100% accuracy: 7/7 matches)
 
 **Input**:
-- scenes.json
-- ocr_results.json
-- fixture_matches.json
-- transcript.json
-- Config: classification rules
+- Processed scenes with OCR detections (from Section 4.2)
+- Episode manifest (expected matches)
+- Fixtures data (home/away teams)
 
 **Process**:
+1. **Collect all valid OCR detections**:
+   - FT graphics (PRIMARY - 90-95% accuracy)
+   - Scoreboards (BACKUP - 75-85% accuracy)
+   - Opponent-inferred detections (Rule 3 - 70% recovery rate)
 
-1. **Segment Classification**:
-   - Iterate through scenes
-   - Classify each scene as: studio, highlights, interview, or analysis
-   - Rules (heuristic-based initially):
-     - If face detected + single person → interview
-     - If OCR contains team names → highlights (likely)
-     - If scene follows highlights + transcript contains pundit names → analysis
-     - Default: studio
+2. **Order by first detection**:
+   - Group detections by fixture_id
+   - Find earliest timestamp for each match
+   - Sort matches by earliest detection timestamp
+   - Assign running order position (1, 2, 3...)
 
-2. **Team Mention Detection** (for studio_analysis segments only):
-   - Search transcript for team names (full names + abbreviations)
-   - Find first chronological mention
-   - Extract snippet (±10 words around mention)
+3. **Validate against episode manifest**:
+   - Verify all expected matches detected
+   - Flag unexpected matches (replays, promos)
+   - Calculate confidence based on detection count
 
-3. **Airtime Calculation**:
-   - Group consecutive scenes by match (using OCR team detection)
-   - Sum durations by segment type
-   - Calculate total airtime per match
-
-**Output** (`cache/{episode_id}/analysis.json`):
+**Output** (`cache/{episode_id}/running_order.json`):
 ```json
 {
-  "matches": [
+  "episode_id": "motd_2025-26_2025-11-01",
+  "running_order": [
     {
-      "match_id": 1,
-      "teams": ["Arsenal", "Chelsea"],
-      "home_team": "Arsenal",
-      "away_team": "Chelsea",
-      "segments": [
-        {
-          "scene_ids": [5, 6],
-          "type": "studio_intro",
-          "start": "00:01:30",
-          "end": "00:02:15",
-          "duration_seconds": 45,
-          "confidence": 0.75
-        },
-        {
-          "scene_ids": [7, 8, 9, 10],
-          "type": "highlights",
-          "start": "00:02:15",
-          "end": "00:08:30",
-          "duration_seconds": 375,
-          "confidence": 0.95
-        },
-        {
-          "scene_ids": [11],
-          "type": "interview",
-          "location": "pitchside",
-          "start": "00:08:30",
-          "end": "00:10:00",
-          "duration_seconds": 90,
-          "confidence": 0.88
-        },
-        {
-          "scene_ids": [12, 13],
-          "type": "studio_analysis",
-          "start": "00:10:00",
-          "end": "00:13:45",
-          "duration_seconds": 225,
-          "first_team_mentioned": "Arsenal",
-          "first_mention_timestamp": "00:10:05",
-          "transcript_snippet": "So what did you make of Arsenal's performance Gary?",
-          "confidence": 0.92
-        }
-      ],
-      "total_airtime_seconds": 735
+      "position": 1,
+      "fixture_id": "2025-11-01-liverpool-astonvilla",
+      "home_team": "Liverpool",
+      "away_team": "Aston Villa",
+      "first_detection_timestamp": 125.4,
+      "detection_count": 3,
+      "detection_sources": ["ft_score", "scoreboard"],
+      "confidence": 1.0
     }
   ]
 }
 ```
 
-**Error Handling**:
-- If classification confidence < 0.7 → flag for manual review
-- If no team mention found in analysis → log warning, leave null
-- If team mention detection fails → log error, continue
+**Results** (motd_2025-26_2025-11-01):
+- **Accuracy**: 7/7 matches detected (100%)
+- **Detection rate**: 100% (all expected matches found)
+- **False positives**: 0 (episode manifest constraint)
 
 ---
 
-### 4.6 Validation & Manual Override
+### 4.6 Match Boundary Detection
+
+**Purpose**: Detect precise timestamps for match segment boundaries (intro → highlights → post-match)
+
+**Status**: ✅ Task 012-01 Complete (100% accuracy: 7/7 matches, ±1.27s avg error)
+
+**Input**:
+- Running order results (Section 4.5)
+- OCR detections (FT graphics + scoreboards)
+- Transcript with word-level timestamps
+- Venue data (`data/venues/premier_league_2025_26.json`)
+- Fixtures data (match pairings)
+
+**Three-Strategy Detection Framework**:
+
+#### Strategy 1: Venue Detection (PRIMARY)
+**Purpose**: Find match intro by detecting stadium mentions in transcript
+
+**Process**:
+1. Search backward from `highlights_start` (scoreboard detection)
+2. Extract sentences from transcript (combine Whisper segments)
+3. Fuzzy match sentences against venue names (stadium only, no aliases)
+4. Validate venue matches expected fixture (home team's stadium)
+5. Search for team mentions within ±20s proximity window
+6. Return timestamp of **earliest team-containing sentence**
+
+**Implementation**: `src/motd/analysis/venue_matcher.py`
+
+**Results**:
+- **Accuracy**: 7/7 matches
+- **Average error**: ±1.27 seconds
+- **All matches within**: ±5s tolerance
+
+#### Strategy 2: Temporal Clustering (VALIDATOR)
+**Purpose**: Cross-validate venue detection using team co-mention density
+
+**Process**:
+1. Extract all team mentions from transcript (fuzzy matching)
+2. Create sliding 20-second windows
+3. Count co-mentions of both teams within each window
+4. Calculate density (mentions per second) for each window
+5. Filter valid clusters (density ≥ 0.1, size ≥ 2, before `highlights_start`)
+6. **Hybrid selection**: Prefer earliest cluster UNLESS later cluster is 2x denser
+7. Return timestamp of **earliest mention** in selected cluster
+
+**Implementation**: `src/motd/analysis/running_order_detector.py:720-1055`
+
+**Configuration**:
+```python
+CLUSTERING_WINDOW_SECONDS = 20.0  # Co-mention window
+CLUSTERING_MIN_DENSITY = 0.1      # Minimum mentions/sec
+CLUSTERING_MIN_SIZE = 2           # Minimum co-mentions
+```
+
+**Results**:
+- **Accuracy**: 7/7 matches
+- **Agreement with venue**: 100% (0.0s difference across all matches)
+- **Validation**: All matches "validated" status (≤10s difference threshold)
+
+#### Strategy 3: Team Mention (FALLBACK)
+**Purpose**: Backup strategy if venue or clustering fails
+
+**Process**:
+1. Search backward from `highlights_start`
+2. Find both teams mentioned within 10 seconds of each other
+3. Return **earliest mention** timestamp
+
+**Usage**: Fallback only (venue + clustering have 100% success rate)
+
+**Cross-Validation Framework**:
+
+All three strategies run independently, then cross-validate:
+
+| Difference | Status | Confidence | Action |
+|------------|--------|------------|--------|
+| ≤10s | `validated` | 1.0 | Auto-accept ✅ |
+| ≤30s | `minor_discrepancy` | 0.8 | Flag for review ⚠️ |
+| >30s | `major_discrepancy` | 0.5 | Manual review required ❌ |
+| Clustering failed | `clustering_failed` | 0.7 | Use venue only |
+
+**Pydantic Model** (`BoundaryValidation`):
+```python
+class BoundaryValidation(BaseModel):
+    venue_timestamp: float
+    clustering_timestamp: Optional[float]
+    difference_seconds: float
+    status: Literal["validated", "minor_discrepancy", "major_discrepancy", "clustering_failed"]
+    confidence: float
+```
+
+**Output** (`cache/{episode_id}/match_boundaries.json`):
+```json
+{
+  "matches": [
+    {
+      "position": 1,
+      "home_team": "Liverpool",
+      "away_team": "Aston Villa",
+      "match_start": 125.4,
+      "highlights_start": 186.8,
+      "highlights_end": 523.2,
+      "strategies": {
+        "venue": {"timestamp": 125.4, "venue": "Anfield", "confidence": 0.95},
+        "clustering": {"timestamp": 125.4, "density": 0.25, "cluster_size": 5},
+        "team_mention": {"timestamp": 126.1, "confidence": 0.85}
+      },
+      "validation": {
+        "status": "validated",
+        "venue_clustering_diff": 0.0,
+        "confidence": 1.0
+      }
+    }
+  ]
+}
+```
+
+**Results** (motd_2025-26_2025-11-01):
+
+| Match | Venue Error | Clustering Agreement | Validation Status |
+|-------|-------------|---------------------|-------------------|
+| Match 1 | +0.1s | 0.0s diff | ✅ Validated |
+| Match 2 | +1.3s | 0.0s diff | ✅ Validated |
+| Match 3 | +0.2s | 0.0s diff | ✅ Validated |
+| Match 4 | +0.1s | 0.0s diff | ✅ Validated |
+| Match 5 | +1.3s | 0.0s diff | ✅ Validated |
+| Match 6 | +1.6s | 0.0s diff | ✅ Validated |
+| Match 7 | +4.4s | 0.0s diff | ✅ Validated |
+
+**Average error**: 1.27 seconds across all 7 matches
+**Cross-validation**: 100% agreement (0.0s difference between venue and clustering)
+
+---
+
+### 4.7 Segment Classification
+
+**Purpose**: Classify each scene as studio intro, highlights, interview, or post-match analysis
+
+**Status**: 🔄 Task 012 In Progress
+
+**Planned Approach**:
+1. Use match boundaries as anchors (from Section 4.6)
+2. Classify segments between boundaries:
+   - `match_start` → `highlights_start`: Studio intro + team lineups
+   - `highlights_start` → `highlights_end`: Match highlights (scoreboard visible)
+   - `highlights_end` → next `match_start`: Post-match interviews + studio analysis
+3. Detect interludes (Sunday MOTD promos, intro/outro segments)
+4. Calculate airtime by segment type
+
+**Output Schema** (planned):
+```json
+{
+  "matches": [
+    {
+      "match_id": 1,
+      "segments": [
+        {"type": "studio_intro", "start": 125.4, "end": 186.8, "duration": 61.4},
+        {"type": "highlights", "start": 186.8, "end": 523.2, "duration": 336.4},
+        {"type": "post_match", "start": 523.2, "end": 687.5, "duration": 164.3}
+      ],
+      "total_airtime": 562.1
+    }
+  ]
+}
+```
+
+---
+
+### 4.8 Pydantic Data Models
+
+**Purpose**: Type-safe data contracts throughout the pipeline with runtime validation
+
+**Status**: ✅ Implemented (Phase 2 of Task 011b-2)
+
+All pipeline stages use **Pydantic v2** models for type safety, validation, and clear data contracts.
+
+**Core Models** (`src/motd/pipeline/models.py`):
+
+#### Scene Model
+```python
+class Scene(BaseModel):
+    scene_id: int
+    start_seconds: float
+    end_seconds: float
+    duration: float
+    frames: list[str]  # Paths to extracted frames
+
+    @field_validator('end_seconds')
+    def end_after_start(cls, v, info):
+        if v <= info.data['start_seconds']:
+            raise ValueError('end_seconds must be > start_seconds')
+        return v
+```
+
+#### TeamMatch Model
+```python
+class TeamMatch(BaseModel):
+    team: str
+    confidence: float = Field(ge=0.0, le=1.0)
+    source: Literal['ft_score', 'scoreboard', 'formation', 'inferred_from_fixture']
+```
+
+#### OCRResult Model
+```python
+class OCRResult(BaseModel):
+    frame_path: str
+    timestamp: float
+    teams: list[TeamMatch]
+    raw_text: str
+    primary_source: Literal['ft_score', 'scoreboard', 'formation']
+    ft_validated: bool  # Passed FT graphic validation (Rule 1)
+
+    # Store ALL OCR results for debugging
+    ft_score_result: Optional[dict] = None
+    scoreboard_result: Optional[dict] = None
+    formation_result: Optional[dict] = None
+```
+
+#### ProcessedScene Model
+```python
+class ProcessedScene(BaseModel):
+    scene: Scene
+    ocr_result: Optional[OCRResult]
+    detected_teams: list[str]
+    fixture_id: Optional[str]
+    home_team: Optional[str]
+    away_team: Optional[str]
+    confidence: float = Field(ge=0.0, le=1.0)
+```
+
+#### MatchBoundary Model
+```python
+class MatchBoundary(BaseModel):
+    position: int  # Running order position
+    fixture_id: str
+    home_team: str
+    away_team: str
+    match_start: float  # Timestamp (seconds)
+    highlights_start: float
+    highlights_end: float
+    venue_detected: Optional[str] = None
+    clustering_density: Optional[float] = None
+```
+
+#### BoundaryValidation Model
+```python
+class BoundaryValidation(BaseModel):
+    venue_timestamp: float
+    clustering_timestamp: Optional[float]
+    difference_seconds: float
+    status: Literal["validated", "minor_discrepancy", "major_discrepancy", "clustering_failed"]
+    confidence: float = Field(ge=0.0, le=1.0)
+```
+
+#### RunningOrderResult Model
+```python
+class RunningOrderResult(BaseModel):
+    episode_id: str
+    total_matches: int
+    matches: list[MatchBoundary]
+    validation: dict[int, BoundaryValidation]  # position → validation
+
+    def model_dump_json(self, **kwargs):
+        # Custom JSON serialization for file output
+        return super().model_dump(mode='json', **kwargs)
+```
+
+**Benefits**:
+- **Runtime validation**: Catch errors at model creation (e.g., confidence > 1.0, end_seconds < start_seconds)
+- **Type safety**: IDE autocomplete, mypy static checking
+- **Clear contracts**: Each pipeline stage has well-defined input/output types
+- **JSON serialization**: Built-in `model_dump_json()` for cache files
+- **Self-documenting**: Field descriptions serve as inline documentation
+
+**Validation Examples**:
+```python
+# FAILS: Confidence out of bounds
+TeamMatch(team="Arsenal", confidence=1.5, source="ft_score")
+# ValidationError: Input should be less than or equal to 1.0
+
+# FAILS: Invalid source
+TeamMatch(team="Arsenal", confidence=0.9, source="unknown")
+# ValidationError: Input should be 'ft_score', 'scoreboard', 'formation', or 'inferred_from_fixture'
+
+# FAILS: end_seconds before start_seconds
+Scene(scene_id=1, start_seconds=100.0, end_seconds=50.0, duration=50.0, frames=[])
+# ValidationError: end_seconds must be > start_seconds
+```
+
+**Testing**: 16 unit tests covering serialization, validation, edge cases ([src/motd/pipeline/test_models.py:1-180](../src/motd/pipeline/test_models.py))
+
+---
+
+### 4.9 Validation & Manual Override
 
 **Purpose**: Allow manual correction and validation of automated results
 
@@ -692,26 +992,46 @@ If config changes → hash changes → cache invalidated.
 
 ### Expected Processing Times (M3 Pro, 36GB RAM)
 
-| Stage | Duration (90-min episode) | Bottleneck |
-|-------|---------------------------|------------|
-| Scene Detection | 3-5 minutes | CPU-bound (frame analysis) |
-| OCR Processing | 2-3 minutes | GPU-bound (EasyOCR) |
-| Transcription | 10-15 minutes | GPU-bound (Whisper large-v3) |
-| Analysis | <1 minute | CPU-bound (lightweight) |
-| **Total** | **15-25 minutes** | |
+| Stage | Duration (90-min episode) | Bottleneck | Notes |
+|-------|---------------------------|------------|-------|
+| Scene Detection + Frame Extraction | 18-20 minutes | CPU-bound | Hybrid strategy: scene changes + 2s intervals |
+| OCR Processing | 10-12 minutes | GPU-bound (EasyOCR) | ~2,600 frames, 3 ROIs per frame |
+| Transcription | 15-20 minutes | **CPU-bound** | faster-whisper (CTranslate2 no MPS support yet) |
+| Running Order Detection | <30 seconds | CPU-bound | OCR result aggregation |
+| Match Boundary Detection | 1-2 minutes | CPU-bound | Venue + clustering + validation |
+| **Total** | **45-55 minutes** | | Per episode, first run (no cache) |
+
+**Key Insight**: faster-whisper on Apple Silicon (M3 Pro) runs on **CPU** because CTranslate2 doesn't support MPS (Metal Performance Shaders) yet. GPU acceleration requires CUDA (NVIDIA only).
+
+**Caching Impact**:
+- **Second run** (cache hit): <1 minute (loads cached JSON files only)
+- **Partial cache invalidation** (e.g., analysis rules changed): 1-2 minutes (skips scene detection, OCR, transcription)
+
+**Hybrid Frame Extraction Impact**:
+- **Scene changes**: ~450 frames (variable, depends on episode)
+- **2s intervals**: ~2,700 frames (fixed for 90-min video)
+- **After deduplication**: ~2,600 frames (78% increase vs 5s intervals)
+- **Benefit**: Better coverage of FT graphics and scoreboards (+15% detection rate)
 
 ### Optimisation Opportunities (if needed)
 
-1. **Parallel Processing**: Process multiple episodes in parallel (if you have >1 video)
-2. **Smaller Whisper Model**: Use medium or small model (faster, slightly less accurate)
-3. **Reduced OCR**: Only run OCR on scenes with scoreboard detected (via template matching)
-4. **Frame Sampling**: Analyse every Nth frame instead of every frame (scene detection)
+1. **Parallel Processing**: Process multiple episodes in parallel (8-core M3 Pro can handle 2-3 episodes)
+2. **Smaller Whisper Model**: Use medium or small model (5-10 min faster, 2-3% accuracy drop)
+3. **Interval Tuning**: Increase interval from 2.0s to 3.0s (20% fewer frames, minimal accuracy impact)
+4. **GPU Transcription**: Use NVIDIA GPU with CUDA for 3-4x speedup (5-7 mins vs 15-20 mins)
 
 ### Resource Usage
 
-- **RAM**: ~8-12GB peak (Whisper large-v3 loaded)
-- **GPU**: M3 Pro will handle Whisper + EasyOCR comfortably
-- **Disk**: ~500MB per episode (cache + frames)
+- **RAM**: ~12-16GB peak (Whisper large-v3 loaded + EasyOCR + frame cache)
+- **GPU**: M3 Pro handles EasyOCR well (MPS support), but Whisper falls back to CPU
+- **Disk**: ~800MB-1GB per episode (cache + ~2,600 frames)
+
+**Bottleneck Analysis**:
+- **Slowest stage**: Transcription (15-20 mins) - waiting for CTranslate2 MPS support
+- **Most expensive stage**: Frame extraction + OCR (28-32 mins combined)
+- **Fastest stage**: Running order + boundary detection (1.5-2.5 mins)
+
+**Recommendation**: Run overnight batch processing for 10 episodes (~8-10 hours total)
 
 ---
 

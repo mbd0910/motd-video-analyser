@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Context
 
-**Core pipeline operational** (scene detection, OCR, transcription). **Working on** Task 012: Pipeline Integration + Match Boundary Detection. Task 011 (Running Order Detection) complete with 100% accuracy. Follow task-driven workflow in [docs/tasks/](docs/tasks/).
+**Core pipeline operational** (scene detection, OCR, transcription). **Tasks 011-012 complete**: Running Order Detection (100% accuracy: 7/7 matches) + Match Boundary Detection (100% accuracy: ±1.27s avg error). **Working on** Task 012: Segment Classification (interludes, airtime calculation). Follow task-driven workflow in [docs/tasks/](docs/tasks/).
 
 ## What This Project Does
 
@@ -26,11 +26,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **NEVER**:
 - Run `openai-whisper` instead of `faster-whisper` (4x slower, wastes 6-12 mins per video)
-- Skip caching checks - Whisper transcription costs 3-4 minutes per video
+- Skip caching checks - Whisper transcription costs 15-20 minutes per video (CPU-bound on M3 Pro)
 - Commit files in `data/videos/` or `data/cache/` - they're gitignored for size reasons
 - Use Tesseract for OCR (poor on sports graphics) - use EasyOCR
 - Create deeply nested task structures (011a→011b-1→011b-2) - use sequential numbering (011-01, 011-02) instead
-- Assume 1920x1080 resolution without verification
+- Assume 1920x1080 resolution without verification (current episodes are 720p)
+- Assume frame extraction is just 2-second intervals - it's HYBRID (scene changes + 2s intervals + deduplication)
 
 ## Repository Workflow
 
@@ -148,13 +149,15 @@ File: [data/teams/premier_league_2025_26.json](data/teams/premier_league_2025_26
 **Always verify** with ffprobe before processing - do not assume 1920x1080. Adjust OCR regions in config if resolution differs.
 
 ### Caching Strategy
-**CRITICAL**: Never re-run Whisper unnecessarily - it's the slowest stage (3-4 minutes per video). Always check `data/cache/{episode_id}/transcript.json` exists before transcribing. See [ML/Pipeline Patterns](.claude/commands/references/ml_pipeline_patterns.md) for caching implementation.
+**CRITICAL**: Never re-run Whisper unnecessarily - it's the slowest stage (15-20 minutes per video on M3 Pro CPU). Always check `data/cache/{episode_id}/transcript.json` exists before transcribing. See [ML/Pipeline Patterns](.claude/commands/references/ml_pipeline_patterns.md) for caching implementation.
 
 ### Validation
 Each task has validation checklists - see individual task files in [docs/tasks/](docs/tasks/) for success criteria.
 
 ## Where to Find Information
 
+- **"What is this project?"** → [README.md](README.md) (overview, quick start, current results)
+- **"How does the algorithm work?"** → [docs/algorithm.md](docs/algorithm.md) (plain-English strategy explanation)
 - **"What does X mean?"** → [docs/domain/README.md](docs/domain/README.md) (domain glossary - FT graphics, running order, etc.)
 - **"What are the business rules?"** → [docs/domain/business_rules.md](docs/domain/business_rules.md) (validation logic, accuracy requirements)
 - **"How long do segments last?"** → [docs/domain/visual_patterns.md](docs/domain/visual_patterns.md) (episode structure, timings)
@@ -162,8 +165,143 @@ Each task has validation checklists - see individual task files in [docs/tasks/]
 - **"Why this library?"** → [docs/tech-tradeoffs.md](docs/tech-tradeoffs.md) (comparisons + alternatives)
 - **"What's next?"** → [docs/tasks/README.md](docs/tasks/README.md) (task list + status)
 - **"What should the output look like?"** → [docs/prd.md](docs/prd.md) section 3.4 (JSON schema)
-- **"What's the big picture?"** → [docs/architecture.md](docs/architecture.md) (system design + CLI specs)
+- **"What's the big picture?"** → [docs/architecture.md](docs/architecture.md) (technical reference - OCR regions, Pydantic models, performance)
 - **"How do I start?"** → [docs/tasks/001-environment-setup.md](docs/tasks/001-environment-setup.md) (first task)
+
+## Documentation Navigation (For Claude Sessions)
+
+**Quick reference - which doc to read first?**
+
+This section helps stateless Claude sessions efficiently navigate documentation based on task type.
+
+### By Task Type (Flowchart)
+
+```mermaid
+graph TD
+    A[What are you doing?] --> B{Task Type}
+    B -->|First time seeing this repo| C[README.md]
+    B -->|Implementing new feature| D[algorithm.md + domain/]
+    B -->|Fixing bug in existing code| E[architecture.md Section X]
+    B -->|Understanding business logic| F[domain/business_rules.md]
+    B -->|Optimizing performance| G[architecture.md Section 9]
+    B -->|Adding tests| H[algorithm.md + code]
+
+    C --> I[Then: algorithm.md for strategy]
+    D --> J[Then: architecture.md if needed]
+    E --> K[Then: algorithm.md for context]
+    F --> L[Then: algorithm.md for flow]
+    G --> M[Then: ML/Pipeline Patterns]
+    H --> N[Then: testing_guidelines.md]
+```
+
+### Detailed Routing by Scenario
+
+#### 🆕 "I'm new to this project"
+**Read in order:**
+1. [README.md](README.md) - Overview, quick start, current results (7/7 matches, 100% accuracy)
+2. [docs/algorithm.md](docs/algorithm.md) - Understand the high-level strategy (venue + clustering + OCR)
+3. [docs/architecture.md](docs/architecture.md) - Technical deep dive (only if implementing code)
+
+**Time**: 10-15 mins reading
+
+---
+
+#### ⚙️ "I'm implementing a feature"
+**Read in order:**
+1. [docs/algorithm.md](docs/algorithm.md) - Understand high-level approach (e.g., Step 3 for match boundaries)
+2. [docs/domain/](docs/domain/) - Business rules, visual patterns (if match boundary/segment related)
+   - [business_rules.md](docs/domain/business_rules.md) - 5 core rules (FT validation, episode manifest, opponent inference)
+   - [visual_patterns.md](docs/domain/visual_patterns.md) - Episode structure, timing patterns
+3. [docs/architecture.md](docs/architecture.md) - Specific section only (e.g., Section 4.6 for match boundaries)
+4. Existing code in `src/motd/` - Read implementation before modifying
+
+**Skip**: Full architecture.md (too long), completed task files
+
+---
+
+#### 🐛 "I'm debugging an issue"
+**Read in order:**
+1. [docs/architecture.md](docs/architecture.md) - Technical reference for the failing stage
+   - Section 4.2: OCR issues (FT graphics, scoreboards, opponent inference)
+   - Section 4.5: Running order detection
+   - Section 4.6: Match boundary detection (venue, clustering, team mention)
+   - Section 9: Performance bottlenecks
+2. [docs/algorithm.md](docs/algorithm.md) - Context on why it should work that way
+3. [docs/domain/business_rules.md](docs/domain/business_rules.md) - Validation requirements (if validation failing)
+
+**Focus**: Error messages, stack traces, validation failures
+
+---
+
+#### 📊 "I'm understanding business logic"
+**Read in order:**
+1. [docs/domain/business_rules.md](docs/domain/business_rules.md) - 5 core rules with source code links
+   - Rule 1: FT graphic validation (≥1 team, score pattern, FT text)
+   - Rule 2: Episode manifest constraint (search space reduction, confidence boost)
+   - Rule 3: Opponent inference (70% recovery rate)
+2. [docs/domain/visual_patterns.md](docs/domain/visual_patterns.md) - Episode structure, timing patterns
+3. [docs/algorithm.md](docs/algorithm.md) - How rules are applied in practice (Step 2 for Rule 3 example)
+
+**Skip**: architecture.md (too technical for business logic questions)
+
+---
+
+#### ⚡ "I'm optimizing performance"
+**Read in order:**
+1. [docs/architecture.md](docs/architecture.md) Section 9 - Performance considerations
+   - Processing times: 45-55 mins per episode (transcription slowest at 15-20 mins)
+   - Caching impact (second run <1 min)
+   - Hybrid frame extraction (2,600 frames, 78% increase)
+2. [.claude/commands/references/ml_pipeline_patterns.md](.claude/commands/references/ml_pipeline_patterns.md) - Caching strategies
+
+**Focus**: Bottleneck analysis (transcription CPU-bound, waiting for CTranslate2 MPS support)
+
+---
+
+#### ✅ "I'm adding tests"
+**Read in order:**
+1. [docs/algorithm.md](docs/algorithm.md) - Understand expected behavior (e.g., Step 3 for boundary detection)
+2. Existing code in `src/motd/` - Read implementation to test
+3. [.claude/commands/references/testing_guidelines.md](.claude/commands/references/testing_guidelines.md) - Testing patterns
+
+**Current tests**: 46/46 passing (Task 012)
+
+---
+
+### Context Budget Optimization
+
+**Limited token window?** Read in priority order:
+
+#### High Priority (Always Read)
+- **CLAUDE.md** (this file) - Critical warnings, technology constraints
+- **Relevant domain doc** (e.g., business_rules.md for validation work)
+- **Specific architecture.md section** (not the whole file!)
+
+#### Medium Priority (Read if Budget Allows)
+- **docs/algorithm.md** (for strategy understanding)
+- **README.md** (for project overview)
+
+#### Low Priority (Only if Needed)
+- **Full architecture.md** (7,000+ tokens - read specific sections instead)
+- **Historical task files** in docs/tasks/completed/
+- **Tech tradeoffs** (unless choosing libraries)
+
+**Pro tip**: Use Ctrl+F to jump to specific sections in architecture.md instead of reading the entire file.
+
+---
+
+### Common Pitfalls (Check Before Starting!)
+
+**Before diving into docs, check if your task involves these common misconceptions:**
+
+| Misconception | Reality | Read This |
+|---------------|---------|-----------|
+| "Frame extraction is just 2-second intervals" | **HYBRID** (scene changes + 2s intervals + deduplication) | [architecture.md#4.2](docs/architecture.md#42-ocr-processing) |
+| "Scoreboards are the main OCR target" | **FT graphics PRIMARY** (90-95% accuracy), scoreboards BACKUP (75-85%) | [algorithm.md Step 2](docs/algorithm.md#step-2-running-order-detection-which-teams-in-which-order) |
+| "Transcription takes 3-4 minutes" | **15-20 minutes** (CPU-bound on M3 Pro, no MPS support yet) | [architecture.md#9](docs/architecture.md#9-performance-considerations) |
+| "Match boundaries use one strategy" | **THREE strategies** (venue + clustering + team mention), all implemented | [algorithm.md Step 3](docs/algorithm.md#step-3-match-boundary-detection-when-does-each-match-start) |
+| "Clustering is theoretical" | **Fully implemented** (7/7 matches, 100% agreement with venue) | [architecture.md#4.6](docs/architecture.md#46-match-boundary-detection) |
+| "OCR works on 1080p video" | **720p coordinates** in config (verify with ffprobe) | [architecture.md#4.2](docs/architecture.md#42-ocr-processing) |
 
 ---
 
