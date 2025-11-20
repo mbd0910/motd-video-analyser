@@ -129,22 +129,42 @@ pip install -r requirements.txt
 
 ### Usage
 
+The pipeline processes MOTD episodes in three stages:
+
 ```bash
 # Activate virtual environment (always required)
 source venv/bin/activate
 
-# Extract frames and detect teams via OCR
-python -m motd extract-teams data/videos/motd_2025-26_2025-11-01.mp4
+# 1. Frame Extraction - Extract frames from video using hybrid sampling
+#    (scene changes + 2-second intervals, ~2,600 frames per 90-min episode)
+python -m motd detect-scenes data/videos/motd_2025-26_2025-11-01.mp4
 
-# Transcribe audio to text with word-level timestamps
+# 2. Team Detection - Run OCR on extracted frames to identify teams
+#    (detects FT graphics, scoreboards, and formations)
+python -m motd extract-teams \
+  --scenes data/cache/motd_2025-26_2025-11-01/scenes.json \
+  --episode-id motd_2025-26_2025-11-01
+
+# 3. Audio Transcription - Transcribe audio with word-level timestamps
+#    (takes 15-20 minutes on M3 Pro CPU, faster with GPU)
 python -m motd transcribe data/videos/motd_2025-26_2025-11-01.mp4
 
-# Detect running order (which teams appear in which order)
-python -m motd detect-running-order data/videos/motd_2025-26_2025-11-01.mp4
+# 4. Running Order Detection - Combine OCR + transcript to detect match boundaries
+#    (venue detection + clustering + cross-validation)
+python -m motd analyze-running-order \
+  --episode-id motd_2025-26_2025-11-01
 
-# Full pipeline (coming soon in Task 012)
+# Full pipeline (coming soon in Task 013)
 python -m motd process data/videos/motd_2025-26_2025-11-01.mp4
 ```
+
+**Performance** (M3 Pro, 90-minute episode):
+- Frame extraction: ~5-8 minutes (2,600 frames)
+- Team detection (OCR): ~8-12 minutes (processing all scenes)
+- Audio transcription: ~15-20 minutes (CPU-bound, waiting for MPS support)
+- Running order analysis: <1 minute
+
+**Caching**: Results are cached in `data/cache/{episode_id}/`. Re-running commands uses cached results unless `--force` flag is provided.
 
 ### Example Output
 
