@@ -155,7 +155,7 @@ def debug_frame(frame_path: str, episode_id: str = None):
         import json
         with open(config['teams']['path']) as f:
             teams_data = json.load(f)
-            all_teams = [t['name'] for t in teams_data['teams']]
+            all_teams = [t['full'] for t in teams_data['teams']]
 
         matched_team_names = []
         for result in filtered_results:

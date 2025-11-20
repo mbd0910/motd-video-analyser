@@ -208,7 +208,7 @@ class SceneProcessor:
             ocr_result: OCR extraction result
 
         Returns:
-            List of matched teams (0-2 teams)
+            List of matched teams (0-5 teams for alternative fixture search)
         """
         # Combine text from OCR results
         combined_text = ' '.join([r['text'] for r in ocr_result.results])
@@ -223,11 +223,11 @@ class SceneProcessor:
             combined_text_lower = combined_text_lower.replace(term, '')
         combined_text = combined_text_lower
 
-        # Match teams
+        # Match teams (get top 5 for alternative fixture search)
         matches = self.team_matcher.match_multiple(
             combined_text,
             candidate_teams=self.context.expected_teams,
-            max_teams=2
+            max_teams=5
         )
 
         if not matches:
@@ -373,10 +373,49 @@ class SceneProcessor:
             f"searching alternatives..."
         )
 
-        # Get more candidates (up to 5)
-        # Note: This requires re-running team matching with max_teams=5
-        # For now, we'll reject if top 2 don't match
-        self.logger.debug("Alternative search not yet implemented in SceneProcessor")
+        # Try all combinations of top N teams to find a valid fixture
+        # This handles false positives from fuzzy matching (e.g., "ham" matching West Ham)
+        max_candidates = min(len(teams), 5)  # Check up to top 5 teams
+        best_fixture = None
+        best_teams = None
+        best_confidence = 0.0
+
+        for i in range(max_candidates):
+            for j in range(i + 1, max_candidates):
+                team_i, team_j = teams[i], teams[j]
+                fixture = self.fixture_matcher.identify_fixture(
+                    team_i.team, team_j.team, self.context.episode_id
+                )
+
+                if fixture:
+                    # Found a valid fixture! Calculate combined confidence
+                    combined_confidence = team_i.confidence + team_j.confidence
+
+                    # Keep track of the highest confidence valid fixture
+                    if combined_confidence > best_confidence:
+                        best_fixture = fixture
+                        best_teams = [team_i, team_j]
+                        best_confidence = combined_confidence
+
+                        self.logger.debug(
+                            f"Alternative fixture found: teams #{i+1} + #{j+1} "
+                            f"({team_i.team} vs {team_j.team}, "
+                            f"combined confidence: {combined_confidence:.2f})"
+                        )
+
+        if best_fixture:
+            # Found at least one valid fixture in alternatives
+            ordered_teams = self._order_teams_by_fixture(best_teams, best_fixture)
+            self.logger.info(
+                f"Using alternative fixture: {best_fixture['match_id']} "
+                f"({ordered_teams[0].team} vs {ordered_teams[1].team})"
+            )
+            return ordered_teams, best_fixture
+
+        # No valid fixture found in any combination
+        self.logger.debug(
+            f"No valid fixture found in top {max_candidates} teams"
+        )
         return None, None
 
     def _order_teams_by_fixture(self, teams: list[TeamMatch], fixture: dict[str, Any]) -> list[TeamMatch]:
