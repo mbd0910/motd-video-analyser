@@ -232,7 +232,7 @@ Reference frames from Episode 02 processing (2025-11-20):
 | Frame | Match | Type | Timestamp | Notes |
 |-------|-------|------|-----------|-------|
 | frame_0374 | Sunderland vs Arsenal | FT Graphic | 11:33 (693s) | Detected ✅ |
-| frame_0834 | Tottenham vs Man Utd | FT Graphic | ~14:00 | **Missing** - investigate |
+| frame_0834 | Tottenham vs Man Utd | FT Graphic | 26:20 (1579.6s) | Draw (2-2), second '2' 65.67% conf. Re-run with --force. |
 | frame_1248 | West Ham vs Burnley | FT Graphic | 39:48 (2388s) | Detected ✅ |
 | frame_1642 | Everton vs Fulham | FT Graphic | 52:28 (3148s) | Detected ✅ (Scene 858) |
 | frame_1643 | Everton vs Fulham | FT Graphic | 52:30 (3150s) | Detected ✅ |
