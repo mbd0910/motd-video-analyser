@@ -7,7 +7,7 @@ Tests serialization, deserialization, and validation of pipeline data models.
 import pytest
 from pydantic import ValidationError
 
-from src.motd.pipeline.models import Scene, TeamMatch, OCRResult, ProcessedScene
+from motd.pipeline.models import Scene, TeamMatch, OCRResult, ProcessedScene
 
 
 class TestSceneModel:

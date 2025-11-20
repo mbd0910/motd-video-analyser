@@ -12,9 +12,9 @@ from pathlib import Path
 from typing import Dict, List
 import json
 
-from src.motd.ocr.reader import OCRReader
-from src.motd.ocr.team_matcher import TeamMatcher
-from src.motd.ocr.fixture_matcher import FixtureMatcher
+from motd.ocr.reader import OCRReader
+from motd.ocr.team_matcher import TeamMatcher
+from motd.ocr.fixture_matcher import FixtureMatcher
 
 
 # Ground truth data for all 8 FT graphic frames from episode motd_2025-26_2025-11-01
@@ -373,7 +373,7 @@ def test_process_scene_end_to_end(ground_truth: Dict, fixtures_dir: Path, config
     - Detection result contains correct scores
     - No false rejections
     """
-    from src.motd.__main__ import process_scene
+    from motd.__main__ import process_scene
     import logging
 
     frame_path = fixtures_dir / ground_truth['frame']

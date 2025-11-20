@@ -829,22 +829,29 @@ def analyze_running_order_command(
         )
         click.echo(f"  ✓ Detected all match boundaries\n")
 
-        # Ground truth for validation (from visual_patterns.md + manual verification)
-        # TODO: Make this optional (Task 013) - only needed for algorithm development
-        GROUND_TRUTH_INTROS = {
-            1: 61,    # 00:01:01 - Liverpool vs Aston Villa
-            2: 865,   # 00:14:25 - Arsenal vs Burnley
-            3: 1587,  # 00:26:27 - Nottingham Forest vs Man Utd
-            4: 2509,  # 00:41:49 - Fulham vs Wolves
-            5: 3168,  # 00:52:48 - Tottenham vs Chelsea
-            6: 3894,  # 01:04:54 - Brighton vs Leeds
-            7: 4480,  # 01:14:40 - Crystal Palace vs Brentford
+        # Ground truth data for algorithm validation (Episode 01 only - Task 012-01)
+        # Used during boundary detection development to validate venue/clustering strategies.
+        # Other episodes analyzed without ground truth (production mode).
+        GROUND_TRUTH_DATA = {
+            'motd_2025-26_2025-11-01': {
+                1: 61,    # 00:01:01 - Liverpool vs Aston Villa
+                2: 865,   # 00:14:25 - Arsenal vs Burnley
+                3: 1587,  # 00:26:27 - Nottingham Forest vs Man Utd
+                4: 2509,  # 00:41:49 - Fulham vs Wolves
+                5: 3168,  # 00:52:48 - Tottenham vs Chelsea
+                6: 3894,  # 01:04:54 - Brighton vs Leeds
+                7: 4480,  # 01:14:40 - Crystal Palace vs Brentford
+            }
+            # Episode 02+ intentionally omitted - no ground truth needed
         }
+
+        # Get ground truth for this episode (or None if no ground truth exists)
+        ground_truth = GROUND_TRUTH_DATA.get(episode_id, None)
 
         # Display results
         venue_diffs, clustering_diffs = display_running_order_results(
             result,
-            GROUND_TRUTH_INTROS,
+            ground_truth,
             fixtures
         )
 
@@ -855,7 +862,7 @@ def analyze_running_order_command(
         if debug:
             generate_clustering_diagnostics(
                 result,
-                GROUND_TRUTH_INTROS,
+                ground_truth or {},  # Pass empty dict if no ground truth
                 detector,
                 episode_id,
                 Path('data/output')

@@ -1077,6 +1077,43 @@ class TestInterludeDetection:
         # Should return naive approach (next match start)
         assert result == 866.0, f"Expected naive 866s, got {result}"
 
+    def test_detect_interlude_episode02_united_alternate_false_positive(self, detector):
+        """
+        Interlude detection should not reject due to generic 'United' alternate.
+
+        Episode 02, Match 3 (Burnley vs West Ham): Interlude at 2640.28s says
+        "bumper Sunday match of the day", but at 2688.55s, text mentions
+        "Manchester United" (women's football news).
+
+        The fuzzy matcher incorrectly matches "United" (West Ham alternate)
+        against "Manchester United", causing false rejection.
+
+        Fix: Require full team name match for interlude validation, not alternates.
+        """
+        from pathlib import Path
+        import json
+
+        # Load Episode 02 transcript
+        transcript_path = Path('data/cache/motd_2025-26_2025-11-08/transcript.json')
+        with open(transcript_path) as f:
+            transcript_data = json.load(f)
+
+        # Match 3: Burnley vs West Ham United
+        teams = ('Burnley', 'West Ham United')
+        highlights_end = 2386.33
+        next_match_start = 2704.41
+        segments = transcript_data['segments']
+
+        result = detector._detect_interlude(teams, highlights_end, next_match_start, segments)
+
+        # EXPECTED: Interlude detected at 2640.28s
+        # ACTUAL (before fix): None (rejected due to "United" false positive)
+        assert result is not None, (
+            "Interlude at 2640.28s should be detected. "
+            "Rejection due to 'Manchester United' at 2688.55s is a false positive."
+        )
+        assert 2640 <= result <= 2641, f"Expected ~2640.28s, got {result}"
+
 
 class TestTableReviewDetection:
     """Test league table review detection using keyword + foreign team validation."""

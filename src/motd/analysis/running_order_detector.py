@@ -1261,8 +1261,7 @@ class RunningOrderDetector:
                 # Found interlude signal
                 interlude_keyword_timestamp = sentence['start']
                 logger.debug(
-                    f"Interlude keyword found at {interlude_keyword_timestamp:.2f}s "
-                    f"for {teams[0]} vs {teams[1]}"
+                    f"Interlude keyword found for {teams[0]} vs {teams[1]} at {interlude_keyword_timestamp:.2f}s"
                 )
                 break
 
@@ -1279,8 +1278,11 @@ class RunningOrderDetector:
 
         for segment in dropoff_segments:
             text = segment.get('text', '').lower()
-            if (self._fuzzy_team_match(text, teams[0]) or
-                self._fuzzy_team_match(text, teams[1])):
+
+            # IMPORTANT: Use strict matching (full team name only, no alternates)
+            # to avoid false positives like "United" matching "Manchester United"
+            # when validating West Ham United interlude
+            if (teams[0].lower() in text or teams[1].lower() in text):
                 # Team mentioned during supposed interlude → false positive
                 logger.debug(
                     f"Interlude rejected: team mentioned at {segment.get('start', 0):.2f}s "
