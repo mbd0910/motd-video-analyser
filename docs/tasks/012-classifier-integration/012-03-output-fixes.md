@@ -128,6 +128,7 @@ if (teams[0].lower() in text or teams[1].lower() in text):
   - "United" alternate matches "Manchester United" (fixed for interludes, but what about elsewhere?)
   - FT graphics should use strict matching, transcript analysis can be fuzzy
   - No documented strategy for when to use strict vs. fuzzy matching
+  - Probably only want truly fuzzy matching of nicknames when we're looking at sentient analysis of mentions over a long period of time, not when we're trying to match a specific game via a scoreboard, FT graphic or match introduction.
 
 - **Required:**
   - Audit ALL uses of `_fuzzy_team_match()` and team alternates
