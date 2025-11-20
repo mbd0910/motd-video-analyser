@@ -39,15 +39,6 @@ ocr:
       width: 747               # 1280 - 533 = 747 (extends to right edge at 720p)
       height: 320              # 720 - 400 = 320 (extends to bottom edge at 720p)
 
-  # Scene filtering for hybrid frame extraction
-  # Note: min_scene_duration removed - now handled by hybrid sampling approach
-  filtering:
-    skip_intro_seconds: 0            # Start from beginning (safe default for edge cases)
-                                     # Standard MOTD intro is ~50s, can set to 50 if known
-                                     # Keep at 0 to catch breaking news, tributes, or pre-intro content
-    motd2_interlude_start: 3121      # MOTD 2 interlude start (52:01 = 52*60+1)
-    motd2_interlude_end: 3167        # MOTD 2 interlude end (52:47 = 52*60+47)
-
 # Transcription Configuration
 transcription:
   model_size: large-v3         # faster-whisper model (tiny, base, small, medium, large, large-v3)

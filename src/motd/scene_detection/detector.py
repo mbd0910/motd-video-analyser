@@ -164,9 +164,7 @@ def hybrid_frame_extraction(
     video_path: str,
     scenes: list[dict[str, Any]],
     interval: float = 5.0,
-    dedupe_threshold: float = 1.0,
-    skip_intro: float = 0.0,
-    skip_intervals: list[tuple[float, float]] | None = None
+    dedupe_threshold: float = 1.0
 ) -> list[HybridFrame]:
     """
     Hybrid frame extraction combining scene changes and interval sampling.
@@ -174,13 +172,13 @@ def hybrid_frame_extraction(
     Combines PySceneDetect scene start times with regular interval samples,
     then deduplicates frames within dedupe_threshold.
 
+    Processes the ENTIRE video - no skipping of intro, interludes, or any other segments.
+
     Args:
         video_path: Path to video file
         scenes: PySceneDetect scene list from detect_scenes()
         interval: Regular sampling interval in seconds (default 5.0)
         dedupe_threshold: Frames within this many seconds are duplicates (default 1.0)
-        skip_intro: Skip first N seconds (default 0.0)
-        skip_intervals: List of (start, end) tuples to skip (e.g., MOTD2 interlude)
 
     Returns:
         Deduplicated list of frame extraction specifications with metadata:
@@ -201,43 +199,30 @@ def hybrid_frame_extraction(
     duration = get_video_duration(video_path)
     logger.info(f"Video duration: {duration:.1f}s")
 
-    skip_intervals = skip_intervals or []
-
     # Collect all candidate timestamps
     candidates = []
 
     # 1. Add scene change timestamps
     for scene in scenes:
-        timestamp = scene['start_seconds']
-        if timestamp >= skip_intro:
-            candidates.append({
-                'timestamp': timestamp,
-                'source': 'scene_change',
-                'scene_id': scene['scene_id']
-            })
+        candidates.append({
+            'timestamp': scene['start_seconds'],
+            'source': 'scene_change',
+            'scene_id': scene['scene_id']
+        })
 
     scene_count = len(candidates)
     logger.info(f"Added {scene_count} scene change timestamps")
 
     # 2. Add interval sampling timestamps
-    current = skip_intro
+    current = 0.0
     interval_count = 0
     while current <= duration:
-        # Check if in skip interval
-        in_skip = False
-        for skip_start, skip_end in skip_intervals:
-            if skip_start <= current <= skip_end:
-                in_skip = True
-                break
-
-        if not in_skip:
-            candidates.append({
-                'timestamp': current,
-                'source': 'interval_sampling',
-                'scene_id': None
-            })
-            interval_count += 1
-
+        candidates.append({
+            'timestamp': current,
+            'source': 'interval_sampling',
+            'scene_id': None
+        })
+        interval_count += 1
         current += interval
 
     logger.info(f"Added {interval_count} interval sampling timestamps")

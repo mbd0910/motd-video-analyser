@@ -1,8 +1,12 @@
 """
-Integration tests for edge case validation (Task 011b-2).
+Integration tests for edge case validation.
 
-Tests that intro and MOTD 2 interlude frames have no false positive
-team detections, ensuring OCR pipeline correctly rejects non-match content.
+Tests that OCR pipeline correctly rejects non-match content in intro
+and MOTD 2 interlude sections, even though these frames are now processed.
+
+Note: After removing skip logic (Task 012-02 cleanup), frame extraction
+processes the ENTIRE video. These tests verify OCR quality by ensuring
+no false positive team detections in non-match segments.
 """
 
 import json

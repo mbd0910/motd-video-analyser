@@ -181,21 +181,12 @@ def detect_scenes_command(
             from motd.scene_detection.detector import hybrid_frame_extraction
             from motd.scene_detection.frame_extractor import extract_hybrid_frames
 
-            # Get filtering config
-            filtering = ocr_config.get('filtering', {})
-            skip_intro = filtering.get('skip_intro_seconds', 0)
-            motd2_start = filtering.get('motd2_interlude_start', 0)
-            motd2_end = filtering.get('motd2_interlude_end', 0)
-            skip_intervals = [(motd2_start, motd2_end)] if motd2_start and motd2_end else []
-
-            # Generate hybrid frame list
+            # Generate hybrid frame list (processes entire video)
             hybrid_frames = hybrid_frame_extraction(
                 video_path=str(video_path),
                 scenes=scenes,
                 interval=sampling_config.get('interval', 5.0),
-                dedupe_threshold=sampling_config.get('dedupe_threshold', 1.0),
-                skip_intro=skip_intro,
-                skip_intervals=skip_intervals
+                dedupe_threshold=sampling_config.get('dedupe_threshold', 1.0)
             )
 
             # Extract frames
@@ -289,45 +280,6 @@ def detect_scenes_command(
         logger.error(f"Scene detection failed: {e}", exc_info=True)
         click.echo(f"\nError: {e}", err=True)
         sys.exit(1)
-
-
-def filter_scenes(scenes: list[dict[str, Any]], config: dict[str, Any]) -> list[dict[str, Any]]:
-    """
-    Filter scenes based on reconnaissance findings from Task 009a.
-
-    Note: With hybrid frame extraction (Task 011b), min_scene_duration filtering
-    is removed. Hybrid approach guarantees coverage regardless of scene duration.
-
-    Filters out:
-    - Intro scenes (first 50 seconds)
-    - MOTD 2 interlude (52:01-52:47)
-    """
-    filtering = config.get('ocr', {}).get('filtering', {})
-
-    filtered = []
-
-    # Skip intro (50 seconds)
-    intro_seconds = filtering.get('skip_intro_seconds', 50)
-
-    # Skip MOTD 2 interlude (52:01-52:47)
-    motd2_start = filtering.get('motd2_interlude_start', 3121)  # 52:01
-    motd2_end = filtering.get('motd2_interlude_end', 3167)      # 52:47
-
-    # Note: min_scene_duration filtering removed (Task 011b)
-    # Hybrid frame extraction now handles coverage of brief graphics
-
-    for scene in scenes:
-        # Skip intro
-        if scene['start_seconds'] < intro_seconds:
-            continue
-
-        # Skip MOTD 2 interlude
-        if motd2_start <= scene['start_seconds'] <= motd2_end:
-            continue
-
-        filtered.append(scene)
-
-    return filtered
 
 
 def generate_summary(ocr_results: list[dict[str, Any]], expected_teams: list[str]) -> dict[str, Any]:
@@ -447,21 +399,15 @@ def extract_teams_command(
             context=context
         )
 
-        # Filter scenes (based on 009a reconnaissance)
-        click.echo("\nFiltering scenes...")
-        filtered_scenes = filter_scenes(scenes_data['scenes'], cfg)
-        reduction_pct = ((total_scenes - len(filtered_scenes)) / total_scenes) * 100
-        click.echo(f"✓ Filtered: {total_scenes} → {len(filtered_scenes)} scenes ({reduction_pct:.1f}% reduction)")
-        logger.info(f"Filtered scenes: {total_scenes} → {len(filtered_scenes)} ({reduction_pct:.1f}% reduction)")
-
-        # Process scenes using SceneProcessor
+        # Process all scenes (no filtering - process entire video)
         click.echo("\nProcessing scenes (this may take several minutes)...")
         ocr_results = []
+        all_scenes = scenes_data['scenes']
 
-        for idx, scene_dict in enumerate(filtered_scenes, 1):
+        for idx, scene_dict in enumerate(all_scenes, 1):
             if idx % 50 == 0 or idx == 1:
-                click.echo(f"  Processing scene {idx}/{len(filtered_scenes)}...")
-                logger.info(f"Processing scene {idx}/{len(filtered_scenes)}")
+                click.echo(f"  Processing scene {idx}/{len(all_scenes)}...")
+                logger.info(f"Processing scene {idx}/{len(all_scenes)}")
 
             # Convert dict to Scene model
             scene = Scene(
