@@ -214,6 +214,39 @@ if len(missing_fixtures) == 1:
 
 ---
 
+## Ground Truth Frames
+
+### Episode 01 (motd_2025-26_2025-11-01)
+
+Reference frames for manual verification when context is limited:
+
+| Frame | Match | Type | Timestamp | Notes |
+|-------|-------|------|-----------|-------|
+| frame_0329 | Liverpool vs Aston Villa | FT Graphic | ~5:30 | Non-bold away team (Villa) |
+| frame_0834 | Fulham vs Wolves | FT Graphic | ~14:00 | Used in OCR region calibration |
+
+### Episode 02 (motd_2025-26_2025-11-08)
+
+Reference frames from Episode 02 processing (2025-11-20):
+
+| Frame | Match | Type | Timestamp | Notes |
+|-------|-------|------|-----------|-------|
+| frame_0374 | Sunderland vs Arsenal | FT Graphic | 11:33 (693s) | Detected ✅ |
+| frame_0834 | Tottenham vs Man Utd | FT Graphic | ~14:00 | **Missing** - investigate |
+| frame_1248 | West Ham vs Burnley | FT Graphic | 39:48 (2388s) | Detected ✅ |
+| frame_1642 | Everton vs Fulham | FT Graphic | 52:28 (3148s) | Detected ✅ (Scene 858) |
+| frame_1643 | Everton vs Fulham | FT Graphic | 52:30 (3150s) | Detected ✅ |
+| frame_2023 | Chelsea vs Wolves | FT Graphic | 64:58 (3898s) | Detected ✅ |
+
+**Episode 02 Results:** 4/5 FT graphics detected (missing Spurs vs Man Utd)
+
+**Frame Extraction Bug Fix Validation:**
+- Scene 858 (3145s-3151s) now has frames 1642-1643 ✅
+- Before fix: 0 frames in Scene 858
+- After fix: Multiple frames captured (validates skip logic removal)
+
+---
+
 ## Success Criteria
 
 **Phase 5-6 (Complete):**

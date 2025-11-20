@@ -461,7 +461,7 @@ def extract_teams_command(
                         f"{result['matched_fixture']}"
                     )
 
-        click.echo(f"✓ Processed {len(filtered_scenes)} scenes, found teams in {len(ocr_results)} scenes")
+        click.echo(f"✓ Processed {len(all_scenes)} scenes, found teams in {len(ocr_results)} scenes")
 
         # Build output
         summary = generate_summary(ocr_results, expected_teams)
@@ -470,7 +470,7 @@ def extract_teams_command(
             'episode_id': episode_id,
             'video_path': scenes_data.get('video_path'),
             'total_scenes': total_scenes,
-            'filtered_scenes': len(filtered_scenes),
+            'processed_scenes': len(all_scenes),
             'scenes_with_teams': len(ocr_results),
             'expected_fixtures': [
                 {
