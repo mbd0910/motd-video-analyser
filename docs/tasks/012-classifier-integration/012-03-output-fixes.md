@@ -117,7 +117,12 @@ if (teams[0].lower() in text or teams[1].lower() in text):
 - Frames marked `currently_detected: True` but pipeline rejects them
 - Need to determine: Fix pipeline OR delete aspirational tests (no skips!)
 
-**Priority 3: Comprehensive Fuzzy Matching Review (CRITICAL)**
+**Priority 3: Change Interlude Algorithm**
+- Remove team name checks
+- Just check it's not a match introduction, and there's no scoreboards/FT graphics in that window.
+- Team name fuzzy check is too risky - but absence of other stuff means it's almost certainly the interlude.
+
+**Priority 4: Comprehensive Fuzzy Matching Review (CRITICAL)**
 - **Problem:** Fuzzy matching logic is ad-hoc across codebase
 - **Examples of issues:**
   - "United" alternate matches "Manchester United" (fixed for interludes, but what about elsewhere?)
