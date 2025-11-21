@@ -236,30 +236,26 @@ motd-video-analyser/
 
 ## Development Workflow
 
-This project uses **task-driven development**:
+This project uses **GitHub Issues** for tracking work:
 
-1. Check [docs/tasks/BACKLOG.md](docs/tasks/BACKLOG.md) for current status
-2. Work sequentially through tasks (001 → 002 → 003...)
-3. Each task has validation checkpoints - don't skip them
-4. Follow [COMMIT_STYLE.md](COMMIT_STYLE.md) for git conventions
-5. Use feature branches: `feature/task-{number}-{slug}`
+1. Check [GitHub Issues](https://github.com/mbd0910/motd-video-analyser/issues) for current work
+2. Follow [COMMIT_STYLE.md](COMMIT_STYLE.md) for git conventions
+3. Use feature branches: `feature/issue-{number}-{slug}`
 
-See [.claude/commands/task-workflow.md](.claude/commands/task-workflow.md) for the full workflow.
+Historical tasks (001-012) are archived in [docs/tasks/completed/](docs/tasks/completed/).
 
-## Roadmap
+## Progress
 
-- [x] **Phase 0**: Project Setup (Tasks 001-005)
-- [x] **Phase 1**: Scene Detection (Tasks 006-008)
-- [x] **Phase 2**: OCR & Team Detection (Task 009)
-- [x] **Phase 3**: Audio Transcription (Task 010)
-- [x] **Phase 4**: Running Order Detection (Task 011a-011b)
-- [x] **Phase 4**: Match Boundary Detection (Task 012-01)
-- [ ] **Phase 4**: Segment Classification (Task 012 - in progress)
-- [ ] **Phase 5**: Production CLI (Task 013)
-- [ ] **Phase 6**: Batch Processing (Task 014)
-- [ ] **Phase 7**: Final Documentation (Task 015)
+### Completed ✅
+- **Phase 0**: Project Setup (Tasks 001-005)
+- **Phase 1**: Scene Detection (Tasks 006-008)
+- **Phase 2**: OCR & Team Detection (Task 009)
+- **Phase 3**: Audio Transcription (Task 010)
+- **Phase 4**: Running Order Detection (Task 011)
+- **Phase 4.5**: Match Boundary Detection (Task 012)
 
-**Estimated completion**: 2-3 weeks of active development
+### In Progress 🔄
+See [GitHub Issues](https://github.com/mbd0910/motd-video-analyser/issues) for current work items.
 
 ## Contributing
 

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Context
 
-**Core pipeline operational** (scene detection, OCR, transcription). **Tasks 011-012 complete**: Running Order Detection (100% accuracy: 7/7 matches) + Match Boundary Detection (100% accuracy: ±1.27s avg error). **Working on** Task 012: Segment Classification (interludes, airtime calculation). Follow task-driven workflow in [docs/tasks/](docs/tasks/).
+**Core pipeline operational** (scene detection, OCR, transcription). **Tasks 001-012 complete**: Running Order Detection (100% accuracy: 7/7 matches) + Match Boundary Detection (100% accuracy: ±1.27s avg error). **New work uses GitHub Issues** - see [Issue Workflow](.claude/commands/issue-workflow.md).
 
 ## What This Project Does
 
@@ -14,10 +14,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Critical Warnings
 
-**IMPORTANT**: This project uses task-driven development. Before implementing any feature:
-1. Check if a task file exists in [docs/tasks/](docs/tasks/) or [docs/tasks/completed/](docs/tasks/completed/)
-2. Check [docs/tasks/future/](docs/tasks/future/) for tentative tasks (YAGNI principle - only create when needed)
-3. Never skip task validation checklists
+**IMPORTANT**: This project uses GitHub Issues for new work. Before implementing any feature:
+1. Check [GitHub Issues](https://github.com/mbd0910/motd-video-analyser/issues) for existing issues
+2. Use `/issue-workflow {number}` to work on an issue
+3. Historical tasks (001-012) are in [docs/tasks/completed/](docs/tasks/completed/) for reference
 
 **YOU MUST**:
 - Always check video resolution with `ffprobe` before assuming 1920x1080 - BBC may change formats
@@ -63,32 +63,30 @@ Before implementing features, check the domain docs for business context:
 
 **When writing sub-tasks:** Use [Sub-Task Template](.claude/commands/references/subtask_template.md) - includes Quick Context section linking to domain docs.
 
-## Task-Driven Development Workflow
+## Development Workflow
 
-### Critical Pattern: Follow Tasks Sequentially
+### New Work: GitHub Issues
 
-1. **Start here**: [docs/tasks/README.md](docs/tasks/README.md) - Overview of all 15 tasks
-2. **Begin with**: [docs/tasks/001-environment-setup.md](docs/tasks/001-environment-setup.md)
-3. **Work sequentially**: Tasks build on each other (001 → 002 → 003...)
-4. **Validate at checkpoints**: Each task has a validation checklist - don't skip it
-5. **Reference roadmap for code**: [docs/roadmap.md](docs/roadmap.md) contains detailed implementation examples
+All new work uses GitHub Issues with the `/issue-workflow` command:
 
-### Epic Tasks Require Splitting (Critical!)
+```bash
+/issue-workflow 15              # Plan + execute issue #15
+/issue-workflow 15 --plan-only  # Create task file only
+/issue-workflow 15 --execute    # Execute existing plan
+```
 
-**Tasks 008-015 are "epics"** - they combine multiple sub-tasks. Before implementing an epic:
-- Read the epic file
-- Split it into smaller, discrete tasks
-- Implement incrementally
-- Validate each sub-task
+**Key benefits:**
+- Flexible numbering (no renumbering when inserting work)
+- Bi-directional links: Issue ↔ Task file ↔ Branch ↔ Commits
+- Four pause points: Critical thinking → Implementation → Code review → Merge
+- Task files remain in `docs/tasks/issue-{number}/` for reference
 
-**Example**: Task 009 (OCR Implementation Epic) should be split into:
-1. Implement OCR reader module
-2. Implement team matcher
-3. Create CLI command
-4. Run on test video
-5. Validate accuracy
+See [Issue Workflow](.claude/commands/issue-workflow.md) for full details.
 
-Don't try to complete an epic in one session - split first, then execute.
+### Historical Tasks (001-012)
+
+Completed tasks are archived in [docs/tasks/completed/](docs/tasks/completed/) for reference.
+These used sequential numbering - preserved for historical context only.
 
 ## Technology Constraints (Critical)
 
