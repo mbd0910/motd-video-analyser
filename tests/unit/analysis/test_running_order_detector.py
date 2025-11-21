@@ -16,20 +16,26 @@ from motd.pipeline.models import RunningOrderResult, MatchBoundary
 
 
 @pytest.fixture
-def ocr_results():
-    """Load real OCR results for integration testing."""
-    ocr_path = Path('data/cache/motd_2025-26_2025-11-01/ocr_results.json')
-    with open(ocr_path) as f:
-        data = json.load(f)
-    return data['ocr_results']
+def episode_01_minimal():
+    """Load minimal Episode 01 fixture (no cache dependency)."""
+    fixture_path = Path('tests/fixtures/episodes/motd_2025-26_2025-11-01_minimal.json')
+    with open(fixture_path) as f:
+        return json.load(f)
 
 
 @pytest.fixture
-def transcript():
-    """Load real transcript for mention clustering."""
-    transcript_path = Path('data/cache/motd_2025-26_2025-11-01/transcript.json')
-    with open(transcript_path) as f:
-        return json.load(f)
+def ocr_results(episode_01_minimal):
+    """Load OCR results from minimal Episode 01 fixture."""
+    return episode_01_minimal['ocr_results']
+
+
+@pytest.fixture
+def transcript(episode_01_minimal):
+    """Load transcript from minimal Episode 01 fixture."""
+    return {
+        'segments': episode_01_minimal['segments'],
+        'duration': episode_01_minimal.get('duration', 5039.0)
+    }
 
 
 @pytest.fixture
@@ -993,8 +999,51 @@ class TestBoundaryValidation:
             assert match.confidence == match.validation.confidence
 
 
+def load_interlude_patterns():
+    """Load synthetic interlude patterns from fixtures."""
+    patterns_path = Path('tests/fixtures/patterns/interlude_patterns.json')
+    with open(patterns_path) as f:
+        data = json.load(f)
+    return data['interlude_patterns']
+
+
+class TestInterludePatterns:
+    """Parameterized tests using synthetic interlude patterns (no cache dependency)."""
+
+    @pytest.fixture
+    def minimal_detector(self, teams_data, fixtures, venue_matcher):
+        """Create detector with empty OCR results for pattern testing."""
+        return RunningOrderDetector(
+            ocr_results=[],
+            transcript={'segments': []},
+            teams_data=teams_data,
+            fixtures=fixtures,
+            venue_matcher=venue_matcher
+        )
+
+    @pytest.mark.parametrize("pattern", load_interlude_patterns(), ids=lambda p: p['pattern_id'])
+    def test_interlude_pattern(self, minimal_detector, pattern):
+        """Test interlude detection against synthetic patterns."""
+        # Set up detector with pattern data
+        minimal_detector.ocr_results = pattern['ocr_results']
+
+        result = minimal_detector._detect_interlude(
+            teams=tuple(pattern['teams']),
+            highlights_end=pattern['highlights_end'],
+            next_match_start=pattern['next_match_start'],
+            segments=pattern['segments']
+        )
+
+        expected = pattern['expected_result']
+        if expected is None:
+            assert result is None, f"Pattern '{pattern['pattern_id']}': Expected None, got {result}"
+        else:
+            assert result is not None, f"Pattern '{pattern['pattern_id']}': Expected {expected}, got None"
+            assert abs(result - expected) < 1.0, f"Pattern '{pattern['pattern_id']}': Expected ~{expected}, got {result}"
+
+
 class TestInterludeDetection:
-    """Test interlude detection using keyword + drop-off validation."""
+    """Test interlude detection using real episode data from minimal fixtures."""
 
     def test_detect_interlude_match4_motd2(self, detector, transcript):
         """Match 4 (Fulham vs Wolves): Should detect MOTD 2 interlude at ~3118s."""
@@ -1035,17 +1084,50 @@ class TestInterludeDetection:
         assert result is not None, "Should detect keyword in consecutive sentences"
         assert 3116 <= result <= 3120
 
-    def test_interlude_false_positive_teams_mentioned(self, detector):
-        """Should reject interlude if teams mentioned in drop-off window."""
+    def test_interlude_with_team_mention_but_no_graphics(self, detector):
+        """
+        Should detect interlude even if team name mentioned (e.g., women's football news).
+
+        Key insight: Absence of scoreboards/FT graphics is the validation signal,
+        NOT absence of team names in transcript.
+        """
         teams = ('Fulham', 'Wolverhampton Wanderers')
         segments = [
             {'start': 3118.0, 'text': "Sunday's Match Of The Day."},
-            {'start': 3130.0, 'text': "Fulham were brilliant today."},  # Team mention!
+            {'start': 3130.0, 'text': "Fulham women scored a late winner."},  # Team mention!
         ]
 
-        result = detector._detect_interlude(teams, 2881.0, 3169.0, segments)
+        # Temporarily set empty OCR results (no graphics in window)
+        original_ocr = detector.ocr_results
+        detector.ocr_results = []
 
-        assert result is None, "Should reject: team mentioned during supposed interlude"
+        try:
+            result = detector._detect_interlude(teams, 2881.0, 3169.0, segments)
+            # NEW behaviour: Team mention alone doesn't reject - no graphics = valid interlude
+            assert result is not None, "Should detect: team mention without graphics is valid"
+            assert 3116 <= result <= 3120
+        finally:
+            detector.ocr_results = original_ocr
+
+    def test_interlude_rejected_if_scoreboard_in_window(self, detector):
+        """Should reject interlude if scoreboard/FT graphic detected in validation window."""
+        teams = ('Fulham', 'Wolverhampton Wanderers')
+        segments = [
+            {'start': 3118.0, 'text': "Sunday's Match Of The Day."},
+            {'start': 3150.0, 'text': "What a match this has been."},
+        ]
+
+        # Inject a scoreboard in the validation window
+        original_ocr = detector.ocr_results
+        detector.ocr_results = [
+            {'start_seconds': 3140.0, 'end_seconds': 3145.0, 'ocr_source': 'scoreboard'}
+        ]
+
+        try:
+            result = detector._detect_interlude(teams, 2881.0, 3169.0, segments)
+            assert result is None, "Should reject: scoreboard in window means it's a match, not interlude"
+        finally:
+            detector.ocr_results = original_ocr
 
     def test_match_end_uses_interlude_detection(self, detector, transcript):
         """_detect_match_end should use interlude detection for Match 4."""
@@ -1085,34 +1167,39 @@ class TestInterludeDetection:
         "bumper Sunday match of the day", but at 2688.55s, text mentions
         "Manchester United" (women's football news).
 
-        The fuzzy matcher incorrectly matches "United" (West Ham alternate)
+        The OLD fuzzy matcher incorrectly matched "United" (West Ham alternate)
         against "Manchester United", causing false rejection.
 
-        Fix: Require full team name match for interlude validation, not alternates.
+        NEW approach: Use scoreboard/FT graphic absence instead of team name checks.
+        The interlude has no match graphics → should be detected.
         """
-        from pathlib import Path
-        import json
+        # Load Episode 02 minimal fixture (no cache dependency)
+        episode02_path = Path('tests/fixtures/episodes/motd_2025-26_2025-11-08_minimal.json')
+        with open(episode02_path) as f:
+            episode02 = json.load(f)
 
-        # Load Episode 02 transcript
-        transcript_path = Path('data/cache/motd_2025-26_2025-11-08/transcript.json')
-        with open(transcript_path) as f:
-            transcript_data = json.load(f)
+        # Use Episode 02 OCR results for this test
+        original_ocr = detector.ocr_results
+        detector.ocr_results = episode02['ocr_results']
 
-        # Match 3: Burnley vs West Ham United
-        teams = ('Burnley', 'West Ham United')
-        highlights_end = 2386.33
-        next_match_start = 2704.41
-        segments = transcript_data['segments']
+        try:
+            # Match 3: Burnley vs West Ham United
+            teams = ('Burnley', 'West Ham United')
+            highlights_end = 2386.33
+            next_match_start = 2704.41
+            segments = episode02['segments']
 
-        result = detector._detect_interlude(teams, highlights_end, next_match_start, segments)
+            result = detector._detect_interlude(teams, highlights_end, next_match_start, segments)
 
-        # EXPECTED: Interlude detected at 2640.28s
-        # ACTUAL (before fix): None (rejected due to "United" false positive)
-        assert result is not None, (
-            "Interlude at 2640.28s should be detected. "
-            "Rejection due to 'Manchester United' at 2688.55s is a false positive."
-        )
-        assert 2640 <= result <= 2641, f"Expected ~2640.28s, got {result}"
+            # EXPECTED: Interlude detected at 2640.28s
+            # No scoreboards/FT graphics in the interlude window
+            assert result is not None, (
+                "Interlude at 2640.28s should be detected. "
+                "No match graphics in validation window."
+            )
+            assert 2640 <= result <= 2641, f"Expected ~2640.28s, got {result}"
+        finally:
+            detector.ocr_results = original_ocr
 
 
 class TestTableReviewDetection:

@@ -1,6 +1,6 @@
 # Commit Message Style
 
-All commits should be human-readable summaries **without conventional prefixes** (no `feat:`, `fix:`, `docs:`, etc.).
+All commits should be human-readable summaries **without conventional prefixes**
 
 ---
 
@@ -39,7 +39,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 **Example:**
 ```
-Complete clustering strategy for match boundary detection (Task 012-01)
+Complete clustering strategy for match boundary detection
 
 Implemented temporal density clustering as an independent strategy for detecting match start
 boundaries. Uses statistical density of team co-mentions in transcript to identify intro segments.

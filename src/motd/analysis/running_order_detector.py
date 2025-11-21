@@ -1223,10 +1223,10 @@ class RunningOrderDetector:
         - Search for "sunday" + ("motd" OR "match of the day") in consecutive sentences
         - Uses sentence start timestamp (beginning of sentence)
 
-        Signal 2: Team Mention Drop-off (Validation)
-        - Window: keyword_timestamp → next_match_start (dynamic!)
-        - Require: Zero mentions of BOTH teams from previous match
-        - Validates this is truly an interlude, not just commentary reference
+        Signal 2: Scoreboard/FT Graphic Absence (Validation)
+        - Window: keyword_timestamp → next_match_start
+        - Require: Zero scoreboards or FT graphics in the validation window
+        - Validates this is truly an interlude (no match graphics = not a match)
 
         Args:
             teams: Team pair from previous match (e.g., "Fulham", "Wolverhampton Wanderers")
@@ -1276,26 +1276,21 @@ class RunningOrderDetector:
             # No interlude keywords found
             return None
 
-        # 4. Validate with team mention drop-off (dynamic window)
-        # Check for zero team mentions from keyword → next_match_start
-        dropoff_segments = [
-            s for s in segments
-            if 'text' in s and interlude_keyword_timestamp <= s.get('start', 0) < next_match_start
+        # 4. Validate with scoreboard/FT graphic absence (dynamic window)
+        # Check for zero match graphics from keyword → next_match_start
+        # This is more reliable than team name checks (avoids women's team false positives)
+        graphics_in_window = [
+            scene for scene in self.ocr_results
+            if scene.get('ocr_source') in ('scoreboard', 'ft_score')
+            and interlude_keyword_timestamp <= scene.get('start_seconds', 0) < next_match_start
         ]
 
-        for segment in dropoff_segments:
-            text = segment.get('text', '').lower()
-
-            # IMPORTANT: Use strict matching (full team name only, no alternates)
-            # to avoid false positives like "United" matching "Manchester United"
-            # when validating West Ham United interlude
-            if (teams[0].lower() in text or teams[1].lower() in text):
-                # Team mentioned during supposed interlude → false positive
-                logger.debug(
-                    f"Interlude rejected: team mentioned at {segment.get('start', 0):.2f}s "
-                    f"during supposed interlude for {teams[0]} vs {teams[1]}"
-                )
-                return None
+        if graphics_in_window:
+            logger.debug(
+                f"Interlude rejected: {len(graphics_in_window)} scoreboard/FT graphic(s) found "
+                f"in validation window for {teams[0]} vs {teams[1]}"
+            )
+            return None
 
         # Both signals validated → return interlude start (sentence beginning)
         return interlude_keyword_timestamp

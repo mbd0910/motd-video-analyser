@@ -1,0 +1,107 @@
+{
+  "description": "Synthetic patterns for interlude detection unit tests. Each pattern represents a specific edge case without depending on real episode data.",
+  "interlude_patterns": [
+    {
+      "pattern_id": "basic_interlude",
+      "description": "Basic MOTD 2 interlude with keyword and no graphics",
+      "teams": ["Fulham", "Wolverhampton Wanderers"],
+      "highlights_end": 100.0,
+      "next_match_start": 150.0,
+      "segments": [
+        {"start": 100.5, "text": "Great analysis there."},
+        {"start": 102.0, "text": "Two games on Sunday's Match Of The Day."},
+        {"start": 110.0, "text": "Coming up next."}
+      ],
+      "ocr_results": [],
+      "expected_result": 102.0
+    },
+    {
+      "pattern_id": "team_mention_no_graphics",
+      "description": "Team name mentioned but no graphics - should still detect (women's football scenario)",
+      "teams": ["Fulham", "Wolverhampton Wanderers"],
+      "highlights_end": 100.0,
+      "next_match_start": 150.0,
+      "segments": [
+        {"start": 102.0, "text": "Sunday's Match Of The Day."},
+        {"start": 105.0, "text": "Fulham women scored a late winner."}
+      ],
+      "ocr_results": [],
+      "expected_result": 102.0
+    },
+    {
+      "pattern_id": "rejected_by_scoreboard",
+      "description": "Keyword present but scoreboard in window - should reject",
+      "teams": ["Fulham", "Wolverhampton Wanderers"],
+      "highlights_end": 100.0,
+      "next_match_start": 150.0,
+      "segments": [
+        {"start": 102.0, "text": "Sunday's Match Of The Day."},
+        {"start": 110.0, "text": "Some commentary."}
+      ],
+      "ocr_results": [
+        {"ocr_source": "scoreboard", "start_seconds": 105.0}
+      ],
+      "expected_result": null
+    },
+    {
+      "pattern_id": "rejected_by_ft_graphic",
+      "description": "Keyword present but FT graphic in window - should reject",
+      "teams": ["Arsenal", "Chelsea"],
+      "highlights_end": 200.0,
+      "next_match_start": 250.0,
+      "segments": [
+        {"start": 202.0, "text": "Two games on Sunday's Match Of The Day."},
+        {"start": 210.0, "text": "Next up."}
+      ],
+      "ocr_results": [
+        {"ocr_source": "ft_score", "start_seconds": 220.0}
+      ],
+      "expected_result": null
+    },
+    {
+      "pattern_id": "keyword_split_segments",
+      "description": "Keyword split across segments - returns start of combined sentence (101.0), not segment where keyword completes",
+      "teams": ["Fulham", "Wolverhampton Wanderers"],
+      "highlights_end": 100.0,
+      "next_match_start": 150.0,
+      "segments": [
+        {"start": 100.0, "text": "Analysis segment."},
+        {"start": 101.0, "text": "Two games on Sunday's"},
+        {"start": 102.0, "text": "Match Of The Day."},
+        {"start": 105.0, "text": "Next content."}
+      ],
+      "ocr_results": [],
+      "expected_result": 101.0
+    },
+    {
+      "pattern_id": "no_keyword",
+      "description": "No interlude keyword present - should return null",
+      "teams": ["Aston Villa", "Liverpool"],
+      "highlights_end": 100.0,
+      "next_match_start": 150.0,
+      "segments": [
+        {"start": 100.0, "text": "What a match that was."},
+        {"start": 105.0, "text": "Liverpool played brilliantly."},
+        {"start": 110.0, "text": "Now onto the next game."}
+      ],
+      "ocr_results": [],
+      "expected_result": null
+    },
+    {
+      "pattern_id": "graphics_before_keyword_ok",
+      "description": "Graphics BEFORE keyword timestamp are ignored - only post-keyword matters",
+      "teams": ["Chelsea", "Tottenham Hotspur"],
+      "highlights_end": 100.0,
+      "next_match_start": 150.0,
+      "segments": [
+        {"start": 100.0, "text": "Match highlights."},
+        {"start": 120.0, "text": "Sunday's Match Of The Day coming up."},
+        {"start": 130.0, "text": "Stay tuned."}
+      ],
+      "ocr_results": [
+        {"ocr_source": "scoreboard", "start_seconds": 105.0}
+      ],
+      "expected_result": 120.0
+    }
+  ]
+}
