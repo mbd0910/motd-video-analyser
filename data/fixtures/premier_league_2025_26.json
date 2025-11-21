@@ -3,6 +3,66 @@
   "competition": "Premier League",
   "fixtures": [
     {
+      "match_id": "2025-10-24-leeds-westham",
+      "date": "2025-10-24",
+      "home_team": "Leeds United",
+      "away_team": "West Ham United",
+      "kickoff": "20:00",
+      "final_score": {
+        "home": 2,
+        "away": 1
+      },
+      "venue": "Elland Road"
+    },
+    {
+      "match_id": "2025-10-25-brentford-liverpool",
+      "date": "2025-10-25",
+      "home_team": "Brentford",
+      "away_team": "Liverpool",
+      "kickoff": "20:00",
+      "final_score": {
+        "home": 3,
+        "away": 2
+      },
+      "venue": "Gtech Community Stadium"
+    },
+    {
+      "match_id": "2025-10-25-manutd-brighton",
+      "date": "2025-10-25",
+      "home_team": "Manchester United",
+      "away_team": "Brighton & Hove Albion",
+      "kickoff": "17:30",
+      "final_score": {
+        "home": 4,
+        "away": 2
+      },
+      "venue": "Old Trafford"
+    },
+    {
+      "match_id": "2025-10-25-chelsea-sunderland",
+      "date": "2025-10-25",
+      "home_team": "Chelsea",
+      "away_team": "Sunderland",
+      "kickoff": "15:00",
+      "final_score": {
+        "home": 1,
+        "away": 2
+      },
+      "venue": "Stamford Bridge"
+    },
+    {
+      "match_id": "2025-10-25-newcastle-fulham",
+      "date": "2025-10-25",
+      "home_team": "Newcastle United",
+      "away_team": "Fulham",
+      "kickoff": "15:00",
+      "final_score": {
+        "home": 2,
+        "away": 1
+      },
+      "venue": "St James' Park"
+    },
+    {
       "match_id": "2025-11-01-brighton-leeds",
       "date": "2025-11-01",
       "home_team": "Brighton & Hove Albion",
