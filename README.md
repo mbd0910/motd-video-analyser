@@ -151,8 +151,7 @@ python -m motd transcribe data/videos/motd_2025-26_2025-11-01.mp4
 
 # 4. Running Order Detection - Combine OCR + transcript to detect match boundaries
 #    (venue detection + clustering + cross-validation)
-python -m motd analyze-running-order \
-  --episode-id motd_2025-26_2025-11-01
+python -m motd analyze-running-order motd_2025-26_2025-11-01
 
 # Full pipeline (coming soon in Task 013)
 python -m motd process data/videos/motd_2025-26_2025-11-01.mp4
