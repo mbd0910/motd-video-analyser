@@ -43,6 +43,32 @@ def load_config(config_path: Path = Path("config/config.yaml")) -> dict[str, Any
         return yaml.safe_load(f)
 
 
+def load_ground_truth(episode_id: str, ground_truth_path: Path = Path("data/ground_truth/episode_boundaries.json")) -> dict[int, int] | None:
+    """
+    Load ground truth match start times for an episode.
+
+    Args:
+        episode_id: Episode identifier (e.g., 'motd_2025-26_2025-11-01')
+        ground_truth_path: Path to ground truth JSON file
+
+    Returns:
+        Dict mapping match number to start time (seconds), or None if no ground truth
+    """
+    if not ground_truth_path.exists():
+        return None
+
+    with open(ground_truth_path) as f:
+        data = json.load(f)
+
+    episode_data = data.get(episode_id)
+    if not episode_data:
+        return None
+
+    # Convert to simple {match_num: start_time} format expected by display functions
+    matches = episode_data.get('matches', {})
+    return {int(k): v['match_start'] for k, v in matches.items()}
+
+
 def setup_logging(config: dict[str, Any]) -> None:
     """Configure logging based on config settings."""
     log_config = config.get("logging", {})
@@ -181,21 +207,12 @@ def detect_scenes_command(
             from motd.scene_detection.detector import hybrid_frame_extraction
             from motd.scene_detection.frame_extractor import extract_hybrid_frames
 
-            # Get filtering config
-            filtering = ocr_config.get('filtering', {})
-            skip_intro = filtering.get('skip_intro_seconds', 0)
-            motd2_start = filtering.get('motd2_interlude_start', 0)
-            motd2_end = filtering.get('motd2_interlude_end', 0)
-            skip_intervals = [(motd2_start, motd2_end)] if motd2_start and motd2_end else []
-
-            # Generate hybrid frame list
+            # Generate hybrid frame list (processes entire video)
             hybrid_frames = hybrid_frame_extraction(
                 video_path=str(video_path),
                 scenes=scenes,
                 interval=sampling_config.get('interval', 5.0),
-                dedupe_threshold=sampling_config.get('dedupe_threshold', 1.0),
-                skip_intro=skip_intro,
-                skip_intervals=skip_intervals
+                dedupe_threshold=sampling_config.get('dedupe_threshold', 1.0)
             )
 
             # Extract frames
@@ -289,45 +306,6 @@ def detect_scenes_command(
         logger.error(f"Scene detection failed: {e}", exc_info=True)
         click.echo(f"\nError: {e}", err=True)
         sys.exit(1)
-
-
-def filter_scenes(scenes: list[dict[str, Any]], config: dict[str, Any]) -> list[dict[str, Any]]:
-    """
-    Filter scenes based on reconnaissance findings from Task 009a.
-
-    Note: With hybrid frame extraction (Task 011b), min_scene_duration filtering
-    is removed. Hybrid approach guarantees coverage regardless of scene duration.
-
-    Filters out:
-    - Intro scenes (first 50 seconds)
-    - MOTD 2 interlude (52:01-52:47)
-    """
-    filtering = config.get('ocr', {}).get('filtering', {})
-
-    filtered = []
-
-    # Skip intro (50 seconds)
-    intro_seconds = filtering.get('skip_intro_seconds', 50)
-
-    # Skip MOTD 2 interlude (52:01-52:47)
-    motd2_start = filtering.get('motd2_interlude_start', 3121)  # 52:01
-    motd2_end = filtering.get('motd2_interlude_end', 3167)      # 52:47
-
-    # Note: min_scene_duration filtering removed (Task 011b)
-    # Hybrid frame extraction now handles coverage of brief graphics
-
-    for scene in scenes:
-        # Skip intro
-        if scene['start_seconds'] < intro_seconds:
-            continue
-
-        # Skip MOTD 2 interlude
-        if motd2_start <= scene['start_seconds'] <= motd2_end:
-            continue
-
-        filtered.append(scene)
-
-    return filtered
 
 
 def generate_summary(ocr_results: list[dict[str, Any]], expected_teams: list[str]) -> dict[str, Any]:
@@ -447,21 +425,15 @@ def extract_teams_command(
             context=context
         )
 
-        # Filter scenes (based on 009a reconnaissance)
-        click.echo("\nFiltering scenes...")
-        filtered_scenes = filter_scenes(scenes_data['scenes'], cfg)
-        reduction_pct = ((total_scenes - len(filtered_scenes)) / total_scenes) * 100
-        click.echo(f"✓ Filtered: {total_scenes} → {len(filtered_scenes)} scenes ({reduction_pct:.1f}% reduction)")
-        logger.info(f"Filtered scenes: {total_scenes} → {len(filtered_scenes)} ({reduction_pct:.1f}% reduction)")
-
-        # Process scenes using SceneProcessor
+        # Process all scenes (no filtering - process entire video)
         click.echo("\nProcessing scenes (this may take several minutes)...")
         ocr_results = []
+        all_scenes = scenes_data['scenes']
 
-        for idx, scene_dict in enumerate(filtered_scenes, 1):
+        for idx, scene_dict in enumerate(all_scenes, 1):
             if idx % 50 == 0 or idx == 1:
-                click.echo(f"  Processing scene {idx}/{len(filtered_scenes)}...")
-                logger.info(f"Processing scene {idx}/{len(filtered_scenes)}")
+                click.echo(f"  Processing scene {idx}/{len(all_scenes)}...")
+                logger.info(f"Processing scene {idx}/{len(all_scenes)}")
 
             # Convert dict to Scene model
             scene = Scene(
@@ -515,7 +487,7 @@ def extract_teams_command(
                         f"{result['matched_fixture']}"
                     )
 
-        click.echo(f"✓ Processed {len(filtered_scenes)} scenes, found teams in {len(ocr_results)} scenes")
+        click.echo(f"✓ Processed {len(all_scenes)} scenes, found teams in {len(ocr_results)} scenes")
 
         # Build output
         summary = generate_summary(ocr_results, expected_teams)
@@ -524,7 +496,7 @@ def extract_teams_command(
             'episode_id': episode_id,
             'video_path': scenes_data.get('video_path'),
             'total_scenes': total_scenes,
-            'filtered_scenes': len(filtered_scenes),
+            'processed_scenes': len(all_scenes),
             'scenes_with_teams': len(ocr_results),
             'expected_fixtures': [
                 {
@@ -883,22 +855,14 @@ def analyze_running_order_command(
         )
         click.echo(f"  ✓ Detected all match boundaries\n")
 
-        # Ground truth for validation (from visual_patterns.md + manual verification)
-        # TODO: Make this optional (Task 013) - only needed for algorithm development
-        GROUND_TRUTH_INTROS = {
-            1: 61,    # 00:01:01 - Liverpool vs Aston Villa
-            2: 865,   # 00:14:25 - Arsenal vs Burnley
-            3: 1587,  # 00:26:27 - Nottingham Forest vs Man Utd
-            4: 2509,  # 00:41:49 - Fulham vs Wolves
-            5: 3168,  # 00:52:48 - Tottenham vs Chelsea
-            6: 3894,  # 01:04:54 - Brighton vs Leeds
-            7: 4480,  # 01:14:40 - Crystal Palace vs Brentford
-        }
+        # Load ground truth for validation (if available for this episode)
+        # See data/ground_truth/episode_boundaries.json for manually verified timings
+        ground_truth = load_ground_truth(episode_id)
 
         # Display results
         venue_diffs, clustering_diffs = display_running_order_results(
             result,
-            GROUND_TRUTH_INTROS,
+            ground_truth,
             fixtures
         )
 
@@ -909,7 +873,7 @@ def analyze_running_order_command(
         if debug:
             generate_clustering_diagnostics(
                 result,
-                GROUND_TRUTH_INTROS,
+                ground_truth or {},  # Pass empty dict if no ground truth
                 detector,
                 episode_id,
                 Path('data/output')

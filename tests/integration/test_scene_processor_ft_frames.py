@@ -11,8 +11,8 @@ import pytest
 from pathlib import Path
 import yaml
 
-from src.motd.pipeline.factory import ServiceFactory
-from src.motd.pipeline.models import Scene
+from motd.pipeline.factory import ServiceFactory
+from motd.pipeline.models import Scene
 
 
 # Ground truth data for all 8 FT graphic frames

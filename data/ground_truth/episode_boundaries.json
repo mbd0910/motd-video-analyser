@@ -1,0 +1,15 @@
+{
+  "_description": "Manually verified match start times (seconds) for validating detection algorithms",
+  "_note": "Only Episode 01 has ground truth - future episodes analysed 'for real'",
+  "motd_2025-26_2025-11-01": {
+    "matches": {
+      "1": {"match_start": 61, "teams": ["Liverpool", "Aston Villa"], "comment": "00:01:01"},
+      "2": {"match_start": 865, "teams": ["Arsenal", "Burnley"], "comment": "00:14:25"},
+      "3": {"match_start": 1587, "teams": ["Nottingham Forest", "Manchester United"], "comment": "00:26:27"},
+      "4": {"match_start": 2509, "teams": ["Fulham", "Wolverhampton Wanderers"], "comment": "00:41:49"},
+      "5": {"match_start": 3168, "teams": ["Tottenham Hotspur", "Chelsea"], "comment": "00:52:48"},
+      "6": {"match_start": 3894, "teams": ["Brighton & Hove Albion", "Leeds United"], "comment": "01:04:54"},
+      "7": {"match_start": 4480, "teams": ["Crystal Palace", "Brentford"], "comment": "01:14:40"}
+    }
+  }
+}

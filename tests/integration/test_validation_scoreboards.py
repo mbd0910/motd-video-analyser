@@ -10,8 +10,8 @@ import pytest
 import yaml
 from pathlib import Path
 
-from src.motd.pipeline.factory import ServiceFactory
-from src.motd.pipeline.models import Scene
+from motd.pipeline.factory import ServiceFactory
+from motd.pipeline.models import Scene
 
 
 @pytest.fixture

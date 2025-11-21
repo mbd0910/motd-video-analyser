@@ -1077,12 +1077,49 @@ class TestInterludeDetection:
         # Should return naive approach (next match start)
         assert result == 866.0, f"Expected naive 866s, got {result}"
 
+    def test_detect_interlude_episode02_united_alternate_false_positive(self, detector):
+        """
+        Interlude detection should not reject due to generic 'United' alternate.
+
+        Episode 02, Match 3 (Burnley vs West Ham): Interlude at 2640.28s says
+        "bumper Sunday match of the day", but at 2688.55s, text mentions
+        "Manchester United" (women's football news).
+
+        The fuzzy matcher incorrectly matches "United" (West Ham alternate)
+        against "Manchester United", causing false rejection.
+
+        Fix: Require full team name match for interlude validation, not alternates.
+        """
+        from pathlib import Path
+        import json
+
+        # Load Episode 02 transcript
+        transcript_path = Path('data/cache/motd_2025-26_2025-11-08/transcript.json')
+        with open(transcript_path) as f:
+            transcript_data = json.load(f)
+
+        # Match 3: Burnley vs West Ham United
+        teams = ('Burnley', 'West Ham United')
+        highlights_end = 2386.33
+        next_match_start = 2704.41
+        segments = transcript_data['segments']
+
+        result = detector._detect_interlude(teams, highlights_end, next_match_start, segments)
+
+        # EXPECTED: Interlude detected at 2640.28s
+        # ACTUAL (before fix): None (rejected due to "United" false positive)
+        assert result is not None, (
+            "Interlude at 2640.28s should be detected. "
+            "Rejection due to 'Manchester United' at 2688.55s is a false positive."
+        )
+        assert 2640 <= result <= 2641, f"Expected ~2640.28s, got {result}"
+
 
 class TestTableReviewDetection:
-    """Test league table review detection using keyword + foreign team validation."""
+    """Test league table review detection using keyword + unrelated team validation."""
 
     def test_detect_table_review_match7_dual_signal(self, detector, transcript):
-        """Match 7: Should detect table review at ~4977s with foreign team validation."""
+        """Match 7: Should detect table review at ~4977s with unrelated team validation."""
         teams = ('Brentford', 'Crystal Palace')
         highlights_end = 4841.0  # Match 7 FT graphic
         episode_duration = 5039.0
@@ -1105,19 +1142,19 @@ class TestTableReviewDetection:
         assert result is not None, "Should detect table review"
         assert 4975 <= result <= 4980, f"Expected ~4977s, got {result}"
 
-    def test_table_review_insufficient_foreign_teams(self, detector):
-        """Should reject if <2 foreign teams mentioned after keyword."""
+    def test_table_review_insufficient_unrelated_teams(self, detector):
+        """Should reject if <2 unrelated teams mentioned after keyword."""
         teams = ('Brentford', 'Crystal Palace')
         segments = [
             {'start': 4977.0, 'text': "Let's look at the table."},
-            {'start': 4980.0, 'text': "Arsenal are top."},  # Only 1 foreign team
+            {'start': 4980.0, 'text': "Arsenal are top."},  # Only 1 unrelated team
             {'start': 4985.0, 'text': "Great performance today."},
         ]
         all_teams = ['Arsenal', 'Liverpool', 'Manchester United', 'Chelsea']
 
         result = detector._detect_table_review(teams, 4841.0, 5039.0, segments, all_teams)
 
-        assert result is None, "Should reject: <2 foreign teams mentioned"
+        assert result is None, "Should reject: <2 unrelated teams mentioned"
 
     def test_table_keyword_before_validation_window(self, detector):
         """Foreign teams mentioned BEFORE keyword should be ignored."""
@@ -1132,7 +1169,7 @@ class TestTableReviewDetection:
         result = detector._detect_table_review(teams, 4841.0, 5039.0, segments, all_teams)
 
         # Liverpool at 4973s should be ignored (before keyword at 4977s)
-        # Only Arsenal counts → <2 foreign teams → None
+        # Only Arsenal counts → <2 unrelated teams → None
         assert result is None, "Liverpool at 4973s should be ignored (pre-keyword)"
 
     def test_table_keyword_variations(self, detector):
@@ -1166,6 +1203,34 @@ class TestTableReviewDetection:
         ]
         result3 = detector._detect_table_review(teams, 4841.0, 5039.0, segments3, all_teams)
         assert result3 is None, "Should NOT detect without 'table' keyword"
+
+    def test_table_keyword_rejects_comfortable_false_positive(self, detector):
+        """
+        Should NOT match 'table' inside 'comfortable' + 'looked'.
+
+        Episode 02 bug: "I thought he looked really comfortable" was matching
+        because 'comforTABLE' contains 'table' and 'LOOKed' contains 'look'.
+        The actual table keyword "Let's take a look then at the Premier League table"
+        comes later at 4080.01s.
+        """
+        teams = ('Chelsea', 'Wolverhampton Wanderers')
+        all_teams = ['Arsenal', 'Liverpool', 'Manchester United', 'Everton', 'West Ham United']
+
+        # Episode 02 false positive scenario
+        segments = [
+            # False positive at 3981.79s - "comfortable" contains "table", "looked" contains "look"
+            {'start': 3981.79, 'text': "And of course they benefited from that. I thought he looked really, really comfortable."},
+            # Actual table keyword at 4080.01s
+            {'start': 4080.01, 'text': "Let's take a look then at the Premier League table."},
+            {'start': 4082.69, 'text': "Arsenal are still six points clear at the top."},
+            {'start': 4085.0, 'text': "Liverpool in second."},
+        ]
+
+        result = detector._detect_table_review(teams, 3895.0, 4200.0, segments, all_teams)
+
+        # Should detect at 4080.01s (actual table keyword), NOT 3981.79s (false positive)
+        assert result is not None, "Should detect table review"
+        assert result == 4080.01, f"Expected 4080.01s (actual table keyword), got {result}s (false positive from 'comfortable')"
 
     def test_match_end_uses_table_detection_last_match(self, detector, transcript):
         """_detect_match_end should use table detection for last match (Match 7)."""

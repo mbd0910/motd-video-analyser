@@ -16,6 +16,7 @@ from rapidfuzz import fuzz
 from pathlib import Path
 import json
 import logging
+import re
 
 from motd.pipeline.models import MatchBoundary, RunningOrderResult
 from motd.analysis.venue_matcher import VenueMatcher
@@ -61,6 +62,12 @@ class RunningOrderDetector:
     VALIDATION_PERFECT_THRESHOLD = 10.0    # ≤10s difference = "validated" (confidence 1.0)
     VALIDATION_MINOR_THRESHOLD = 30.0      # ≤30s difference = "minor_discrepancy" (confidence 0.8)
     # >30s difference = "major_discrepancy" (confidence 0.5)
+
+    # Pre-compiled regex patterns for table review detection
+    TABLE_KEYWORD_PATTERN = re.compile(r'\btable\b')
+    TABLE_CONTEXT_PATTERNS = {
+        kw: re.compile(rf'\b{kw}\b') for kw in ["look", "league", "quick", "premier"]
+    }
 
     def __init__(
         self,
@@ -1149,7 +1156,7 @@ class RunningOrderDetector:
         Strategy:
         1. Default: match_end = next_match.match_start (or episode_duration)
         2. Check for MOTD 2 interlude using keyword + drop-off validation (non-last matches)
-        3. Check for league table review using keyword + foreign team validation (last match only)
+        3. Check for league table review using keyword + unrelated team validation (last match only)
         4. If detected: match_end = keyword_timestamp - 5s buffer
         5. If not detected: Keep naive approach
 
@@ -1261,8 +1268,7 @@ class RunningOrderDetector:
                 # Found interlude signal
                 interlude_keyword_timestamp = sentence['start']
                 logger.debug(
-                    f"Interlude keyword found at {interlude_keyword_timestamp:.2f}s "
-                    f"for {teams[0]} vs {teams[1]}"
+                    f"Interlude keyword found for {teams[0]} vs {teams[1]} at {interlude_keyword_timestamp:.2f}s"
                 )
                 break
 
@@ -1279,8 +1285,11 @@ class RunningOrderDetector:
 
         for segment in dropoff_segments:
             text = segment.get('text', '').lower()
-            if (self._fuzzy_team_match(text, teams[0]) or
-                self._fuzzy_team_match(text, teams[1])):
+
+            # IMPORTANT: Use strict matching (full team name only, no alternates)
+            # to avoid false positives like "United" matching "Manchester United"
+            # when validating West Ham United interlude
+            if (teams[0].lower() in text or teams[1].lower() in text):
                 # Team mentioned during supposed interlude → false positive
                 logger.debug(
                     f"Interlude rejected: team mentioned at {segment.get('start', 0):.2f}s "
@@ -1300,7 +1309,7 @@ class RunningOrderDetector:
         all_teams: list[str]
     ) -> Optional[float]:
         """
-        Detect league table review using keyword + foreign team validation.
+        Detect league table review using keyword + unrelated team validation.
 
         Signal 1: Table Keyword Detection (Precise Timing)
         - Search for "table" + ("look" OR "league" OR "quick" OR "premier")
@@ -1317,7 +1326,7 @@ class RunningOrderDetector:
             highlights_end: Last match FT graphic timestamp (start of search window)
             episode_duration: Total episode duration (end of search window)
             segments: Transcript segments
-            all_teams: List of all Premier League teams for foreign team detection
+            all_teams: List of all Premier League teams for unrelated team detection
 
         Returns:
             Table review start timestamp (sentence beginning), or None if no table detected
@@ -1343,8 +1352,9 @@ class RunningOrderDetector:
             text = sentence['text'].lower()
 
             # Check for table introduction keywords
-            has_table = "table" in text
-            has_context = any(kw in text for kw in ["look", "league", "quick", "premier"])
+            # Use word boundaries to avoid false positives like "comfortable" matching "table"
+            has_table = bool(self.TABLE_KEYWORD_PATTERN.search(text))
+            has_context = any(pattern.search(text) for pattern in self.TABLE_CONTEXT_PATTERNS.values())
 
             if has_table and has_context:
                 # Found table signal
@@ -1359,7 +1369,7 @@ class RunningOrderDetector:
             # No table keywords found
             return None
 
-        # 4. Validate with foreign team mentions (dynamic window)
+        # 4. Validate with unrelated team mentions (dynamic window)
         # Check for ≥2 mentions of teams NOT in last match (from keyword → episode_duration)
         validation_segments = [
             s for s in segments
@@ -1367,7 +1377,7 @@ class RunningOrderDetector:
         ]
 
         # Use set comprehension for clarity and conciseness
-        foreign_teams_mentioned = {
+        unrelated_teams_mentioned = {
             team
             for segment in validation_segments
             for team in all_teams
@@ -1375,10 +1385,10 @@ class RunningOrderDetector:
             and self._fuzzy_team_match(segment.get('text', '').lower(), team)
         }
 
-        if len(foreign_teams_mentioned) < 2:
-            # Not enough foreign teams mentioned → likely false positive
+        if len(unrelated_teams_mentioned) < 2:
+            # Not enough unrelated teams mentioned → likely false positive
             logger.debug(
-                f"Table review rejected: only {len(foreign_teams_mentioned)} foreign teams "
+                f"Table review rejected: only {len(unrelated_teams_mentioned)} unrelated teams "
                 f"mentioned after keyword at {table_keyword_timestamp:.2f}s"
             )
             return None
@@ -1386,7 +1396,7 @@ class RunningOrderDetector:
         # Both signals validated → return table start (sentence beginning)
         logger.info(
             f"Table review detected at {table_keyword_timestamp:.2f}s "
-            f"(validated by {len(foreign_teams_mentioned)} foreign teams: "
-            f"{', '.join(sorted(foreign_teams_mentioned))})"
+            f"(validated by {len(unrelated_teams_mentioned)} unrelated teams: "
+            f"{', '.join(sorted(unrelated_teams_mentioned))})"
         )
         return table_keyword_timestamp

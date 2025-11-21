@@ -59,24 +59,38 @@ This directory contains discrete, actionable tasks for building the MOTD Analyse
 
 ---
 
-## Phase 4: Analysis & Classification (Task 011 - Epic)
-- 🔄 [011-analysis-pipeline](011-analysis-pipeline/) - Segment classifier, match boundaries, airtime, orchestrator
+## Phase 4: Analysis & Classification (Task 011 - Epic) ✅
+- ✅ [011-analysis-pipeline](011-analysis-pipeline/) - Running order detector implementation
   - ✅ 011a: Analysis reconnaissance & pattern discovery
-  - ⏳ 011b: Scene detection tuning & FT graphic investigation
-  - ⏳ 011c: Segment classifier (multi-signal: OCR + transcript + timing)
-  - ⏳ 011d: Match boundary detector (running order via OCR + team mentions)
-  - ⏳ 011e: Airtime calculator (sum durations by segment type)
-  - ⏳ 011f: Pipeline orchestrator & CLI (`process` command)
-  - ⏳ 011g: Execution & validation
+  - ✅ 011b: Scene detection tuning & FT graphic investigation
+  - ✅ 011c: Running order detection (OCR-based team detection + fixture matching)
 
-**Note**: This is the most complex epic - split into 7 subtasks. Running order accuracy (100%) is critical.
+**Results**: Episode 01: 7/7 matches detected (100% accuracy), fixture-aware matching, opponent inference (70% recovery rate)
 
-**Estimated Time**: 8.5-12 hours
+**Estimated Time**: 8.5-12 hours (actual time captured in subtasks)
 
 ---
 
-## Phase 5: Manual Validation Tools (Task 012 - Epic)
-- ⏳ [012-validation-tools](012-validation-tools/) - Manual labeling tool, validation comparator
+## Phase 4.5: Match Boundary Detection (Task 012 - Epic) ✅
+- ✅ [012-01: Match Start Detection](012-classifier-integration/012-01-pipeline-integration.md) - Dual-strategy boundary detection (venue + clustering)
+- ✅ [012-02: Match End Detection](012-classifier-integration/012-02-match-end-detection.md) - Interlude handling + table reviews
+- ✅ [012-03: Terminal Output Fixes](012-classifier-integration/012-03-output-fixes.md) - Ground truth display, strategy labels, detection events, Episode 02 interlude fix
+
+**Results**:
+- Episode 01: 7/7 matches (100% accuracy), ±1.27s avg error, interlude at 3118.49s
+- Episode 02: 5/5 matches detected, interlude at 2640.28s
+- 58/58 running order tests passing + 14 CLI output tests passing
+- Frame extraction bug fixed (100% coverage)
+
+**Estimated Time**: 15.75 hours
+- 012-01: 6 hours (match start detection)
+- 012-02: 7.75 hours (match end + interlude/table + frame bug fix)
+- 012-03: 2 hours (output fixes + Episode 02 interlude detection)
+
+---
+
+## Phase 5: Manual Validation Tools (Task 013 - Epic)
+- ⏳ [013-validation-tools](013-validation-tools/) - Manual labeling tool, validation comparator
 
 **Note**: This is an epic - split into smaller subtasks before starting.
 
@@ -84,15 +98,15 @@ This directory contains discrete, actionable tasks for building the MOTD Analyse
 
 ---
 
-## Phase 6: Refinement & Tuning (Task 013)
-- ⏳ [013-refinement-tuning](013-refinement-tuning/) - Tune thresholds, improve accuracy, iterate
+## Phase 6: Refinement & Tuning (Task 014)
+- ⏳ [014-refinement-tuning](014-refinement-tuning/) - Tune thresholds, improve accuracy, iterate
 
 **Estimated Time**: 2-4 hours
 
 ---
 
-## Phase 7: Batch Processing (Task 014 - Epic)
-- ⏳ [014-batch-processing](014-batch-processing/) - Batch CLI, process all 10 videos, spot-check
+## Phase 7: Batch Processing (Task 015 - Epic)
+- ⏳ [015-batch-processing](015-batch-processing/) - Batch CLI, process all 10 videos, spot-check
 
 **Note**: This is an epic - split into smaller subtasks before starting.
 
@@ -100,8 +114,8 @@ This directory contains discrete, actionable tasks for building the MOTD Analyse
 
 ---
 
-## Phase 8: Documentation (Task 015)
-- ⏳ [015-documentation](015-documentation/) - README, aggregate stats, blog posts
+## Phase 8: Documentation (Task 016)
+- ⏳ [016-documentation](016-documentation/) - README, aggregate stats, blog posts
 
 **Estimated Time**: 3-5 hours
 

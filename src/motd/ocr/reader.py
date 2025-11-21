@@ -3,6 +3,7 @@
 import easyocr
 import cv2
 import numpy as np
+import re
 from typing import Dict, List, Tuple, Optional
 from pathlib import Path
 import logging
@@ -181,16 +182,23 @@ class OCRReader:
         """
         Validate that OCR results are from a genuine FT score graphic.
 
-        ALL requirements must be met:
-        1. Exactly 2 teams detected
-        2. Score pattern present (e.g., "2-1", "0 - 0")
-        3. "FT" or "FULL TIME" text present
+        Uses two-tier validation to prioritize strong signals (teams + FT) over weak signals (score):
+
+        **Tier 1 (STRONG):** ≥1 team + FT indicator
+        - Score pattern is OPTIONAL (may have low OCR confidence)
+        - Most reliable signal: team names + "FT" text confirms end-of-match graphic
+        - Example: "Liverpool 2 FT" (score "0" missing due to low confidence)
+
+        **Tier 2 (FALLBACK):** Score pattern + FT indicator
+        - No teams detected (OCR failed on team names)
+        - Numeric score + FT still indicates genuine FT graphic
+        - Example: "3 1 FT" (team names completely missed)
 
         This filters out:
         - Possession bars (no FT text)
-        - Player statistics (no score pattern)
-        - Formation graphics (no FT text)
-        - Studio overlays (may have teams but no FT+score)
+        - Player statistics (no FT text)
+        - Formation graphics (team names but no FT)
+        - Studio overlays (team mentions but no FT)
 
         Args:
             ocr_results: List of raw OCR results from EasyOCR
@@ -199,39 +207,38 @@ class OCRReader:
         Returns:
             True if this is a genuine FT graphic, False otherwise
         """
-        import re
-
-        # Requirement 1: At least one team (allow 1 team for fixture inference fallback)
-        if len(detected_teams) < 1:
-            logger.debug(
-                f"FT validation failed: {len(detected_teams)} teams detected (need at least 1)"
-            )
-            return False
-
         # Extract all OCR text
         all_text = ' '.join([r.get('text', '').upper() for r in ocr_results])
 
-        # Requirement 2: Score pattern (matches "2-1", "0 - 0", "2 0", "3 | 0", etc.)
+        # Check for FT indicator
+        ft_indicators = ['FT', 'FULL TIME', 'FULL-TIME', 'FULLTIME']
+        has_ft = any(indicator in all_text for indicator in ft_indicators)
+
+        # Check for score pattern (matches "2-1", "0 - 0", "2 0", "3 | 0", etc.)
         # BBC FT graphics show "2 | 0" and OCR may read hyphen, pipe, or space
         score_pattern = r'\b\d+\s*[-–—|]?\s*\d+\b'
         has_score = bool(re.search(score_pattern, all_text))
 
-        # Requirement 3: FT indicator
-        ft_indicators = ['FT', 'FULL TIME', 'FULL-TIME', 'FULLTIME']
-        has_ft = any(indicator in all_text for indicator in ft_indicators)
-
-        # Must have BOTH score AND FT indicator
-        if has_score and has_ft:
+        # Tier 1: Team name(s) + FT indicator (STRONG signal)
+        if len(detected_teams) >= 1 and has_ft:
             logger.debug(
-                f"FT validation passed: {detected_teams} with score pattern and FT text"
+                f"FT validation passed (Tier 1): {detected_teams} + FT indicator"
             )
             return True
-        else:
+
+        # Tier 2: Score pattern + FT indicator (FALLBACK for missed teams)
+        if has_score and has_ft:
             logger.debug(
-                f"FT validation failed: score={has_score}, ft_text={has_ft} "
-                f"(teams: {detected_teams})"
+                f"FT validation passed (Tier 2): score pattern + FT indicator (no teams detected)"
             )
-            return False
+            return True
+
+        # Failed both tiers
+        logger.debug(
+            f"FT validation failed: teams={len(detected_teams)}, "
+            f"score={has_score}, ft_text={has_ft}"
+        )
+        return False
 
     def extract_with_fallback(self, frame_path: Path) -> Dict:
         """
