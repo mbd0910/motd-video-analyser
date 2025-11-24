@@ -3,6 +3,126 @@
   "competition": "Premier League",
   "fixtures": [
     {
+      "match_id": "2025-10-24-leeds-westham",
+      "date": "2025-10-24",
+      "home_team": "Leeds United",
+      "away_team": "West Ham United",
+      "kickoff": "20:00",
+      "final_score": {
+        "home": 2,
+        "away": 1
+      },
+      "venue": "Elland Road"
+    },
+    {
+      "match_id": "2025-10-25-brentford-liverpool",
+      "date": "2025-10-25",
+      "home_team": "Brentford",
+      "away_team": "Liverpool",
+      "kickoff": "20:00",
+      "final_score": {
+        "home": 3,
+        "away": 2
+      },
+      "venue": "Gtech Community Stadium"
+    },
+    {
+      "match_id": "2025-10-25-manutd-brighton",
+      "date": "2025-10-25",
+      "home_team": "Manchester United",
+      "away_team": "Brighton & Hove Albion",
+      "kickoff": "17:30",
+      "final_score": {
+        "home": 4,
+        "away": 2
+      },
+      "venue": "Old Trafford"
+    },
+    {
+      "match_id": "2025-10-25-chelsea-sunderland",
+      "date": "2025-10-25",
+      "home_team": "Chelsea",
+      "away_team": "Sunderland",
+      "kickoff": "15:00",
+      "final_score": {
+        "home": 1,
+        "away": 2
+      },
+      "venue": "Stamford Bridge"
+    },
+    {
+      "match_id": "2025-10-25-newcastle-fulham",
+      "date": "2025-10-25",
+      "home_team": "Newcastle United",
+      "away_team": "Fulham",
+      "kickoff": "15:00",
+      "final_score": {
+        "home": 2,
+        "away": 1
+      },
+      "venue": "St James' Park"
+    },
+    {
+      "match_id": "2025-10-26-wolves-burnley",
+      "date": "2025-10-26",
+      "home_team": "Wolverhampton Wanderers",
+      "away_team": "Burnley",
+      "kickoff": "14:00",
+      "final_score": {
+        "home": 2,
+        "away": 3
+      },
+      "venue": "Molineux Stadium"
+    },
+    {
+      "match_id": "2025-10-26-bournemouth-forest",
+      "date": "2025-10-26",
+      "home_team": "Bournemouth",
+      "away_team": "Nottingham Forest",
+      "kickoff": "14:00",
+      "final_score": {
+        "home": 2,
+        "away": 0
+      },
+      "venue": "Vitality Stadium"
+    },
+    {
+      "match_id": "2025-10-26-astonvilla-mancity",
+      "date": "2025-10-26",
+      "home_team": "Aston Villa",
+      "away_team": "Manchester City",
+      "kickoff": "14:00",
+      "final_score": {
+        "home": 1,
+        "away": 0
+      },
+      "venue": "Villa Park"
+    },
+    {
+      "match_id": "2025-10-26-arsenal-crystalpalace",
+      "date": "2025-10-26",
+      "home_team": "Arsenal",
+      "away_team": "Crystal Palace",
+      "kickoff": "14:00",
+      "final_score": {
+        "home": 1,
+        "away": 0
+      },
+      "venue": "Emirates Stadium"
+    },
+    {
+      "match_id": "2025-10-26-everton-tottenham",
+      "date": "2025-10-26",
+      "home_team": "Everton",
+      "away_team": "Tottenham Hotspur",
+      "kickoff": "16:30",
+      "final_score": {
+        "home": 0,
+        "away": 3
+      },
+      "venue": "Hill Dickinson Stadium"
+    },
+    {
       "match_id": "2025-11-01-brighton-leeds",
       "date": "2025-11-01",
       "home_team": "Brighton & Hove Albion",
@@ -87,6 +207,30 @@
       "venue": "Anfield"
     },
     {
+      "match_id": "2025-11-02-westham-newcastle",
+      "date": "2025-11-02",
+      "home_team": "West Ham United",
+      "away_team": "Newcastle United",
+      "kickoff": "14:00",
+      "final_score": {
+        "home": 3,
+        "away": 1
+      },
+      "venue": "London Stadium"
+    },
+    {
+      "match_id": "2025-11-02-mancity-bournemouth",
+      "date": "2025-11-02",
+      "home_team": "Manchester City",
+      "away_team": "Bournemouth",
+      "kickoff": "16:30",
+      "final_score": {
+        "home": 3,
+        "away": 1
+      },
+      "venue": "Etihad Stadium"
+    },
+    {
       "match_id": "2025-11-08-tottenham-manutd",
       "date": "2025-11-08",
       "home_team": "Tottenham Hotspur",
@@ -145,6 +289,174 @@
         "away": 0
       },
       "venue": "Stamford Bridge"
+    },
+    {
+      "match_id": "2025-11-09-forest-leeds",
+      "date": "2025-11-09",
+      "home_team": "Nottingham Forest",
+      "away_team": "Leeds United",
+      "kickoff": "14:00",
+      "final_score": {
+        "home": 3,
+        "away": 1
+      },
+      "venue": "City Ground"
+    },
+    {
+      "match_id": "2025-11-09-crystalpalace-brighton",
+      "date": "2025-11-09",
+      "home_team": "Crystal Palace",
+      "away_team": "Brighton & Hove Albion",
+      "kickoff": "14:00",
+      "final_score": {
+        "home": 0,
+        "away": 0
+      },
+      "venue": "Selhurst Park"
+    },
+    {
+      "match_id": "2025-11-09-brentford-newcastle",
+      "date": "2025-11-09",
+      "home_team": "Brentford",
+      "away_team": "Newcastle United",
+      "kickoff": "14:00",
+      "final_score": {
+        "home": 3,
+        "away": 1
+      },
+      "venue": "Gtech Community Stadium"
+    },
+    {
+      "match_id": "2025-11-09-astonvilla-bournemouth",
+      "date": "2025-11-09",
+      "home_team": "Aston Villa",
+      "away_team": "Bournemouth",
+      "kickoff": "14:00",
+      "final_score": {
+        "home": 4,
+        "away": 0
+      },
+      "venue": "Villa Park"
+    },
+    {
+      "match_id": "2025-11-09-mancity-liverpool",
+      "date": "2025-11-09",
+      "home_team": "Manchester City",
+      "away_team": "Liverpool",
+      "kickoff": "16:30",
+      "final_score": {
+        "home": 3,
+        "away": 0
+      },
+      "venue": "Etihad Stadium"
+    },
+    {
+      "match_id": "2025-11-22-burnley-chelsea",
+      "date": "2025-11-22",
+      "home_team": "Burnley",
+      "away_team": "Chelsea",
+      "kickoff": "12:30",
+      "final_score": {
+        "home": 0,
+        "away": 2
+      },
+      "venue": "Turf Moor"
+    },
+    {
+      "match_id": "2025-11-22-wolves-crystalpalace",
+      "date": "2025-11-22",
+      "home_team": "Wolverhampton Wanderers",
+      "away_team": "Crystal Palace",
+      "kickoff": "15:00",
+      "final_score": {
+        "home": 0,
+        "away": 2
+      },
+      "venue": "Molineux Stadium"
+    },
+    {
+      "match_id": "2025-11-22-liverpool-forest",
+      "date": "2025-11-22",
+      "home_team": "Liverpool",
+      "away_team": "Nottingham Forest",
+      "kickoff": "15:00",
+      "final_score": {
+        "home": 0,
+        "away": 3
+      },
+      "venue": "Anfield"
+    },
+    {
+      "match_id": "2025-11-22-fulham-sunderland",
+      "date": "2025-11-22",
+      "home_team": "Fulham",
+      "away_team": "Sunderland",
+      "kickoff": "15:00",
+      "final_score": {
+        "home": 1,
+        "away": 0
+      },
+      "venue": "Craven Cottage"
+    },
+    {
+      "match_id": "2025-11-22-brighton-brentford",
+      "date": "2025-11-22",
+      "home_team": "Brighton & Hove Albion",
+      "away_team": "Brentford",
+      "kickoff": "15:00",
+      "final_score": {
+        "home": 2,
+        "away": 1
+      },
+      "venue": "Amex Stadium"
+    },
+    {
+      "match_id": "2025-11-22-bournemouth-westham",
+      "date": "2025-11-22",
+      "home_team": "Bournemouth",
+      "away_team": "West Ham United",
+      "kickoff": "15:00",
+      "final_score": {
+        "home": 2,
+        "away": 2
+      },
+      "venue": "Vitality Stadium"
+    },
+    {
+      "match_id": "2025-11-22-newcastle-mancity",
+      "date": "2025-11-22",
+      "home_team": "Newcastle United",
+      "away_team": "Manchester City",
+      "kickoff": "17:30",
+      "final_score": {
+        "home": 2,
+        "away": 1
+      },
+      "venue": "St James' Park"
+    },
+    {
+      "match_id": "2025-11-23-arsenal-tottenham",
+      "date": "2025-11-23",
+      "home_team": "Arsenal",
+      "away_team": "Tottenham Hotspur",
+      "kickoff": "16:30",
+      "final_score": {
+        "home": 4,
+        "away": 1
+      },
+      "venue": "Emirates Stadium"
+    },
+    {
+      "match_id": "2025-11-23-leeds-astonvilla",
+      "date": "2025-11-23",
+      "home_team": "Leeds United",
+      "away_team": "Aston Villa",
+      "kickoff": "14:00",
+      "final_score": {
+        "home": 1,
+        "away": 2
+      },
+      "venue": "Elland Road"
     }
   ]
 }

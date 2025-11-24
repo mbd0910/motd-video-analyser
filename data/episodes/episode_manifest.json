@@ -3,6 +3,32 @@
   "competition": "Premier League",
   "episodes": [
     {
+      "episode_id": "motd_2025-26_2025-10-25",
+      "broadcast_date": "2025-10-25",
+      "video_source_url": "https://www.bbc.co.uk/iplayer/episode/m002lh1m/match-of-the-day-202526-25102025",
+      "expected_matches": [
+        "2025-10-25-brentford-liverpool",
+        "2025-10-25-manutd-brighton",
+        "2025-10-25-chelsea-sunderland",
+        "2025-10-25-newcastle-fulham",
+        "2025-10-24-leeds-westham"
+      ],
+      "notes": "Saturday 3pm/5:30pm/8pm fixtures"
+    },
+    {
+      "episode_id": "motd_2025-26_2025-10-26",
+      "broadcast_date": "2025-10-26",
+      "video_source_url": "https://www.bbc.co.uk/iplayer/episode/m002lh3h/match-of-the-day-202526-26102025",
+      "expected_matches": [
+        "2025-10-26-wolves-burnley",
+        "2025-10-26-bournemouth-forest",
+        "2025-10-26-astonvilla-mancity",
+        "2025-10-26-arsenal-crystalpalace",
+        "2025-10-26-everton-tottenham"
+      ],
+      "notes": "Sunday fixtures"
+    },
+    {
       "episode_id": "motd_2025-26_2025-11-01",
       "broadcast_date": "2025-11-01",
       "video_source_url": "https://www.bbc.co.uk/iplayer/episode/m002ltfz/match-of-the-day-202526-01112025",
@@ -18,6 +44,16 @@
       "notes": "Saturday 3pm/5:30pm/8pm fixtures"
     },
     {
+      "episode_id": "motd_2025-26_2025-11-02",
+      "broadcast_date": "2025-11-02",
+      "video_source_url": "https://www.bbc.co.uk/iplayer/episode/m002ltht/match-of-the-day-202526-02112025",
+      "expected_matches": [
+        "2025-11-02-westham-newcastle",
+        "2025-11-02-mancity-bournemouth"
+      ],
+      "notes": "Sunday fixtures"
+    },
+    {
       "episode_id": "motd_2025-26_2025-11-08",
       "broadcast_date": "2025-11-08",
       "video_source_url": "https://www.bbc.co.uk/iplayer/episode/m002m3r6/match-of-the-day-202526-08112025",
@@ -29,6 +65,44 @@
         "2025-11-08-chelsea-wolves"
       ],
       "notes": "Saturday 12:30pm/3pm/5:30pm/8pm fixtures"
+    },
+    {
+      "episode_id": "motd_2025-26_2025-11-09",
+      "broadcast_date": "2025-11-09",
+      "video_source_url": "https://www.bbc.co.uk/iplayer/episode/m002m3t0/match-of-the-day-202526-09112025",
+      "expected_matches": [
+        "2025-11-09-forest-leeds",
+        "2025-11-09-crystalpalace-brighton",
+        "2025-11-09-brentford-newcastle",
+        "2025-11-09-astonvilla-bournemouth",
+        "2025-11-09-mancity-liverpool"
+      ],
+      "notes": "Sunday fixtures"
+    },
+    {
+      "episode_id": "motd_2025-26_2025-11-22",
+      "broadcast_date": "2025-11-22",
+      "video_source_url": "https://www.bbc.co.uk/iplayer/episode/m002mrdn/match-of-the-day-202526-22112025",
+      "expected_matches": [
+        "2025-11-22-burnley-chelsea",
+        "2025-11-22-wolves-crystalpalace",
+        "2025-11-22-liverpool-forest",
+        "2025-11-22-fulham-sunderland",
+        "2025-11-22-brighton-brentford",
+        "2025-11-22-bournemouth-westham",
+        "2025-11-22-newcastle-mancity"
+      ],
+      "notes": "Saturday 3pm/5:30pm/8pm fixtures"
+    },
+    {
+      "episode_id": "motd_2025-26_2025-11-23",
+      "broadcast_date": "2025-11-23",
+      "video_source_url": "https://www.bbc.co.uk/iplayer/episode/m002mrf1/match-of-the-day-202526-23112025",
+      "expected_matches": [
+        "2025-11-23-arsenal-tottenham",
+        "2025-11-23-leeds-astonvilla"
+      ],
+      "notes": "Sunday fixtures"
     }
   ]
 }
