@@ -13,7 +13,6 @@ from motd.analysis.running_order_detector import RunningOrderDetector
 
 def generate_clustering_diagnostics(
     result: RunningOrderResult,
-    ground_truth: dict[int, float],
     detector: RunningOrderDetector,
     episode_id: str,
     output_dir: Path
@@ -23,7 +22,6 @@ def generate_clustering_diagnostics(
 
     Args:
         result: Complete running order with boundaries
-        ground_truth: Ground truth timestamps {position: seconds}
         detector: Detector instance (for parameters)
         episode_id: Episode identifier
         output_dir: Base output directory
@@ -42,7 +40,6 @@ def generate_clustering_diagnostics(
             "clustering_min_density": detector.CLUSTERING_MIN_DENSITY,
             "clustering_min_size": detector.CLUSTERING_MIN_SIZE
         },
-        "ground_truth": ground_truth,
         "matches": []
     }
 
@@ -51,14 +48,12 @@ def generate_clustering_diagnostics(
         match_diag = {
             "match_number": i,
             "teams": list(match.teams),
-            "ground_truth": ground_truth.get(i),
             "venue_result": match.venue_result,
             "clustering_result": match.clustering_result,
             "insights": {}
         }
 
         # Generate insights
-        gt = ground_truth.get(i)
         insights = match_diag["insights"]
 
         # Determine detection status
@@ -70,15 +65,6 @@ def generate_clustering_diagnostics(
                     insights['detection_status'] = 'failed'
                     insights['failure_reason'] = diag.get('failure_reason')
                     insights['failure_details'] = diag.get('failure_details')
-                elif gt and match.clustering_result.get('timestamp'):
-                    cluster_ts = match.clustering_result['timestamp']
-                    diff = abs(cluster_ts - gt)
-                    if diff <= 10:
-                        insights['detection_status'] = 'success'
-                    elif diff <= 30:
-                        insights['detection_status'] = 'acceptable'
-                    else:
-                        insights['detection_status'] = 'outlier'
                 else:
                     insights['detection_status'] = 'success'
             else:
@@ -110,7 +96,6 @@ def generate_clustering_diagnostics(
         recommendations = _generate_recommendations(
             insights,
             match,
-            gt,
             detector
         )
         insights['recommendations'] = recommendations
@@ -131,7 +116,6 @@ def generate_clustering_diagnostics(
 def _generate_recommendations(
     insights: dict,
     match,
-    ground_truth: float | None,
     detector: RunningOrderDetector
 ) -> list[str]:
     """Generate tuning recommendations based on detection results."""
@@ -152,20 +136,6 @@ def _generate_recommendations(
                 recommendations.append(f"  - Increasing window_seconds (currently {detector.CLUSTERING_WINDOW_SECONDS}s)")
             elif failure == 'no_mentions':
                 recommendations.append("Teams not mentioned in transcript - manual inspection needed")
-
-    elif insights.get('detection_status') == 'outlier':
-        if match.clustering_result and 'diagnostics' in match.clustering_result:
-            diag = match.clustering_result['diagnostics']
-            if 'alternative_clusters' in diag and len(diag['alternative_clusters']) > 0:
-                # Check if any alternative is closer to ground truth
-                for alt in diag['alternative_clusters']:
-                    if ground_truth:
-                        alt_diff = abs(alt['start'] - ground_truth)
-                        current_diff = abs(match.clustering_result['timestamp'] - ground_truth)
-                        if alt_diff < current_diff:
-                            recommendations.append(f"Alternative cluster at {alt['start']:.1f}s is {current_diff - alt_diff:.1f}s closer to ground truth")
-                            recommendations.append("Consider preferring earliness over density in cluster selection")
-                            break
 
     if insights.get('agreement_with_venue') == 'perfect':
         recommendations.append("Perfect match with venue strategy - algorithm working correctly")

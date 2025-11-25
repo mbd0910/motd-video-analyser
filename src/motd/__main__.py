@@ -43,32 +43,6 @@ def load_config(config_path: Path = Path("config/config.yaml")) -> dict[str, Any
         return yaml.safe_load(f)
 
 
-def load_ground_truth(episode_id: str, ground_truth_path: Path = Path("data/ground_truth/episode_boundaries.json")) -> dict[int, int] | None:
-    """
-    Load ground truth match start times for an episode.
-
-    Args:
-        episode_id: Episode identifier (e.g., 'motd_2025-26_2025-11-01')
-        ground_truth_path: Path to ground truth JSON file
-
-    Returns:
-        Dict mapping match number to start time (seconds), or None if no ground truth
-    """
-    if not ground_truth_path.exists():
-        return None
-
-    with open(ground_truth_path) as f:
-        data = json.load(f)
-
-    episode_data = data.get(episode_id)
-    if not episode_data:
-        return None
-
-    # Convert to simple {match_num: start_time} format expected by display functions
-    matches = episode_data.get('matches', {})
-    return {int(k): v['match_start'] for k, v in matches.items()}
-
-
 def setup_logging(config: dict[str, Any]) -> None:
     """Configure logging based on config settings."""
     log_config = config.get("logging", {})
@@ -98,6 +72,178 @@ def setup_logging(config: dict[str, Any]) -> None:
 def cli():
     """MOTD Analyser - Analyse Match of the Day videos for coverage bias."""
     pass
+
+
+def run_scene_detection(
+    video_path: Path,
+    config: dict[str, Any],
+    threshold: float | None = None,
+    min_scene_duration: float | None = None,
+    output: Path | None = None,
+    frames_dir: Path | None = None
+) -> tuple[Path, Path]:
+    """
+    Run scene detection and frame extraction (pure business logic).
+
+    Args:
+        video_path: Path to video file
+        config: Configuration dictionary
+        threshold: Scene detection threshold (overrides config)
+        min_scene_duration: Minimum scene duration (overrides config)
+        output: Output JSON path (overrides default)
+        frames_dir: Frames output directory (overrides default)
+
+    Returns:
+        Tuple of (output_json_path, frames_directory_path)
+    """
+    logger = logging.getLogger(__name__)
+    logger.info("Starting scene detection")
+    logger.info(f"Video: {video_path}")
+
+    # Get default values from config
+    scene_config = config.get("scene_detection", {})
+    cache_config = config.get("cache", {})
+
+    # Use provided args if not None, otherwise fall back to config, then to defaults
+    threshold = threshold if threshold is not None else scene_config.get("threshold", DEFAULT_THRESHOLD)
+    min_scene_duration = min_scene_duration if min_scene_duration is not None else scene_config.get("min_scene_duration", DEFAULT_MIN_SCENE_DURATION)
+    detector_type = scene_config.get("detector_type", DEFAULT_DETECTOR_TYPE)
+
+    # Determine output paths
+    video_name = video_path.stem
+    default_cache_dir = Path(cache_config.get("directory", "data/cache")) / video_name
+
+    if output is None:
+        output = default_cache_dir / "scenes.json"
+
+    if frames_dir is None:
+        frames_dir = default_cache_dir / "frames"
+
+    # Create output directories
+    output.parent.mkdir(parents=True, exist_ok=True)
+    frames_dir.mkdir(parents=True, exist_ok=True)
+
+    logger.info(f"Configuration: detector_type={detector_type}, threshold={threshold}, min_scene_duration={min_scene_duration}")
+    logger.info(f"Output: {output}")
+    logger.info(f"Frames: {frames_dir}")
+
+    # Detect scenes
+    print("Detecting scenes...")
+    scenes = detect_scenes(
+        video_path=str(video_path),
+        threshold=threshold,
+        min_scene_duration=min_scene_duration,
+        detector_type=detector_type
+    )
+
+    print(f"Detected {len(scenes)} scenes")
+
+    # Extract frames (hybrid or traditional)
+    ocr_config = config.get('ocr', {})
+    sampling_config = ocr_config.get('sampling', {})
+    use_hybrid = sampling_config.get('use_hybrid', False)
+
+    if use_hybrid:
+        print("Extracting frames using hybrid strategy (scene changes + intervals)...")
+        from motd.scene_detection.detector import hybrid_frame_extraction
+        from motd.scene_detection.frame_extractor import extract_hybrid_frames
+
+        # Generate hybrid frame list (processes entire video)
+        hybrid_frames = hybrid_frame_extraction(
+            video_path=str(video_path),
+            scenes=scenes,
+            interval=sampling_config.get('interval', 5.0),
+            dedupe_threshold=sampling_config.get('dedupe_threshold', 1.0)
+        )
+
+        # Extract frames
+        hybrid_frames = extract_hybrid_frames(video_path, hybrid_frames, frames_dir)
+
+        # Update scenes with hybrid frame paths (for compatibility with existing code)
+        # Optimized O(n+m) single-pass algorithm using sorted timestamps
+        from collections import defaultdict
+
+        # Pre-group frames by scene (single pass, assumes sorted timestamps)
+        frames_by_scene = defaultdict(list)
+        scene_idx = 0
+
+        for frame in hybrid_frames:
+            if not frame.get('frame_path'):
+                continue
+
+            # Advance to the scene containing this frame
+            while scene_idx < len(scenes) and frame['timestamp'] >= scenes[scene_idx]['end_seconds']:
+                scene_idx += 1
+
+            # Assign frame to scene if within bounds
+            if scene_idx < len(scenes):
+                scene = scenes[scene_idx]
+                if scene['start_seconds'] <= frame['timestamp'] < scene['end_seconds']:
+                    frames_by_scene[scene['scene_id']].append(frame['frame_path'])
+
+        # Assign frames to scenes
+        for scene in scenes:
+            scene_frames = frames_by_scene.get(scene['scene_id'], [])
+            scene['key_frame_path'] = scene_frames[0] if scene_frames else None
+            scene['frames'] = scene_frames
+
+        print(f"  Extracted {len(hybrid_frames)} hybrid frames")
+        print(f"  Scene frames: {sum(1 for f in hybrid_frames if f['source'] == 'scene_change')}")
+        print(f"  Interval samples: {sum(1 for f in hybrid_frames if f['source'] == 'interval_sampling')}")
+    else:
+        print("Extracting key frames (scene changes only)...")
+        extract_key_frames_for_scenes(
+            video_path=video_path,
+            scenes=scenes,
+            output_dir=frames_dir,
+            extract_position="start"
+        )
+
+    # Prepare output JSON
+    output_data = {
+        "video_path": str(video_path),
+        "video_name": video_name,
+        "detector_type": detector_type,
+        "threshold": threshold,
+        "min_scene_duration": min_scene_duration,
+        "total_scenes": len(scenes),
+        "scenes": [
+            {
+                "scene_index": i,
+                "scene_id": scene["scene_id"],
+                "start_time": scene["start_time"],
+                "end_time": scene["end_time"],
+                "start_seconds": scene["start_seconds"],
+                "end_seconds": scene["end_seconds"],
+                "duration": scene["duration_seconds"],
+                "frames": scene.get("frames", [])
+            }
+            for i, scene in enumerate(scenes)
+        ]
+    }
+
+    # Save to JSON
+    with open(output, "w") as f:
+        json.dump(output_data, f, indent=2)
+
+    print(f"\nScene detection complete!")
+    print(f"  Scenes detected: {len(scenes)}")
+    print(f"  Output JSON: {output}")
+    print(f"  Frames directory: {frames_dir}")
+
+    # Provide guidance based on scene count
+    if len(scenes) < 20:
+        click.echo("\nWarning: Very few scenes detected (<20).", err=True)
+        click.echo("  Consider lowering threshold (try 25.0 or 20.0)", err=True)
+    elif len(scenes) > 200:
+        click.echo("\nWarning: Very many scenes detected (>200).", err=True)
+        click.echo("  Consider raising threshold (try 35.0 or 40.0)", err=True)
+    else:
+        print(f"\n  Scene count looks reasonable for video analysis.")
+
+    logger.info("Scene detection completed successfully")
+
+    return output, frames_dir
 
 
 @cli.command("detect-scenes")
@@ -155,153 +301,16 @@ def detect_scenes_command(
     setup_logging(config_data)
 
     logger = logging.getLogger(__name__)
-    logger.info("Starting scene detection")
-    logger.info(f"Video: {video_path}")
-
-    # Get default values from config
-    scene_config = config_data.get("scene_detection", {})
-    cache_config = config_data.get("cache", {})
-
-    # Use CLI args if provided, otherwise fall back to config, then to defaults
-    threshold = threshold if threshold is not None else scene_config.get("threshold", DEFAULT_THRESHOLD)
-    min_scene_duration = min_scene_duration if min_scene_duration is not None else scene_config.get("min_scene_duration", DEFAULT_MIN_SCENE_DURATION)
-    detector_type = scene_config.get("detector_type", DEFAULT_DETECTOR_TYPE)
-
-    # Determine output paths
-    video_name = video_path.stem
-    default_cache_dir = Path(cache_config.get("directory", "data/cache")) / video_name
-
-    if output is None:
-        output = default_cache_dir / "scenes.json"
-
-    if frames_dir is None:
-        frames_dir = default_cache_dir / "frames"
-
-    # Create output directories
-    output.parent.mkdir(parents=True, exist_ok=True)
-    frames_dir.mkdir(parents=True, exist_ok=True)
-
-    logger.info(f"Configuration: detector_type={detector_type}, threshold={threshold}, min_scene_duration={min_scene_duration}")
-    logger.info(f"Output: {output}")
-    logger.info(f"Frames: {frames_dir}")
 
     try:
-        # Detect scenes
-        click.echo("Detecting scenes...")
-        scenes = detect_scenes(
-            video_path=str(video_path),
+        run_scene_detection(
+            video_path=video_path,
+            config=config_data,
             threshold=threshold,
             min_scene_duration=min_scene_duration,
-            detector_type=detector_type
+            output=output,
+            frames_dir=frames_dir
         )
-
-        click.echo(f"Detected {len(scenes)} scenes")
-
-        # Extract frames (hybrid or traditional)
-        ocr_config = config_data.get('ocr', {})
-        sampling_config = ocr_config.get('sampling', {})
-        use_hybrid = sampling_config.get('use_hybrid', False)
-
-        if use_hybrid:
-            click.echo("Extracting frames using hybrid strategy (scene changes + intervals)...")
-            from motd.scene_detection.detector import hybrid_frame_extraction
-            from motd.scene_detection.frame_extractor import extract_hybrid_frames
-
-            # Generate hybrid frame list (processes entire video)
-            hybrid_frames = hybrid_frame_extraction(
-                video_path=str(video_path),
-                scenes=scenes,
-                interval=sampling_config.get('interval', 5.0),
-                dedupe_threshold=sampling_config.get('dedupe_threshold', 1.0)
-            )
-
-            # Extract frames
-            hybrid_frames = extract_hybrid_frames(video_path, hybrid_frames, frames_dir)
-
-            # Update scenes with hybrid frame paths (for compatibility with existing code)
-            # Optimized O(n+m) single-pass algorithm using sorted timestamps
-            from collections import defaultdict
-
-            # Pre-group frames by scene (single pass, assumes sorted timestamps)
-            frames_by_scene = defaultdict(list)
-            scene_idx = 0
-
-            for frame in hybrid_frames:
-                if not frame.get('frame_path'):
-                    continue
-
-                # Advance to the scene containing this frame
-                while scene_idx < len(scenes) and frame['timestamp'] >= scenes[scene_idx]['end_seconds']:
-                    scene_idx += 1
-
-                # Assign frame to scene if within bounds
-                if scene_idx < len(scenes):
-                    scene = scenes[scene_idx]
-                    if scene['start_seconds'] <= frame['timestamp'] < scene['end_seconds']:
-                        frames_by_scene[scene['scene_id']].append(frame['frame_path'])
-
-            # Assign frames to scenes
-            for scene in scenes:
-                scene_frames = frames_by_scene.get(scene['scene_id'], [])
-                scene['key_frame_path'] = scene_frames[0] if scene_frames else None
-                scene['frames'] = scene_frames
-
-            click.echo(f"  Extracted {len(hybrid_frames)} hybrid frames")
-            click.echo(f"  Scene frames: {sum(1 for f in hybrid_frames if f['source'] == 'scene_change')}")
-            click.echo(f"  Interval samples: {sum(1 for f in hybrid_frames if f['source'] == 'interval_sampling')}")
-        else:
-            click.echo("Extracting key frames (scene changes only)...")
-            extract_key_frames_for_scenes(
-                video_path=video_path,
-                scenes=scenes,
-                output_dir=frames_dir,
-                extract_position="start"
-            )
-
-        # Prepare output JSON
-        output_data = {
-            "video_path": str(video_path),
-            "video_name": video_name,
-            "detector_type": detector_type,
-            "threshold": threshold,
-            "min_scene_duration": min_scene_duration,
-            "total_scenes": len(scenes),
-            "scenes": [
-                {
-                    "scene_index": i,
-                    "scene_id": scene["scene_id"],
-                    "start_time": scene["start_time"],
-                    "end_time": scene["end_time"],
-                    "start_seconds": scene["start_seconds"],
-                    "end_seconds": scene["end_seconds"],
-                    "duration": scene["duration_seconds"],
-                    "frames": scene.get("frames", [])
-                }
-                for i, scene in enumerate(scenes)
-            ]
-        }
-
-        # Save to JSON
-        with open(output, "w") as f:
-            json.dump(output_data, f, indent=2)
-
-        click.echo(f"\nScene detection complete!")
-        click.echo(f"  Scenes detected: {len(scenes)}")
-        click.echo(f"  Output JSON: {output}")
-        click.echo(f"  Frames directory: {frames_dir}")
-
-        # Provide guidance based on scene count
-        if len(scenes) < 20:
-            click.echo("\nWarning: Very few scenes detected (<20).", err=True)
-            click.echo("  Consider lowering threshold (try 25.0 or 20.0)", err=True)
-        elif len(scenes) > 200:
-            click.echo("\nWarning: Very many scenes detected (>200).", err=True)
-            click.echo("  Consider raising threshold (try 35.0 or 40.0)", err=True)
-        else:
-            click.echo(f"\n  Scene count looks reasonable for video analysis.")
-
-        logger.info("Scene detection completed successfully")
-
     except Exception as e:
         logger.error(f"Scene detection failed: {e}", exc_info=True)
         click.echo(f"\nError: {e}", err=True)
@@ -334,6 +343,180 @@ def generate_summary(ocr_results: list[dict[str, Any]], expected_teams: list[str
         'unexpected_detections': unexpected_count,
         'fixtures_identified': fixtures_identified
     }
+
+
+def run_team_extraction(
+    scenes_path: Path,
+    episode_id: str,
+    config: dict[str, Any],
+    output: Path | None = None
+) -> Path:
+    """
+    Run team extraction via OCR and fixture matching (pure business logic).
+
+    Args:
+        scenes_path: Path to scenes JSON file
+        episode_id: Episode identifier
+        config: Configuration dictionary
+        output: Output JSON path (overrides default)
+
+    Returns:
+        Path to output OCR results JSON
+    """
+    logger = logging.getLogger(__name__)
+    logger.info(f"Starting team extraction for episode: {episode_id}")
+    print(f"Processing episode: {episode_id}")
+
+    # Load scenes
+    with open(scenes_path) as f:
+        scenes_data = json.load(f)
+
+    total_scenes = len(scenes_data['scenes'])
+    print(f"Loaded {total_scenes} scenes")
+    logger.info(f"Loaded {total_scenes} scenes from {scenes_path}")
+
+    # Initialise components using ServiceFactory
+    print("Initialising OCR components...")
+    factory = ServiceFactory(config)
+    ocr_reader = factory.create_ocr_reader()
+    team_matcher = factory.create_team_matcher()
+    fixture_matcher = factory.create_fixture_matcher()
+    print("✓ OCR components initialised")
+
+    # Get expected teams and create episode context
+    expected_teams = fixture_matcher.get_expected_teams(episode_id)
+    expected_fixtures = fixture_matcher.get_expected_fixtures(episode_id)
+    print(f"✓ Expected {len(expected_fixtures)} fixtures with {len(expected_teams)} teams")
+    logger.info(f"Expected {len(expected_fixtures)} fixtures with {len(expected_teams)} teams")
+
+    # Import here to avoid circular dependency
+    from motd.ocr.scene_processor import SceneProcessor, EpisodeContext
+
+    # Create episode context and scene processor
+    context = EpisodeContext(
+        episode_id=episode_id,
+        expected_teams=expected_teams,
+        expected_fixtures=expected_fixtures
+    )
+    processor = SceneProcessor(
+        ocr_reader=ocr_reader,
+        team_matcher=team_matcher,
+        fixture_matcher=fixture_matcher,
+        context=context
+    )
+
+    # Process all scenes (no filtering - process entire video)
+    print("\nProcessing scenes (this may take several minutes)...")
+    ocr_results = []
+    all_scenes = scenes_data['scenes']
+
+    for idx, scene_dict in enumerate(all_scenes, 1):
+        if idx % 50 == 0 or idx == 1:
+            print(f"  Processing scene {idx}/{len(all_scenes)}...")
+            logger.info(f"Processing scene {idx}/{len(all_scenes)}")
+
+        # Convert dict to Scene model
+        scene = Scene(
+            scene_number=scene_dict['scene_id'],
+            start_time=scene_dict['start_time'],
+            start_seconds=scene_dict['start_seconds'],
+            end_seconds=scene_dict['end_seconds'],
+            duration=scene_dict['duration'],
+            frames=scene_dict.get('frames', []),
+            key_frame_path=scene_dict.get('key_frame_path')
+        )
+
+        # Process with SceneProcessor
+        processed_scene = processor.process(scene)
+
+        if processed_scene:
+            # Convert ProcessedScene model to dict for JSON output
+            # Maintain backward compatibility with old output format
+            result = {
+                'scene_id': processed_scene.scene_number,
+                'start_time': processed_scene.start_time,
+                'start_seconds': processed_scene.start_seconds,
+                'frame_path': processed_scene.frame_path,
+                'ocr_source': processed_scene.ocr_source,
+                'detected_teams': [
+                    {
+                        'team': processed_scene.team1,
+                        'confidence': processed_scene.match_confidence,
+                        'matched_text': 'detected',  # Simplified for now
+                        'fixture_validated': processed_scene.fixture_id is not None
+                    },
+                    {
+                        'team': processed_scene.team2,
+                        'confidence': processed_scene.match_confidence,
+                        'matched_text': 'detected',
+                        'fixture_validated': processed_scene.fixture_id is not None
+                    }
+                ],
+                'validated_teams': [processed_scene.team1, processed_scene.team2],
+                'unexpected_teams': [],  # Simplified for now
+                'confidence_boost': 1.0,  # Simplified for now
+                'matched_fixture': processed_scene.fixture_id
+            }
+
+            ocr_results.append(result)
+
+            # Log interesting findings
+            if result['matched_fixture']:
+                logger.debug(
+                    f"Scene {result['scene_id']}: Identified fixture: "
+                    f"{result['matched_fixture']}"
+                )
+
+    print(f"✓ Processed {len(all_scenes)} scenes, found teams in {len(ocr_results)} scenes")
+
+    # Build output
+    summary = generate_summary(ocr_results, expected_teams)
+
+    output_data = {
+        'episode_id': episode_id,
+        'video_path': scenes_data.get('video_path'),
+        'total_scenes': total_scenes,
+        'processed_scenes': len(all_scenes),
+        'scenes_with_teams': len(ocr_results),
+        'expected_fixtures': [
+            {
+                'match_id': f['match_id'],
+                'home_team': f['home_team'],
+                'away_team': f['away_team']
+            }
+            for f in expected_fixtures
+        ],
+        'ocr_results': ocr_results,
+        'summary': summary
+    }
+
+    # Save output
+    if not output:
+        cache_dir = Path('data/cache') / episode_id
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        output = cache_dir / 'ocr_results.json'
+
+    with open(output, 'w') as f:
+        json.dump(output_data, f, indent=2)
+
+    # Display summary
+    print(f"\n{'='*60}")
+    print("Summary:")
+    print(f"{'='*60}")
+    print(f"  Total scenes processed:     {summary['total_scenes_processed']}")
+    print(f"  Unique teams detected:      {summary['unique_teams_detected']}")
+    print(f"  Expected teams found:       {summary['expected_teams_found']}/{len(expected_teams)}")
+    print(f"  Validated detections:       {summary['validated_detections']}")
+    print(f"  Unexpected detections:      {summary['unexpected_detections']}")
+    print(f"  Fixtures identified:        {summary['fixtures_identified']}")
+    print(f"{'='*60}")
+    print(f"\nOutput saved to: {output}")
+
+    logger.info(f"Team extraction completed successfully")
+    logger.info(f"Summary: {summary}")
+    logger.info(f"Output: {output}")
+
+    return output
 
 
 @cli.command("extract-teams")
@@ -383,163 +566,172 @@ def extract_teams_command(
     setup_logging(cfg)
     logger = logging.getLogger(__name__)
 
-    logger.info(f"Starting team extraction for episode: {episode_id}")
-    click.echo(f"Processing episode: {episode_id}")
-
-    # Load scenes
-    with open(scenes) as f:
-        scenes_data = json.load(f)
-
-    total_scenes = len(scenes_data['scenes'])
-    click.echo(f"Loaded {total_scenes} scenes")
-    logger.info(f"Loaded {total_scenes} scenes from {scenes}")
-
     try:
-        # Initialise components using ServiceFactory
-        click.echo("Initialising OCR components...")
-        factory = ServiceFactory(cfg)
-        ocr_reader = factory.create_ocr_reader()
-        team_matcher = factory.create_team_matcher()
-        fixture_matcher = factory.create_fixture_matcher()
-        click.echo("✓ OCR components initialised")
-
-        # Get expected teams and create episode context
-        expected_teams = fixture_matcher.get_expected_teams(episode_id)
-        expected_fixtures = fixture_matcher.get_expected_fixtures(episode_id)
-        click.echo(f"✓ Expected {len(expected_fixtures)} fixtures with {len(expected_teams)} teams")
-        logger.info(f"Expected {len(expected_fixtures)} fixtures with {len(expected_teams)} teams")
-
-        # Import here to avoid circular dependency
-        from motd.ocr.scene_processor import SceneProcessor, EpisodeContext
-
-        # Create episode context and scene processor
-        context = EpisodeContext(
+        run_team_extraction(
+            scenes_path=scenes,
             episode_id=episode_id,
-            expected_teams=expected_teams,
-            expected_fixtures=expected_fixtures
+            config=cfg,
+            output=output
         )
-        processor = SceneProcessor(
-            ocr_reader=ocr_reader,
-            team_matcher=team_matcher,
-            fixture_matcher=fixture_matcher,
-            context=context
-        )
-
-        # Process all scenes (no filtering - process entire video)
-        click.echo("\nProcessing scenes (this may take several minutes)...")
-        ocr_results = []
-        all_scenes = scenes_data['scenes']
-
-        for idx, scene_dict in enumerate(all_scenes, 1):
-            if idx % 50 == 0 or idx == 1:
-                click.echo(f"  Processing scene {idx}/{len(all_scenes)}...")
-                logger.info(f"Processing scene {idx}/{len(all_scenes)}")
-
-            # Convert dict to Scene model
-            scene = Scene(
-                scene_number=scene_dict['scene_id'],
-                start_time=scene_dict['start_time'],
-                start_seconds=scene_dict['start_seconds'],
-                end_seconds=scene_dict['end_seconds'],
-                duration=scene_dict['duration'],
-                frames=scene_dict.get('frames', []),
-                key_frame_path=scene_dict.get('key_frame_path')
-            )
-
-            # Process with SceneProcessor
-            processed_scene = processor.process(scene)
-
-            if processed_scene:
-                # Convert ProcessedScene model to dict for JSON output
-                # Maintain backward compatibility with old output format
-                result = {
-                    'scene_id': processed_scene.scene_number,
-                    'start_time': processed_scene.start_time,
-                    'start_seconds': processed_scene.start_seconds,
-                    'frame_path': processed_scene.frame_path,
-                    'ocr_source': processed_scene.ocr_source,
-                    'detected_teams': [
-                        {
-                            'team': processed_scene.team1,
-                            'confidence': processed_scene.match_confidence,
-                            'matched_text': 'detected',  # Simplified for now
-                            'fixture_validated': processed_scene.fixture_id is not None
-                        },
-                        {
-                            'team': processed_scene.team2,
-                            'confidence': processed_scene.match_confidence,
-                            'matched_text': 'detected',
-                            'fixture_validated': processed_scene.fixture_id is not None
-                        }
-                    ],
-                    'validated_teams': [processed_scene.team1, processed_scene.team2],
-                    'unexpected_teams': [],  # Simplified for now
-                    'confidence_boost': 1.0,  # Simplified for now
-                    'matched_fixture': processed_scene.fixture_id
-                }
-
-                ocr_results.append(result)
-
-                # Log interesting findings
-                if result['matched_fixture']:
-                    logger.debug(
-                        f"Scene {result['scene_id']}: Identified fixture: "
-                        f"{result['matched_fixture']}"
-                    )
-
-        click.echo(f"✓ Processed {len(all_scenes)} scenes, found teams in {len(ocr_results)} scenes")
-
-        # Build output
-        summary = generate_summary(ocr_results, expected_teams)
-
-        output_data = {
-            'episode_id': episode_id,
-            'video_path': scenes_data.get('video_path'),
-            'total_scenes': total_scenes,
-            'processed_scenes': len(all_scenes),
-            'scenes_with_teams': len(ocr_results),
-            'expected_fixtures': [
-                {
-                    'match_id': f['match_id'],
-                    'home_team': f['home_team'],
-                    'away_team': f['away_team']
-                }
-                for f in expected_fixtures
-            ],
-            'ocr_results': ocr_results,
-            'summary': summary
-        }
-
-        # Save output
-        if not output:
-            cache_dir = Path('data/cache') / episode_id
-            cache_dir.mkdir(parents=True, exist_ok=True)
-            output = cache_dir / 'ocr_results.json'
-
-        with open(output, 'w') as f:
-            json.dump(output_data, f, indent=2)
-
-        # Display summary
-        click.echo(f"\n{'='*60}")
-        click.echo("Summary:")
-        click.echo(f"{'='*60}")
-        click.echo(f"  Total scenes processed:     {summary['total_scenes_processed']}")
-        click.echo(f"  Unique teams detected:      {summary['unique_teams_detected']}")
-        click.echo(f"  Expected teams found:       {summary['expected_teams_found']}/{len(expected_teams)}")
-        click.echo(f"  Validated detections:       {summary['validated_detections']}")
-        click.echo(f"  Unexpected detections:      {summary['unexpected_detections']}")
-        click.echo(f"  Fixtures identified:        {summary['fixtures_identified']}")
-        click.echo(f"{'='*60}")
-        click.echo(f"\nOutput saved to: {output}")
-
-        logger.info(f"Team extraction completed successfully")
-        logger.info(f"Summary: {summary}")
-        logger.info(f"Output: {output}")
-
     except Exception as e:
         logger.error(f"Team extraction failed: {e}", exc_info=True)
         click.echo(f"\nError: {e}", err=True)
         sys.exit(1)
+
+
+def run_transcription(
+    video_path: Path,
+    config: dict[str, Any],
+    model_size: str | None = None,
+    force: bool = False,
+    output: Path | None = None
+) -> Path:
+    """
+    Run audio transcription via faster-whisper (pure business logic).
+
+    Args:
+        video_path: Path to video file
+        config: Configuration dictionary
+        model_size: Optional Whisper model size override
+        force: Force re-transcription even if cache exists
+        output: Optional output path (defaults to cache/{video_name}/transcript.json)
+
+    Returns:
+        Path to transcript JSON file
+
+    Raises:
+        Exception: If transcription fails
+    """
+    logger = logging.getLogger(__name__)
+    logger.info(f"Starting transcription for: {video_path}")
+
+    # Determine cache directory
+    video_name = video_path.stem
+    cache_dir = Path('data/cache') / video_name
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    # Determine output path
+    if not output:
+        output = cache_dir / 'transcript.json'
+
+    audio_path = cache_dir / 'audio.wav'
+
+    # Override model size if specified
+    transcription_config = config.get('transcription', {}).copy()
+    if model_size:
+        transcription_config['model_size'] = model_size
+
+    # Check cache and validate configuration hasn't changed
+    cache_valid = False
+    if output.exists() and not force:
+        # Load cached transcript
+        with open(output) as f:
+            cached = json.load(f)
+
+        # Validate cache against current configuration
+        cached_metadata = cached.get('metadata', {})
+        cached_model = cached_metadata.get('model_size')
+        cached_device = cached_metadata.get('device')
+
+        current_model = transcription_config.get('model_size', 'large-v3')
+        current_device = transcription_config.get('device', 'auto')
+
+        # Check if configuration has changed
+        config_changed = (cached_model != current_model or
+                         (current_device != 'auto' and cached_device != current_device))
+
+        if config_changed:
+            print(f"\n⚠️  Cache invalid: configuration changed")
+            print(f"   Cached model: {cached_model}, Current: {current_model}")
+            if cached_device != current_device and current_device != 'auto':
+                print(f"   Cached device: {cached_device}, Current: {current_device}")
+            print("   Re-transcribing with new configuration...")
+            logger.info(f"Cache invalidated: model {cached_model}→{current_model} or device changed")
+            cache_valid = False
+        else:
+            print(f"\n✓ Cached transcript found: {output}")
+            print("Use --force to re-transcribe")
+            logger.info(f"Using cached transcript: {output}")
+
+            print(f"\nCached transcript info:")
+            print(f"  Duration: {cached.get('duration', 'unknown')}s")
+            print(f"  Segments: {cached.get('segment_count', 'unknown')}")
+            print(f"  Model: {cached_model}")
+            print(f"  Device: {cached_device}")
+            print(f"  Processed: {cached_metadata.get('processed_at', 'unknown')}")
+            cache_valid = True
+
+    if cache_valid:
+        return output
+
+    start_time = time.time()
+
+    # Extract audio
+    print("\nExtracting audio from video...")
+    logger.info("Starting audio extraction")
+
+    audio_config = config.get('transcription', {})
+    extractor = AudioExtractor(audio_config)
+    extraction_result = extractor.extract(str(video_path), str(audio_path))
+
+    print(
+        f"✓ Audio extracted: {extraction_result['output_size_mb']:.1f} MB, "
+        f"{extraction_result['duration_seconds']:.1f}s"
+    )
+    logger.info(f"Audio extraction complete: {extraction_result}")
+
+    # Transcribe audio
+    print(f"\nTranscribing audio with Whisper...")
+    logger.info("Starting transcription")
+
+    # transcription_config already set earlier for cache validation
+    transcriber = WhisperTranscriber(transcription_config)
+    transcription_result = transcriber.transcribe(str(audio_path))
+
+    elapsed = time.time() - start_time
+    duration = transcription_result['duration']
+    rtf = duration / elapsed if elapsed > 0 else 0
+
+    print(
+        f"✓ Transcribed {transcription_result['segment_count']} segments "
+        f"in {elapsed:.1f}s (RTF: {rtf:.1f}x real-time)"
+    )
+    logger.info(f"Transcription complete: {transcription_result['segment_count']} segments")
+
+    # Build output with metadata
+    output_data = {
+        'metadata': {
+            'video_path': str(video_path),
+            'processed_at': datetime.now(timezone.utc).isoformat(),
+            'model_size': transcription_config.get('model_size', 'large-v3'),
+            'device': transcriber.device,
+            'processing_time_seconds': round(elapsed, 2),
+            'real_time_factor': round(rtf, 2)
+        },
+        **transcription_result
+    }
+
+    # Save transcript
+    with open(output, 'w') as f:
+        json.dump(output_data, f, indent=2)
+
+    print(f"\n{'='*60}")
+    print("Transcription Summary:")
+    print(f"{'='*60}")
+    print(f"  Duration:           {duration:.1f}s ({duration/60:.1f} min)")
+    print(f"  Segments:           {transcription_result['segment_count']}")
+    print(f"  Language:           {transcription_result['language']}")
+    print(f"  Model:              {output_data['metadata']['model_size']}")
+    print(f"  Device:             {output_data['metadata']['device']}")
+    print(f"  Processing time:    {elapsed:.1f}s ({elapsed/60:.1f} min)")
+    print(f"  Real-time factor:   {rtf:.1f}x")
+    print(f"{'='*60}")
+    print(f"\nTranscript saved to: {output}")
+
+    logger.info(f"Transcription completed successfully")
+    logger.info(f"Output: {output}")
+
+    return output
 
 
 @cli.command("transcribe")
@@ -584,145 +776,161 @@ def transcribe_command(
 
         python -m motd transcribe data/videos/motd_2025-26_2025-11-01.mp4
     """
-    # Load config
     cfg = load_config(config)
     setup_logging(cfg)
     logger = logging.getLogger(__name__)
 
-    logger.info(f"Starting transcription for: {video_path}")
     click.echo(f"Processing video: {video_path.name}")
 
-    # Determine cache directory
-    video_name = video_path.stem
-    cache_dir = Path('data/cache') / video_name
-    cache_dir.mkdir(parents=True, exist_ok=True)
-
-    # Determine output path
-    if not output:
-        output = cache_dir / 'transcript.json'
-
-    audio_path = cache_dir / 'audio.wav'
-
-    # Override model size if specified
-    transcription_config = cfg.get('transcription', {}).copy()
-    if model_size:
-        transcription_config['model_size'] = model_size
-
-    # Check cache and validate configuration hasn't changed
-    cache_valid = False
-    if output.exists() and not force:
-        # Load cached transcript
-        with open(output) as f:
-            cached = json.load(f)
-
-        # Validate cache against current configuration
-        cached_metadata = cached.get('metadata', {})
-        cached_model = cached_metadata.get('model_size')
-        cached_device = cached_metadata.get('device')
-
-        current_model = transcription_config.get('model_size', 'large-v3')
-        current_device = transcription_config.get('device', 'auto')
-
-        # Check if configuration has changed
-        config_changed = (cached_model != current_model or
-                         (current_device != 'auto' and cached_device != current_device))
-
-        if config_changed:
-            click.echo(f"\n⚠️  Cache invalid: configuration changed")
-            click.echo(f"   Cached model: {cached_model}, Current: {current_model}")
-            if cached_device != current_device and current_device != 'auto':
-                click.echo(f"   Cached device: {cached_device}, Current: {current_device}")
-            click.echo("   Re-transcribing with new configuration...")
-            logger.info(f"Cache invalidated: model {cached_model}→{current_model} or device changed")
-            cache_valid = False
-        else:
-            click.echo(f"\n✓ Cached transcript found: {output}")
-            click.echo("Use --force to re-transcribe")
-            logger.info(f"Using cached transcript: {output}")
-
-            click.echo(f"\nCached transcript info:")
-            click.echo(f"  Duration: {cached.get('duration', 'unknown')}s")
-            click.echo(f"  Segments: {cached.get('segment_count', 'unknown')}")
-            click.echo(f"  Model: {cached_model}")
-            click.echo(f"  Device: {cached_device}")
-            click.echo(f"  Processed: {cached_metadata.get('processed_at', 'unknown')}")
-            cache_valid = True
-
-    if cache_valid:
-        return
-
     try:
-        start_time = time.time()
-
-        # Extract audio
-        click.echo("\nExtracting audio from video...")
-        logger.info("Starting audio extraction")
-
-        audio_config = cfg.get('transcription', {})
-        extractor = AudioExtractor(audio_config)
-        extraction_result = extractor.extract(str(video_path), str(audio_path))
-
-        click.echo(
-            f"✓ Audio extracted: {extraction_result['output_size_mb']:.1f} MB, "
-            f"{extraction_result['duration_seconds']:.1f}s"
+        run_transcription(
+            video_path=video_path,
+            config=cfg,
+            model_size=model_size,
+            force=force,
+            output=output
         )
-        logger.info(f"Audio extraction complete: {extraction_result}")
-
-        # Transcribe audio
-        click.echo(f"\nTranscribing audio with Whisper...")
-        logger.info("Starting transcription")
-
-        # transcription_config already set earlier for cache validation
-        transcriber = WhisperTranscriber(transcription_config)
-        transcription_result = transcriber.transcribe(str(audio_path))
-
-        elapsed = time.time() - start_time
-        duration = transcription_result['duration']
-        rtf = duration / elapsed if elapsed > 0 else 0
-
-        click.echo(
-            f"✓ Transcribed {transcription_result['segment_count']} segments "
-            f"in {elapsed:.1f}s (RTF: {rtf:.1f}x real-time)"
-        )
-        logger.info(f"Transcription complete: {transcription_result['segment_count']} segments")
-
-        # Build output with metadata
-        output_data = {
-            'metadata': {
-                'video_path': str(video_path),
-                'processed_at': datetime.now(timezone.utc).isoformat(),
-                'model_size': transcription_config.get('model_size', 'large-v3'),
-                'device': transcriber.device,
-                'processing_time_seconds': round(elapsed, 2),
-                'real_time_factor': round(rtf, 2)
-            },
-            **transcription_result
-        }
-
-        # Save transcript
-        with open(output, 'w') as f:
-            json.dump(output_data, f, indent=2)
-
-        click.echo(f"\n{'='*60}")
-        click.echo("Transcription Summary:")
-        click.echo(f"{'='*60}")
-        click.echo(f"  Duration:           {duration:.1f}s ({duration/60:.1f} min)")
-        click.echo(f"  Segments:           {transcription_result['segment_count']}")
-        click.echo(f"  Language:           {transcription_result['language']}")
-        click.echo(f"  Model:              {output_data['metadata']['model_size']}")
-        click.echo(f"  Device:             {output_data['metadata']['device']}")
-        click.echo(f"  Processing time:    {elapsed:.1f}s ({elapsed/60:.1f} min)")
-        click.echo(f"  Real-time factor:   {rtf:.1f}x")
-        click.echo(f"{'='*60}")
-        click.echo(f"\nTranscript saved to: {output}")
-
-        logger.info(f"Transcription completed successfully")
-        logger.info(f"Output: {output}")
-
     except Exception as e:
         logger.error(f"Transcription failed: {e}", exc_info=True)
         click.echo(f"\nError: {e}", err=True)
         sys.exit(1)
+
+
+def run_analysis(
+    episode_id: str,
+    config: dict[str, Any],
+    debug: bool = False,
+    output: Path | None = None
+) -> RunningOrderResult:
+    """
+    Run running order analysis and match boundary detection (pure business logic).
+
+    Args:
+        episode_id: Episode identifier (e.g., motd_2025-26_2025-11-01)
+        config: Configuration dictionary
+        debug: Enable debug mode with clustering diagnostics
+        output: Optional output path (defaults to data/output/{episode_id}/running_order.json)
+
+    Returns:
+        RunningOrderResult with detected matches and boundaries
+
+    Raises:
+        FileNotFoundError: If required files are missing
+        Exception: If analysis fails
+    """
+    logger = logging.getLogger(__name__)
+    logger.info(f"Starting running order analysis for: {episode_id}")
+
+    # Define paths
+    cache_dir = Path(f'data/cache/{episode_id}')
+    ocr_path = cache_dir / 'ocr_results.json'
+    transcript_path = cache_dir / 'transcript.json'
+    teams_path = Path('data/teams/premier_league_2025_26.json')
+
+    # Validate required files exist
+    missing_files = []
+    if not ocr_path.exists():
+        missing_files.append(str(ocr_path))
+    if not transcript_path.exists():
+        missing_files.append(str(transcript_path))
+    if not teams_path.exists():
+        missing_files.append(str(teams_path))
+
+    if missing_files:
+        error_msg = f"Required files not found: {', '.join(missing_files)}"
+        logger.error(error_msg)
+        raise FileNotFoundError(error_msg)
+
+    # Load data
+    print("Loading data...")
+    with open(ocr_path) as f:
+        ocr_data = json.load(f)
+    ocr_results = ocr_data['ocr_results']
+    print(f"  ✓ Loaded {len(ocr_results)} OCR results")
+    logger.info(f"Loaded {len(ocr_results)} OCR results from {ocr_path}")
+
+    with open(transcript_path) as f:
+        transcript = json.load(f)
+    print(f"  ✓ Loaded transcript ({len(transcript.get('segments', []))} segments)")
+    logger.info(f"Loaded transcript with {len(transcript.get('segments', []))} segments")
+
+    with open(teams_path) as f:
+        teams_data = json.load(f)
+    teams_list = teams_data['teams']
+    print(f"  ✓ Loaded {len(teams_list)} teams")
+    logger.info(f"Loaded {len(teams_list)} teams with alternates")
+
+    # Load fixtures
+    fixtures_path = Path('data/fixtures/premier_league_2025_26.json')
+    with open(fixtures_path) as f:
+        fixtures_data = json.load(f)
+    fixtures = fixtures_data['fixtures']
+    print(f"  ✓ Loaded {len(fixtures)} fixtures")
+    logger.info(f"Loaded {len(fixtures)} fixtures")
+
+    # Import and create venue matcher
+    from motd.analysis.venue_matcher import VenueMatcher
+    venues_path = Path('data/venues/premier_league_2025_26.json')
+    venue_matcher = VenueMatcher(str(venues_path))
+    print(f"  ✓ Initialized venue matcher\n")
+    logger.info("Initialized venue matcher")
+
+    # Create detector with all dependencies
+    print("Detecting running order...")
+    detector = RunningOrderDetector(
+        ocr_results=ocr_results,
+        transcript=transcript,
+        teams_data=teams_list,
+        fixtures=fixtures,
+        venue_matcher=venue_matcher
+    )
+
+    # Detect running order
+    running_order = detector.detect_running_order()
+    print(f"  ✓ Detected {len(running_order.matches)} matches")
+    print(f"  ✓ Consensus confidence: {running_order.consensus_confidence:.0%}\n")
+
+    # Detect match boundaries
+    print("Detecting match boundaries...")
+    result = detector.detect_match_boundaries(
+        running_order,
+        include_clustering_diagnostics=debug
+    )
+    print(f"  ✓ Detected all match boundaries\n")
+
+    # Display results
+    display_running_order_results(result, fixtures)
+
+    # Display summary statistics
+    display_validation_summary(result)
+
+    # Generate debug diagnostics if requested
+    if debug:
+        generate_clustering_diagnostics(
+            result,
+            detector,
+            episode_id,
+            Path('data/output')
+        )
+
+    # Generate output path
+    if output is None:
+        output = Path(f'data/output/{episode_id}/running_order.json')
+
+    # Save JSON output
+    output.parent.mkdir(parents=True, exist_ok=True)
+    json_output = result.model_dump_json(indent=2)
+    output.write_text(json_output)
+
+    print(f"{'='*60}")
+    print(f"✓ Running order saved to: {output}")
+    if debug:
+        print(f"✓ Debug diagnostics saved to: {Path(f'data/output/{episode_id}/clustering_debug.json')}")
+    print(f"{'='*60}\n")
+
+    logger.info(f"Running order analysis complete: {output}")
+
+    return result
 
 
 @cli.command("analyze-running-order")
@@ -762,140 +970,28 @@ def analyze_running_order_command(
 
         python -m motd analyze-running-order motd_2025-26_2025-11-01
     """
-    # Load config
     cfg = load_config(config)
     setup_logging(cfg)
     logger = logging.getLogger(__name__)
 
-    logger.info(f"Starting running order analysis for: {episode_id}")
     click.echo(f"\n{'='*60}")
     click.echo(f"Running Order Analysis: {episode_id}")
     click.echo(f"{'='*60}\n")
 
-    # Define paths
-    cache_dir = Path(f'data/cache/{episode_id}')
-    ocr_path = cache_dir / 'ocr_results.json'
-    transcript_path = cache_dir / 'transcript.json'
-    teams_path = Path('data/teams/premier_league_2025_26.json')
-
-    # Validate required files exist
-    missing_files = []
-    if not ocr_path.exists():
-        missing_files.append(str(ocr_path))
-    if not transcript_path.exists():
-        missing_files.append(str(transcript_path))
-    if not teams_path.exists():
-        missing_files.append(str(teams_path))
-
-    if missing_files:
-        click.echo("Error: Required files not found:", err=True)
-        for path in missing_files:
-            click.echo(f"  - {path}", err=True)
+    try:
+        run_analysis(
+            episode_id=episode_id,
+            config=cfg,
+            debug=debug,
+            output=output
+        )
+    except FileNotFoundError as e:
+        click.echo(f"Error: {e}", err=True)
         click.echo("\nPlease run the following commands first:", err=True)
         click.echo("  1. python -m motd detect-scenes <video>", err=True)
         click.echo("  2. python -m motd extract-teams --scenes <scenes.json> --episode-id <id>", err=True)
         click.echo("  3. python -m motd transcribe <video>", err=True)
         sys.exit(1)
-
-    try:
-        # Load data
-        click.echo("Loading data...")
-        with open(ocr_path) as f:
-            ocr_data = json.load(f)
-        ocr_results = ocr_data['ocr_results']
-        click.echo(f"  ✓ Loaded {len(ocr_results)} OCR results")
-        logger.info(f"Loaded {len(ocr_results)} OCR results from {ocr_path}")
-
-        with open(transcript_path) as f:
-            transcript = json.load(f)
-        click.echo(f"  ✓ Loaded transcript ({len(transcript.get('segments', []))} segments)")
-        logger.info(f"Loaded transcript with {len(transcript.get('segments', []))} segments")
-
-        with open(teams_path) as f:
-            teams_data = json.load(f)
-        teams_list = teams_data['teams']
-        click.echo(f"  ✓ Loaded {len(teams_list)} teams")
-        logger.info(f"Loaded {len(teams_list)} teams with alternates")
-
-        # Load fixtures
-        fixtures_path = Path('data/fixtures/premier_league_2025_26.json')
-        with open(fixtures_path) as f:
-            fixtures_data = json.load(f)
-        fixtures = fixtures_data['fixtures']
-        click.echo(f"  ✓ Loaded {len(fixtures)} fixtures")
-        logger.info(f"Loaded {len(fixtures)} fixtures")
-
-        # Import and create venue matcher
-        from motd.analysis.venue_matcher import VenueMatcher
-        venues_path = Path('data/venues/premier_league_2025_26.json')
-        venue_matcher = VenueMatcher(str(venues_path))
-        click.echo(f"  ✓ Initialized venue matcher\n")
-        logger.info("Initialized venue matcher")
-
-        # Create detector with all dependencies
-        click.echo("Detecting running order...")
-        detector = RunningOrderDetector(
-            ocr_results=ocr_results,
-            transcript=transcript,
-            teams_data=teams_list,
-            fixtures=fixtures,
-            venue_matcher=venue_matcher
-        )
-
-        # Detect running order
-        running_order = detector.detect_running_order()
-        click.echo(f"  ✓ Detected {len(running_order.matches)} matches")
-        click.echo(f"  ✓ Consensus confidence: {running_order.consensus_confidence:.0%}\n")
-
-        # Detect match boundaries
-        click.echo("Detecting match boundaries...")
-        result = detector.detect_match_boundaries(
-            running_order,
-            include_clustering_diagnostics=debug
-        )
-        click.echo(f"  ✓ Detected all match boundaries\n")
-
-        # Load ground truth for validation (if available for this episode)
-        # See data/ground_truth/episode_boundaries.json for manually verified timings
-        ground_truth = load_ground_truth(episode_id)
-
-        # Display results
-        venue_diffs, clustering_diffs = display_running_order_results(
-            result,
-            ground_truth,
-            fixtures
-        )
-
-        # Display summary statistics
-        display_validation_summary(result, venue_diffs, clustering_diffs)
-
-        # Generate debug diagnostics if requested
-        if debug:
-            generate_clustering_diagnostics(
-                result,
-                ground_truth or {},  # Pass empty dict if no ground truth
-                detector,
-                episode_id,
-                Path('data/output')
-            )
-
-        # Generate output path
-        if output is None:
-            output = Path(f'data/output/{episode_id}/running_order.json')
-
-        # Save JSON output
-        output.parent.mkdir(parents=True, exist_ok=True)
-        json_output = result.model_dump_json(indent=2)
-        output.write_text(json_output)
-
-        click.echo(f"{'='*60}")
-        click.echo(f"✓ Running order saved to: {output}")
-        if debug:
-            click.echo(f"✓ Debug diagnostics saved to: {Path(f'data/output/{episode_id}/clustering_debug.json')}")
-        click.echo(f"{'='*60}\n")
-
-        logger.info(f"Running order analysis complete: {output}")
-
     except Exception as e:
         logger.error(f"Running order analysis failed: {e}", exc_info=True)
         click.echo(f"\nError: {e}", err=True)

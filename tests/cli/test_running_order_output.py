@@ -1,10 +1,9 @@
 """
 Tests for running order output display logic.
 
-Covers 3 bugs discovered during Episode 02 analysis (Task 012-03):
-1. Ground truth showing Episode 01 data for all episodes
-2. Contradictory boundary strategy labels ("venue not detected" → "using venue")
-3. Missing detection event details (FT graphics, scoreboards)
+Covers 2 bugs discovered during Episode 02 analysis (Task 012-03):
+1. Contradictory boundary strategy labels ("venue not detected" → "using venue")
+2. Missing detection event details (FT graphics, scoreboards)
 """
 
 import pytest
@@ -25,88 +24,7 @@ from motd.pipeline.models import (
 
 
 # ============================================================
-# Test Class 1: Ground Truth Display Logic
-# ============================================================
-
-class TestGroundTruthDisplay:
-    """Test that ground truth only displays when data exists for the episode."""
-
-    def test_ground_truth_none_hides_section(self, capsys):
-        """When ground_truth is None, don't show 'Ground Truth:' section."""
-        result = RunningOrderResult(
-            matches=[
-                MatchBoundary(
-                    teams=("Tottenham Hotspur", "Manchester United"),
-                    position=1,
-                    match_start=60.0,
-                    highlights_start=90.0,
-                    highlights_end=600.0,
-                    match_end=700.0,
-                    confidence=0.9,
-                    venue_result={'timestamp': 60.0}
-                )
-            ],
-            strategy_results={},
-            consensus_confidence=1.0
-        )
-
-        display_running_order_results(result, ground_truth=None, fixtures=[])
-
-        captured = capsys.readouterr()
-        assert "Ground Truth:" not in captured.out
-
-    def test_ground_truth_empty_dict_hides_section(self, capsys):
-        """When ground_truth is {}, don't show 'Ground Truth:' section."""
-        result = RunningOrderResult(
-            matches=[
-                MatchBoundary(
-                    teams=("Tottenham Hotspur", "Manchester United"),
-                    position=1,
-                    match_start=60.0,
-                    highlights_start=90.0,
-                    highlights_end=600.0,
-                    match_end=700.0,
-                    confidence=0.9,
-                    venue_result={'timestamp': 60.0}
-                )
-            ],
-            strategy_results={},
-            consensus_confidence=1.0
-        )
-
-        display_running_order_results(result, ground_truth={}, fixtures=[])
-
-        captured = capsys.readouterr()
-        assert "Ground Truth:" not in captured.out
-
-    def test_ground_truth_episode01_shows_section(self, capsys):
-        """When ground_truth has data, show 'Ground Truth:' section."""
-        result = RunningOrderResult(
-            matches=[
-                MatchBoundary(
-                    teams=("Liverpool", "Aston Villa"),
-                    position=1,
-                    match_start=61.0,
-                    highlights_start=180.0,
-                    highlights_end=607.3,
-                    match_end=866.0,
-                    confidence=0.9,
-                    venue_result={'timestamp': 61.0}
-                )
-            ],
-            strategy_results={},
-            consensus_confidence=1.0
-        )
-        ground_truth = {1: 61}  # Episode 01 match 1: 00:01:01
-
-        display_running_order_results(result, ground_truth, fixtures=[])
-
-        captured = capsys.readouterr()
-        assert "Ground Truth:        01:01" in captured.out
-
-
-# ============================================================
-# Test Class 2: Boundary Strategy Label Generation
+# Test Class 1: Boundary Strategy Label Generation
 # ============================================================
 
 class TestBoundaryStrategyLabel:
@@ -372,13 +290,10 @@ class TestRunningOrderOutputIntegration:
             consensus_confidence=1.0
         )
 
-        display_running_order_results(result, ground_truth=None, fixtures=[])
+        display_running_order_results(result, fixtures=[])
 
         captured = capsys.readouterr()
         output = captured.out
-
-        # Verify no ground truth
-        assert "Ground Truth:" not in output
 
         # Verify strategy labels
         assert "Boundaries (using venue, validated by clustering)" in output
