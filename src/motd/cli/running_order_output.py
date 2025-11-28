@@ -10,6 +10,28 @@ from pathlib import Path
 from motd.pipeline.models import RunningOrderResult, MatchBoundary
 
 
+def _get_home_away_teams(teams: tuple[str, str], fixtures: list[dict]) -> tuple[str, str]:
+    """
+    Reorder teams from alphabetical to home/away based on fixtures.
+
+    Args:
+        teams: Alphabetically sorted team pair (e.g., ("Arsenal", "Burnley"))
+        fixtures: List of fixture dicts with home_team, away_team
+
+    Returns:
+        Tuple of (home_team, away_team), or original order if not found
+    """
+    team_set = set(teams)
+
+    for fixture in fixtures:
+        fixture_teams = {fixture['home_team'], fixture['away_team']}
+        if team_set == fixture_teams:
+            return (fixture['home_team'], fixture['away_team'])
+
+    # Fallback: return original alphabetical order if fixture not found
+    return teams
+
+
 def _get_boundary_strategy_label(match: MatchBoundary) -> str:
     """
     Determine which strategy's timestamps are being used for boundaries.
@@ -69,7 +91,9 @@ def display_running_order_results(
         postmatch_duration = match.match_end - match.highlights_end
         total_duration = match.match_end - match.match_start
 
-        click.echo(f"Match {i}: {match.teams[0]} vs {match.teams[1]}")
+        # Reorder teams to home/away (internal storage is alphabetical)
+        home_team, away_team = _get_home_away_teams(match.teams, fixtures)
+        click.echo(f"Match {i}: {home_team} vs {away_team}")
         click.echo(f"\n  Strategy Results:")
 
         # Venue strategy
@@ -108,9 +132,6 @@ def display_running_order_results(
 
         # Display detection events for debugging (Task 012-03)
         _display_detection_events(match, i, result.matches)
-
-        # Display gap analysis (Phase 1: Task 012-02)
-        _display_gap_analysis(match, i, result.matches)
 
         click.echo()
 
@@ -168,50 +189,12 @@ def _display_detection_events(match: MatchBoundary, match_number: int, all_match
         events.append(f"    First Scoreboard: {sb_str} ({match.first_scoreboard_time:.1f}s)")
 
     # TODO: Interlude/table detection (need to extend MatchBoundary model first)
-    # Currently only logged by RunningOrderDetector, not stored for display
-    # if match.interlude_detected:
-    #     interlude_str = f"{int(match.interlude_detected['timestamp'] // 60):02d}:..."
-    #     keyword = match.interlude_detected.get('keyword', 'unknown')
-    #     events.append(f"    Interlude:       {interlude_str} (keyword: '{keyword}')")
 
     # Only show section if we have events
     if events:
         click.echo(f"\n  Detection Events:")
         for event in events:
             click.echo(event)
-
-
-def _display_gap_analysis(match: MatchBoundary, match_number: int, all_matches: list[MatchBoundary]) -> None:
-    """
-    Display gap analysis between current match's highlights_end and next match's match_start.
-
-    Part of Task 012-02: Helps identify where interludes/long analysis periods occur.
-
-    Args:
-        match: Current match boundary
-        match_number: Match position (1-7)
-        all_matches: All matches in running order
-    """
-    # For all matches except the last, show the gap to next match
-    if match_number < len(all_matches):
-        next_match = all_matches[match_number]  # match_number is 1-indexed
-        gap_seconds = next_match.match_start - match.highlights_end
-        gap_mm = int(gap_seconds // 60)
-        gap_ss = int(gap_seconds % 60)
-
-        # Flag if gap is suspiciously long (>120s = 2 minutes)
-        # Typical post-match analysis: 30-90s
-        # Long gap suggests interlude or extended analysis
-        if gap_seconds > 120:
-            flag = click.style(" ⚠️ LONG GAP (potential interlude)", fg='yellow', bold=True)
-        else:
-            flag = ""
-
-        click.echo(f"\n  Gap Analysis:")
-        click.echo(f"    highlights_end → next match_start: {gap_mm:02d}:{gap_ss:02d} ({gap_seconds:.0f}s){flag}")
-
-        if gap_seconds > 120:
-            click.echo(click.style(f"    → Gap includes post-match analysis + potential interlude/review", fg='yellow', dim=True))
 
 
 def display_validation_summary(

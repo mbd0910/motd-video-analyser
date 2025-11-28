@@ -23,7 +23,7 @@ from motd.config.defaults import (
 )
 from motd.ocr import OCRReader, TeamMatcher, FixtureMatcher
 from motd.pipeline.factory import ServiceFactory
-from motd.pipeline.models import Scene
+from motd.pipeline.models import Scene, RunningOrderResult
 from motd.transcription import AudioExtractor, WhisperTranscriber
 from motd.analysis.running_order_detector import RunningOrderDetector
 from motd.cli.running_order_output import (
@@ -80,8 +80,9 @@ def run_scene_detection(
     threshold: float | None = None,
     min_scene_duration: float | None = None,
     output: Path | None = None,
-    frames_dir: Path | None = None
-) -> tuple[Path, Path]:
+    frames_dir: Path | None = None,
+    force: bool = False
+) -> tuple[Path, Path, bool]:
     """
     Run scene detection and frame extraction (pure business logic).
 
@@ -92,9 +93,10 @@ def run_scene_detection(
         min_scene_duration: Minimum scene duration (overrides config)
         output: Output JSON path (overrides default)
         frames_dir: Frames output directory (overrides default)
+        force: Force re-detection even if cache exists
 
     Returns:
-        Tuple of (output_json_path, frames_directory_path)
+        Tuple of (output_json_path, frames_directory_path, cache_was_used)
     """
     logger = logging.getLogger(__name__)
     logger.info("Starting scene detection")
@@ -103,11 +105,16 @@ def run_scene_detection(
     # Get default values from config
     scene_config = config.get("scene_detection", {})
     cache_config = config.get("cache", {})
+    ocr_config = config.get('ocr', {})
+    sampling_config = ocr_config.get('sampling', {})
 
     # Use provided args if not None, otherwise fall back to config, then to defaults
     threshold = threshold if threshold is not None else scene_config.get("threshold", DEFAULT_THRESHOLD)
     min_scene_duration = min_scene_duration if min_scene_duration is not None else scene_config.get("min_scene_duration", DEFAULT_MIN_SCENE_DURATION)
     detector_type = scene_config.get("detector_type", DEFAULT_DETECTOR_TYPE)
+    use_hybrid = sampling_config.get('use_hybrid', False)
+    interval = sampling_config.get('interval', 5.0)
+    dedupe_threshold = sampling_config.get('dedupe_threshold', 1.0)
 
     # Determine output paths
     video_name = video_path.stem
@@ -118,6 +125,45 @@ def run_scene_detection(
 
     if frames_dir is None:
         frames_dir = default_cache_dir / "frames"
+
+    # Check cache validity (unless force=True)
+    cache_valid = False
+    if output.exists() and not force:
+        try:
+            with open(output) as f:
+                cached = json.load(f)
+
+            # Validate metadata matches current configuration
+            metadata = cached.get('metadata', {})
+
+            # Track which config parameters changed
+            changed_fields = []
+            if metadata.get('detector_type') != detector_type:
+                changed_fields.append(f"detector_type: {metadata.get('detector_type')} → {detector_type}")
+            if metadata.get('threshold') != threshold:
+                changed_fields.append(f"threshold: {metadata.get('threshold')} → {threshold}")
+            if metadata.get('min_scene_duration') != min_scene_duration:
+                changed_fields.append(f"min_scene_duration: {metadata.get('min_scene_duration')} → {min_scene_duration}")
+            if metadata.get('use_hybrid') != use_hybrid:
+                changed_fields.append(f"use_hybrid: {metadata.get('use_hybrid')} → {use_hybrid}")
+            if metadata.get('interval') != interval:
+                changed_fields.append(f"interval: {metadata.get('interval')} → {interval}")
+            if metadata.get('dedupe_threshold') != dedupe_threshold:
+                changed_fields.append(f"dedupe_threshold: {metadata.get('dedupe_threshold')} → {dedupe_threshold}")
+
+            if changed_fields:
+                print(f"\n⚠️  Cache invalid: {', '.join(changed_fields)}")
+                cache_valid = False
+            else:
+                print(f"\n✓ Cached scene detection found: {output}")
+                cache_valid = True
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.warning(f"Cache validation failed: {e}")
+            cache_valid = False
+
+    if cache_valid:
+        logger.info("Using cached scene detection results")
+        return output, frames_dir, True
 
     # Create output directories
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -139,10 +185,6 @@ def run_scene_detection(
     print(f"Detected {len(scenes)} scenes")
 
     # Extract frames (hybrid or traditional)
-    ocr_config = config.get('ocr', {})
-    sampling_config = ocr_config.get('sampling', {})
-    use_hybrid = sampling_config.get('use_hybrid', False)
-
     if use_hybrid:
         print("Extracting frames using hybrid strategy (scene changes + intervals)...")
         from motd.scene_detection.detector import hybrid_frame_extraction
@@ -152,8 +194,8 @@ def run_scene_detection(
         hybrid_frames = hybrid_frame_extraction(
             video_path=str(video_path),
             scenes=scenes,
-            interval=sampling_config.get('interval', 5.0),
-            dedupe_threshold=sampling_config.get('dedupe_threshold', 1.0)
+            interval=interval,
+            dedupe_threshold=dedupe_threshold
         )
 
         # Extract frames
@@ -199,13 +241,21 @@ def run_scene_detection(
             extract_position="start"
         )
 
-    # Prepare output JSON
+    # Prepare output JSON with metadata section
+    from datetime import datetime
+
     output_data = {
-        "video_path": str(video_path),
-        "video_name": video_name,
-        "detector_type": detector_type,
-        "threshold": threshold,
-        "min_scene_duration": min_scene_duration,
+        "metadata": {
+            "video_path": str(video_path),
+            "video_name": video_name,
+            "processed_at": datetime.now().isoformat(),
+            "detector_type": detector_type,
+            "threshold": threshold,
+            "min_scene_duration": min_scene_duration,
+            "use_hybrid": use_hybrid,
+            "interval": interval,
+            "dedupe_threshold": dedupe_threshold
+        },
         "total_scenes": len(scenes),
         "scenes": [
             {
@@ -243,7 +293,7 @@ def run_scene_detection(
 
     logger.info("Scene detection completed successfully")
 
-    return output, frames_dir
+    return output, frames_dir, False
 
 
 @cli.command("detect-scenes")
@@ -303,7 +353,8 @@ def detect_scenes_command(
     logger = logging.getLogger(__name__)
 
     try:
-        run_scene_detection(
+        # Ignore cache_was_used return (CLI shows timing info already)
+        _, _, _ = run_scene_detection(
             video_path=video_path,
             config=config_data,
             threshold=threshold,
@@ -349,8 +400,9 @@ def run_team_extraction(
     scenes_path: Path,
     episode_id: str,
     config: dict[str, Any],
-    output: Path | None = None
-) -> Path:
+    output: Path | None = None,
+    force: bool = False
+) -> tuple[Path, bool]:
     """
     Run team extraction via OCR and fixture matching (pure business logic).
 
@@ -359,13 +411,60 @@ def run_team_extraction(
         episode_id: Episode identifier
         config: Configuration dictionary
         output: Output JSON path (overrides default)
+        force: Force re-extraction even if cache exists
 
     Returns:
-        Path to output OCR results JSON
+        Tuple of (output_ocr_results_path, cache_was_used)
     """
     logger = logging.getLogger(__name__)
     logger.info(f"Starting team extraction for episode: {episode_id}")
     print(f"Processing episode: {episode_id}")
+
+    # Determine output path
+    cache_config = config.get("cache", {})
+    cache_dir = Path(cache_config.get("directory", "data/cache")) / episode_id
+
+    if output is None:
+        output = cache_dir / "ocr_results.json"
+
+    # Get OCR config for cache validation
+    ocr_config = config.get("ocr", {})
+    ocr_library = ocr_config.get("library", "easyocr")
+    gpu = ocr_config.get("gpu", True)
+    confidence_threshold = ocr_config.get("confidence_threshold", 0.7)
+
+    # Check cache validity (unless force=True)
+    cache_valid = False
+    if output.exists() and not force:
+        try:
+            with open(output) as f:
+                cached = json.load(f)
+
+            # Validate metadata matches current configuration
+            metadata = cached.get('metadata', {})
+
+            # Track which config parameters changed
+            changed_fields = []
+            if metadata.get('ocr_library') != ocr_library:
+                changed_fields.append(f"ocr_library: {metadata.get('ocr_library')} → {ocr_library}")
+            if metadata.get('gpu') != gpu:
+                changed_fields.append(f"gpu: {metadata.get('gpu')} → {gpu}")
+            if metadata.get('confidence_threshold') != confidence_threshold:
+                changed_fields.append(f"confidence_threshold: {metadata.get('confidence_threshold')} → {confidence_threshold}")
+
+            if changed_fields:
+                print(f"\n⚠️  Cache invalid: {', '.join(changed_fields)}")
+                cache_valid = False
+            else:
+                print(f"\n✓ Cached team extraction found: {output}")
+                cache_valid = True
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.warning(f"Cache validation failed: {e}")
+            cache_valid = False
+
+    if cache_valid:
+        logger.info("Using cached team extraction results")
+        return output, True
 
     # Load scenes
     with open(scenes_path) as f:
@@ -470,11 +569,19 @@ def run_team_extraction(
     print(f"✓ Processed {len(all_scenes)} scenes, found teams in {len(ocr_results)} scenes")
 
     # Build output
+    from datetime import datetime
+
     summary = generate_summary(ocr_results, expected_teams)
 
     output_data = {
-        'episode_id': episode_id,
-        'video_path': scenes_data.get('video_path'),
+        'metadata': {
+            'episode_id': episode_id,
+            'video_path': scenes_data.get('video_path'),
+            'processed_at': datetime.now().isoformat(),
+            'ocr_library': ocr_library,
+            'gpu': gpu,
+            'confidence_threshold': confidence_threshold
+        },
         'total_scenes': total_scenes,
         'processed_scenes': len(all_scenes),
         'scenes_with_teams': len(ocr_results),
@@ -516,7 +623,7 @@ def run_team_extraction(
     logger.info(f"Summary: {summary}")
     logger.info(f"Output: {output}")
 
-    return output
+    return output, False
 
 
 @cli.command("extract-teams")
@@ -567,7 +674,8 @@ def extract_teams_command(
     logger = logging.getLogger(__name__)
 
     try:
-        run_team_extraction(
+        # Ignore cache_was_used return (CLI shows timing info already)
+        _, _ = run_team_extraction(
             scenes_path=scenes,
             episode_id=episode_id,
             config=cfg,
@@ -585,7 +693,7 @@ def run_transcription(
     model_size: str | None = None,
     force: bool = False,
     output: Path | None = None
-) -> Path:
+) -> tuple[Path, bool]:
     """
     Run audio transcription via faster-whisper (pure business logic).
 
@@ -597,7 +705,7 @@ def run_transcription(
         output: Optional output path (defaults to cache/{video_name}/transcript.json)
 
     Returns:
-        Path to transcript JSON file
+        Tuple of (transcript_json_path, cache_was_used)
 
     Raises:
         Exception: If transcription fails
@@ -636,17 +744,17 @@ def run_transcription(
         current_model = transcription_config.get('model_size', 'large-v3')
         current_device = transcription_config.get('device', 'auto')
 
-        # Check if configuration has changed
-        config_changed = (cached_model != current_model or
-                         (current_device != 'auto' and cached_device != current_device))
+        # Track which config parameters changed
+        changed_fields = []
+        if cached_model != current_model:
+            changed_fields.append(f"model_size: {cached_model} → {current_model}")
+        if current_device != 'auto' and cached_device != current_device:
+            changed_fields.append(f"device: {cached_device} → {current_device}")
 
-        if config_changed:
-            print(f"\n⚠️  Cache invalid: configuration changed")
-            print(f"   Cached model: {cached_model}, Current: {current_model}")
-            if cached_device != current_device and current_device != 'auto':
-                print(f"   Cached device: {cached_device}, Current: {current_device}")
+        if changed_fields:
+            print(f"\n⚠️  Cache invalid: {', '.join(changed_fields)}")
             print("   Re-transcribing with new configuration...")
-            logger.info(f"Cache invalidated: model {cached_model}→{current_model} or device changed")
+            logger.info(f"Cache invalidated: {', '.join(changed_fields)}")
             cache_valid = False
         else:
             print(f"\n✓ Cached transcript found: {output}")
@@ -662,7 +770,7 @@ def run_transcription(
             cache_valid = True
 
     if cache_valid:
-        return output
+        return output, True
 
     start_time = time.time()
 
@@ -731,7 +839,7 @@ def run_transcription(
     logger.info(f"Transcription completed successfully")
     logger.info(f"Output: {output}")
 
-    return output
+    return output, False
 
 
 @cli.command("transcribe")
@@ -783,7 +891,8 @@ def transcribe_command(
     click.echo(f"Processing video: {video_path.name}")
 
     try:
-        run_transcription(
+        # Ignore cache_was_used return (CLI shows timing info already)
+        _, _ = run_transcription(
             video_path=video_path,
             config=cfg,
             model_size=model_size,
@@ -898,12 +1007,6 @@ def run_analysis(
     )
     print(f"  ✓ Detected all match boundaries\n")
 
-    # Display results
-    display_running_order_results(result, fixtures)
-
-    # Display summary statistics
-    display_validation_summary(result)
-
     # Generate debug diagnostics if requested
     if debug:
         generate_clustering_diagnostics(
@@ -995,6 +1098,127 @@ def analyze_running_order_command(
     except Exception as e:
         logger.error(f"Running order analysis failed: {e}", exc_info=True)
         click.echo(f"\nError: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command("run")
+@click.argument("video_path", type=click.Path(exists=True, path_type=Path))
+@click.option(
+    "--force",
+    is_flag=True,
+    default=False,
+    help="Force full pipeline run, ignoring cache"
+)
+@click.option(
+    "--config",
+    type=click.Path(exists=True, path_type=Path),
+    default=Path("config/config.yaml"),
+    help="Path to configuration file"
+)
+def run_command(video_path: Path, force: bool, config: Path):
+    """
+    Run full MOTD analysis pipeline with automatic stage management.
+
+    This command orchestrates all 4 pipeline stages sequentially:
+    1. Scene Detection (video → scenes.json + frames/)
+    2. Team Extraction (scenes.json → ocr_results.json)
+    3. Transcription (video → transcript.json)
+    4. Running Order Analysis (ocr_results.json + transcript.json → results)
+
+    Smart caching automatically skips completed stages (unless --force).
+
+    Example:
+        motd run data/videos/motd_2025-26_2025-11-01.mp4
+        motd run data/videos/motd_2025-26_2025-11-01.mp4 --force
+    """
+    # Load configuration
+    config_data = load_config(config)
+    setup_logging(config_data)
+
+    logger = logging.getLogger(__name__)
+    logger.info(f"Starting pipeline run for {video_path}")
+    logger.info(f"Force mode: {force}")
+
+    # Derive episode ID from video filename
+    episode_id = video_path.stem
+    logger.info(f"Episode ID: {episode_id}")
+
+    # Validate episode exists in manifest
+    manifest_path = Path("data/episodes/episode_manifest.json")
+    if not manifest_path.exists():
+        click.echo(f"\n❌ Error: Episode manifest not found at {manifest_path}", err=True)
+        click.echo("   Create manifest file first.", err=True)
+        sys.exit(1)
+
+    try:
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+
+        episodes = manifest.get("episodes", [])
+        episode_ids = [ep["episode_id"] for ep in episodes]
+
+        if episode_id not in episode_ids:
+            click.echo(f"\n❌ Error: Episode '{episode_id}' not found in manifest", err=True)
+            click.echo(f"   Available episodes: {', '.join(episode_ids[:3])}...", err=True)
+            click.echo(f"   Add episode to {manifest_path} first.", err=True)
+            sys.exit(1)
+
+        logger.info(f"Episode validated in manifest")
+
+    except Exception as e:
+        logger.error(f"Failed to validate episode manifest: {e}", exc_info=True)
+        click.echo(f"\n❌ Error reading manifest: {e}", err=True)
+        sys.exit(1)
+
+    # Load fixtures (needed for display functions)
+    fixtures_path = Path("data/fixtures/premier_league_2025_26.json")
+    if not fixtures_path.exists():
+        click.echo(f"\n❌ Error: Fixtures file not found at {fixtures_path}", err=True)
+        sys.exit(1)
+
+    try:
+        with open(fixtures_path) as f:
+            fixtures_data = json.load(f)
+            fixtures = fixtures_data.get("fixtures", [])
+        logger.info(f"Loaded {len(fixtures)} fixtures")
+    except Exception as e:
+        logger.error(f"Failed to load fixtures: {e}", exc_info=True)
+        click.echo(f"\n❌ Error loading fixtures: {e}", err=True)
+        sys.exit(1)
+
+    # Run pipeline
+    try:
+        from motd.pipeline.orchestrator import PipelineOrchestrator
+
+        orchestrator = PipelineOrchestrator(
+            video_path=video_path,
+            config=config_data,
+            force=force
+        )
+
+        result = orchestrator.run_pipeline()
+
+        # Display results using existing display functions
+        display_running_order_results(result, fixtures)
+        display_validation_summary(result)
+
+        logger.info("Pipeline completed successfully")
+
+    except FileNotFoundError as e:
+        logger.error(f"Pipeline failed - file not found: {e}", exc_info=True)
+        click.echo(f"\n❌ Pipeline Error: {e}", err=True)
+        click.echo(f"\n   Check that all required files exist:", err=True)
+        click.echo(f"   - data/cache/{episode_id}/ocr_results.json", err=True)
+        click.echo(f"   - data/cache/{episode_id}/transcript.json", err=True)
+        click.echo(f"   - data/teams/premier_league_2025_26.json", err=True)
+        click.echo(f"   - data/fixtures/premier_league_2025_26.json", err=True)
+        click.echo(f"   - data/venues/premier_league_2025_26.json", err=True)
+        sys.exit(1)
+
+    except Exception as e:
+        logger.error(f"Pipeline failed: {e}", exc_info=True)
+        click.echo(f"\n❌ Pipeline Error: {e}", err=True)
+        click.echo(f"\n   To resume, run: motd run {video_path}", err=True)
         sys.exit(1)
 
 
