@@ -5,17 +5,13 @@ Complete workflow for implementing GitHub issues with critical thinking, plannin
 ## Usage
 
 ```bash
-/issue-workflow 15              # Combined mode: plan + execute in one session
-/issue-workflow 15 --plan-only  # Create task file and links, stop before implementation
-/issue-workflow 15 --execute    # Execute existing task file (assumes planning done)
+/issue-workflow 15              # Plan + execute issue #15
 /issue-workflow                 # Prompts for issue number
 ```
 
 ## Workflow Overview
 
-**Combined Mode:** Critical Thinking → Task file creation → Implementation → Code Review
-**Plan-Only Mode:** Critical Thinking → Task file creation → Stop
-**Execute Mode:** Implementation → Code Review (reads existing task file)
+Critical Thinking ‖ Branch → Task file → Implementation ‖ Code Review ‖ Merge
 
 ---
 
@@ -41,7 +37,7 @@ See [references/README.md](.claude/commands/references/README.md) for overview.
 
 ## Instructions for Claude
 
-### Phase -1: Critical Thinking (All Modes)
+### Phase 1: Critical Thinking
 
 **Think hard about the requirements before creating any plan:**
 
@@ -64,9 +60,9 @@ See [references/README.md](.claude/commands/references/README.md) for overview.
    - Document key decisions and assumptions
    - Get alignment before proceeding
 
-**PAUSE HERE UNTIL USER IS HAPPY TO CONTINUE**
+**PAUSE** - Get user alignment before proceeding.
 
-### Phase 0: Setup (All Modes)
+### Phase 2: Setup
 
 1. **Get issue number**
    - If provided as argument, use it
@@ -74,12 +70,9 @@ See [references/README.md](.claude/commands/references/README.md) for overview.
    - Fetch issue details: `gh issue view {number}`
    - Extract title and create slug (kebab-case, max 3-4 words)
 
-2. **Determine mode**
-   - Check for `--plan-only` flag → Planning mode
-   - Check for `--execute` flag → Execution mode
-   - No flags → Combined mode (default)
-
-### Planning Mode Steps (`--plan-only` or combined mode)
+2. **Create feature branch**
+   - `git checkout -b feature/issue-{number}-{slug}`
+   - **DO NOT commit directly to main branch**
 
 3. **Create task folder and file**
    - Create folder: `docs/tasks/issue-{number-padded}/` (e.g., `issue-007/`)
@@ -92,80 +85,51 @@ See [references/README.md](.claude/commands/references/README.md) for overview.
      - Phase 0: Setup (branch creation, initial commit)
      - Phase 1-N: Implementation phases (use checkboxes `- [ ]` for trackable tasks)
      - Final Phase: Testing, Code Review, Documentation, Merge (reference this workflow)
-     - Notes & Decisions section at bottom (capture learnings, deviations, architecture decisions)
+     - Notes & Decisions section at bottom (for architectural decisions only - not code review minutiae)
    - **Section format rules:**
      - Implementation phases: Use checkboxes for concrete tasks
-     - Testing/Review/Merge: Reference standard workflow (see below) rather than duplicating steps
+     - Testing/Review/Merge: Reference standard workflow rather than duplicating steps
      - Critical thinking: Explain WHY decisions were made, not just WHAT was decided
    - **Reference existing task files** as examples, but tailor structure to your specific issue
    - **Do not copy-paste** from other task files - generate fresh structure based on requirements
 
-4. **Create branch**
-   - Planning mode: `git checkout -b plan/issue-{number}`
-   - Combined/Execute mode: `git checkout -b feature/issue-{number}-{slug}`
-
-5. **Initial commit**
+4. **Initial commit**
    - Commit message: `"Add task tracking file for issue #{number}"`
    - Commit style: Follow COMMIT_STYLE.md conventions
 
-6. **Branch handling**
-   - **If `--plan-only` mode:**
-     - Ask user: "Planning complete. Ready to squash merge plan branch to main? (yes/no)"
-     - If yes: Create squash merge commit following COMMIT_STYLE.md
-     - After successful merge, establish bi-directional link (step 7)
-     - Stop here
-   - **If combined mode:**
-     - Establish bi-directional link (step 7)
-     - Remind user: "Task file created. Ready to start implementation."
-     - Continue to Execution Phase
-
-7. **Establish bi-directional link**
+5. **Establish bi-directional link**
    - Task file already links to issue (in file header)
    - Add comment to GitHub issue:
      ```bash
      gh issue comment {number} -b "📋 Task tracking: [docs/tasks/issue-{number-padded}/issue-{number-padded}.md](https://github.com/mbd0910/motd-video-analyser/blob/main/docs/tasks/issue-{number-padded}/issue-{number-padded}.md)"
      ```
-   - Note: This happens after commit (or after merge in plan-only mode) so the link is immediately clickable
 
 ---
 
-### Execution Phase (`--execute` or combined mode)
+### Phase 3: Implementation
 
-8. **Load task file (execute mode only)**
-   - Read `docs/tasks/issue-{number-padded}/issue-{number-padded}.md` from main branch
-   - Verify it exists and has bi-directional link
-   - Create feature branch: `git checkout -b feature/issue-{number}-{slug}`
-
-9. **Work through implementation phases**
+6. **Work through implementation phases**
    - Follow the phased TODO structure in task file
    - Work through todo items one by one
    - **After completing each todo item (or small group of related items):**
      - Commit using COMMIT_STYLE.md format (refs #{number})
      - **Include checkbox update (`[ ]` → `[x]`) in the same commit**
-     - Include any relevant "Notes & Decisions" updates in the same commit
    - **Why atomic commits?** Task file is a historical record - it should move with the code
-   - **Benefit:** If you revert a code commit, the checkbox automatically reverts too (stays consistent)
+
+**PAUSE** - Implementation complete. Moving to code review.
 
 ---
 
-**PAUSE HERE - Implementation complete. Time for code review.**
+### Phase 4: Code Review
 
-10. **Suggest code review in separate session**
+7. **Run code review**
     - Say: "Implementation phases complete."
     - **Recommend:** "For fresh perspective, consider running `/code-review main` in a separate Claude Code session"
-    - Ask: "Ready for code review? (yes/no/not yet)"
-    - If "not yet", stop and wait for user
-
-11. **Run code review (if user approved and same session)**
     - Execute: `/code-review main` (or appropriate base branch)
-    - Wait for code review results
-    - Note: Separate session provides more objective review
 
----
+**PAUSE** - Code review complete. Time to evaluate feedback.
 
-**PAUSE HERE - Code review complete. Time to evaluate feedback.**
-
-12. **Critically evaluate code review feedback**
+8. **Critically evaluate code review feedback**
     - Present code review findings to user
     - **Important:** Be receptive to feedback, but don't blindly accept all suggestions
     - Consider each item:
@@ -174,58 +138,44 @@ See [references/README.md](.claude/commands/references/README.md) for overview.
       - Is it worth the effort?
     - Ask user: "Which code review items should we address?"
 
-13. **Execute on feedback**
-    - Implement selected feedback items one by one
+9. **Execute on feedback**
+    - Implement selected feedback items
     - Each feedback item = one commit (refs #{number})
-    - Include checkbox/notes updates in same commit
-    - Document what was addressed in task file
 
-**PAUSE HERE - Check if second round of review needed.**
+**PAUSE** - Check if second round of review needed.
 
-14. **Consider second code review round**
+10. **Consider second code review round**
     - After addressing feedback, significant changes may need re-review
-    - Ask user: "Should we do a second round of code review? (yes/no/done)"
-    - If yes, return to step 10
-    - If done, document which items were addressed/skipped and continue
+    - Ask user: "Should we do a second round of code review? (yes/no)"
+    - If yes, return to step 7
 
 ---
 
-**PAUSE HERE - Ready to squash merge? Let's verify everything first.**
+### Phase 5: Merge
 
-15. **Verify task file completion**
+**PAUSE** - Ready to squash merge? Verify everything first.
+
+11. **Verify task file completion**
     - Read `docs/tasks/issue-{number-padded}/issue-{number-padded}.md`
     - Count checkboxes: `- [ ]` (incomplete) vs `- [x]` (complete)
-    - **Note:** Only count implementation phase checkboxes (Code Review phase uses narrative format)
+    - **If ANY incomplete:** Show list and **STOP** - do not proceed to merge
+    - **If ALL complete:** Confirm "✓ All task file items complete ({count}/{count})"
 
-    **If ANY incomplete checkboxes found:**
-    - Show list: "⚠️ Task file has {count} incomplete items:"
-    - **STOP** - Do not proceed to merge
-    - Wait for user to complete or explain
-
-    **If ALL checkboxes complete:**
-    - Confirm: "✓ All task file items complete ({count}/{count})"
-    - Proceed to next check
-
-16. **Verify commit quality**
+12. **Verify commit quality**
     - Review commits: `git log main..HEAD --oneline`
     - Check commits follow COMMIT_STYLE.md conventions
-    - Check task file is committed and up-to-date
     - Confirm: "✓ All commits follow COMMIT_STYLE.md"
 
-17. **Ask for squash merge approval**
-    - Display: "✓ All task file items complete ({count}/{count})"
-    - Display: "✓ All commits follow COMMIT_STYLE.md"
-    - Say: "Ready to squash merge to main."
+13. **Ask for squash merge approval**
+    - Display verification results
     - Ask: "Should I squash merge feature/issue-{number}-{slug} into main? (yes/no)"
     - **Only proceed if user says "yes"**
 
-18. **Execute squash merge (only if approved)**
+14. **Execute squash merge (only if approved)**
     - Create squash merge commit (COMMIT_STYLE.md format)
     - Include "resolves #{number}" to auto-close issue
     - Push to main
-    - Remind user:
-      - Issue will auto-close via "resolves #{number}"
-      - Feature branch will be deleted automatically
+    - Remind user: Issue will auto-close, feature branch will be deleted
     - Task file remains at docs/tasks/issue-{number-padded}/ for reference
 
 ---
@@ -235,33 +185,30 @@ See [references/README.md](.claude/commands/references/README.md) for overview.
 **Critical Thinking First:**
 - Always challenge the plan before implementing
 - Propose amendments based on your codebase knowledge
-- PAUSE for user alignment before proceeding
+- Get user alignment before proceeding
+
+**Always Use Feature Branches:**
+- Never commit directly to main
+- Create feature branch immediately after getting issue number
 
 **Atomic Commits:**
 - One todo item = one commit
-- Include code changes + checkbox update + notes in the same commit
-- Why? Task file is historical record - should move with code
-- Benefit: Reverts stay consistent (revert code = revert checkbox automatically)
+- Include code changes + checkbox update in the same commit
+- Why? Task file is historical record - it should move with the code
 
 **Code Review Philosophy:**
 - Recommend separate Claude Code session for fresh perspective
 - Critically evaluate feedback - don't blindly accept all suggestions
-- Consider second round of review after significant changes
 
-**Four Pause Points:**
-1. After critical thinking - Get alignment on approach
-2. After implementation - Before code review
-3. After code review - Evaluate feedback critically
-4. Before squash merge - Verify completion
+**Task Files:**
+- Focus on implementation plan, not changelog
+- Notes & Decisions section is for architectural decisions only
+- Don't document code review minutiae - the code is its own documentation
 
 **Never Skip:**
 - Critical thinking and plan challenge phase
 - Task file completion verification (ALL checkboxes must be complete)
-- Commit quality verification (must follow COMMIT_STYLE.md)
-- User approval at each pause point
-
-**Task File Format - Code Review Phase:**
-Use narrative/instruction format instead of checkboxes (see existing task files for example format).
+- User approval before squash merge
 
 ---
 
@@ -269,10 +216,5 @@ Use narrative/instruction format instead of checkboxes (see existing task files 
 
 - All issues use folder structure: `docs/tasks/issue-{number-padded}/`
 - Integrates with existing `/code-review` command
-- Supports both single-session and multi-session workflows
-- Critical quality gates prevent premature merging:
-  - ALL task file checkboxes must be complete
-  - ALL commits must follow COMMIT_STYLE.md
-  - Explicit user approval required
 - Maintains full traceability: task file ↔ issue ↔ branch ↔ commits
-- Task files remain in docs/tasks/ for reference (not moved to completed/)
+- Task files remain in docs/tasks/ for reference
