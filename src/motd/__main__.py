@@ -31,6 +31,7 @@ from motd.cli.running_order_output import (
     display_validation_summary
 )
 from motd.cli.diagnostics import generate_clustering_diagnostics
+from motd.llm import PromptBuilder
 
 
 def load_config(config_path: Path = Path("config/config.yaml")) -> dict[str, Any]:
@@ -1219,6 +1220,105 @@ def run_command(video_path: Path, force: bool, config: Path):
         logger.error(f"Pipeline failed: {e}", exc_info=True)
         click.echo(f"\n❌ Pipeline Error: {e}", err=True)
         click.echo(f"\n   To resume, run: motd run {video_path}", err=True)
+        sys.exit(1)
+
+
+@cli.command("generate-llm-prompt")
+@click.argument("episode_id")
+@click.option(
+    '--output',
+    type=click.Path(path_type=Path),
+    default=None,
+    help='Output path for prompt file (default: cache/{episode_id}/transcript_for_llm.txt)'
+)
+@click.option(
+    '--include-hints/--no-hints',
+    default=True,
+    help='Include OCR advisory hints (FT graphics, scoreboards)'
+)
+@click.option(
+    '--force',
+    is_flag=True,
+    help='Overwrite existing prompt file'
+)
+def generate_llm_prompt_command(
+    episode_id: str,
+    output: Path | None,
+    include_hints: bool,
+    force: bool
+):
+    """
+    Generate LLM-ready prompt from transcript for episode analysis.
+
+    Creates a prompt file containing fixtures, instructions, output schema,
+    optional OCR hints, and the deduplicated transcript. Ready for copy-paste
+    into Claude web UI.
+
+    EPISODE_ID should be in format: motd_2025-26_2025-11-22
+
+    Example:
+
+        python -m motd generate-llm-prompt motd_2025-26_2025-11-22
+    """
+    logger = logging.getLogger(__name__)
+
+    # Determine cache path
+    cache_path = Path("data/cache") / episode_id
+
+    if not cache_path.exists():
+        click.echo(f"Error: Cache folder not found: {cache_path}", err=True)
+        click.echo(f"\nMake sure the episode has been processed first:", err=True)
+        click.echo(f"  python -m motd run data/videos/{episode_id}.mp4", err=True)
+        sys.exit(1)
+
+    # Determine output path
+    if output is None:
+        output = cache_path / "transcript_for_llm.txt"
+
+    # Check if output exists
+    if output.exists() and not force:
+        click.echo(f"Error: Output file already exists: {output}", err=True)
+        click.echo(f"  Use --force to overwrite", err=True)
+        sys.exit(1)
+
+    click.echo(f"Generating LLM prompt for: {episode_id}")
+    click.echo(f"  Cache path: {cache_path}")
+    click.echo(f"  Include OCR hints: {include_hints}")
+
+    try:
+        # Build the prompt
+        builder = PromptBuilder(cache_path, include_hints=include_hints)
+        result = builder.build()
+
+        # Write to file
+        with open(output, "w") as f:
+            f.write(result.content)
+
+        # Display summary
+        click.echo(f"\n✓ Prompt generated successfully!")
+        click.echo(f"\n  Output: {output}")
+        click.echo(f"  Fixtures: {result.fixture_count}")
+        click.echo(f"  Transcript segments: {result.transcript_stats.segment_count}")
+        click.echo(f"  Deduplication: {result.transcript_stats.deduplication_stats.removed_count} duplicates removed")
+        click.echo(f"  OCR hints: {'Yes' if result.has_ocr_hints else 'No'}")
+        click.echo(f"  Estimated tokens: ~{result.estimated_tokens:,}")
+        click.echo(f"  File size: {output.stat().st_size / 1024:.1f} KB")
+
+        click.echo(f"\n📋 To analyse, copy the contents of this file into Claude:")
+        click.echo(f"   cat {output} | pbcopy  # macOS")
+        click.echo(f"   Then paste into https://claude.ai")
+
+    except FileNotFoundError as e:
+        logger.error(f"Required file not found: {e}")
+        click.echo(f"\nError: {e}", err=True)
+        click.echo(f"\nMake sure the episode has been processed:", err=True)
+        click.echo(f"  - Transcription: python -m motd transcribe <video>", err=True)
+        click.echo(f"  - OCR (optional): python -m motd extract-teams --episode {episode_id}", err=True)
+        sys.exit(1)
+
+    except Exception as e:
+        logger.error(f"Prompt generation failed: {e}", exc_info=True)
+        click.echo(f"\nError: {e}", err=True)
         sys.exit(1)
 
 

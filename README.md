@@ -183,6 +183,41 @@ python -m motd transcribe data/videos/motd_2025-26_2025-11-01.mp4
 python -m motd analyze-running-order motd_2025-26_2025-11-01
 ```
 
+#### LLM-Based Analysis (New - Semi-Automated)
+
+For more flexible segment detection, generate a prompt for Claude:
+
+```bash
+# Generate LLM-ready prompt file
+python -m motd generate-llm-prompt motd_2025-26_2025-11-22
+
+# Without OCR hints
+python -m motd generate-llm-prompt motd_2025-26_2025-11-22 --no-hints
+
+# Force overwrite existing
+python -m motd generate-llm-prompt motd_2025-26_2025-11-22 --force
+```
+
+**What happens:**
+1. Loads transcript.json and deduplicates Whisper "stutters"
+2. Extracts FT graphics and first scoreboard timestamps as advisory hints
+3. Builds prompt with fixtures, segment definitions, JSON schema
+4. Writes to `data/cache/{episode_id}/transcript_for_llm.txt`
+
+**Usage:**
+```bash
+# Copy to clipboard (macOS)
+cat data/cache/motd_2025-26_2025-11-22/transcript_for_llm.txt | pbcopy
+
+# Paste into Claude web UI at https://claude.ai
+# Claude returns structured JSON with segment timestamps
+```
+
+**Output schema** (what Claude returns):
+- Episode segments: intro, league_table, next_motd_promo, outro
+- Match segments: studio_intro, lineups, highlights, post_match_interviews, studio_analysis
+- All timestamps have independent start/end (either can be null)
+
 ### Example Output
 
 ```json
