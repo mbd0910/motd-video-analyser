@@ -333,14 +333,56 @@ class OCRReader:
         )
         return False
 
+    def _looks_like_ft_content(self, ocr_results: List[Dict]) -> bool:
+        """
+        Quick check if OCR results look like genuine FT graphic content.
+
+        Used to decide whether to accept FT region results or fall back to scoreboard.
+        Less strict than validate_ft_graphic() - just checking for relevant content.
+
+        Returns True if results contain:
+        - FT indicators ("FT", "FULL TIME", etc.), OR
+        - Score pattern (e.g., "2-1", "0 | 0"), OR
+        - Valid team codes from the teams file
+
+        Args:
+            ocr_results: List of raw OCR results from EasyOCR
+
+        Returns:
+            True if results look like FT content, False otherwise
+        """
+        if not ocr_results:
+            return False
+
+        # Combine all text
+        all_text = ' '.join([r.get('text', '').upper() for r in ocr_results])
+
+        # Check for FT indicators
+        ft_indicators = ['FT', 'FULL TIME', 'FULL-TIME', 'FULLTIME']
+        if any(indicator in all_text for indicator in ft_indicators):
+            return True
+
+        # Check for score pattern
+        score_pattern = r'\b\d+\s*[-–—|]?\s*\d+\b'
+        if re.search(score_pattern, all_text):
+            return True
+
+        # Check for team codes
+        words = all_text.split()
+        if any(w in self.valid_team_codes for w in words):
+            return True
+
+        return False
+
     def extract_with_fallback(self, frame_path: Path) -> Dict:
         """
         Extract text using multi-tiered strategy: FT score → scoreboard → formation.
 
         Uses fallback logic based on reconnaissance findings:
         1. Try FT score region (PRIMARY - 90-95% accuracy)
-        2. If insufficient results, try scoreboard (SECONDARY - 75-85% accuracy)
-        3. Formation region for validation only (manual screenshots)
+        2. If FT region has text but doesn't look like FT content, try scoreboard
+        3. If insufficient results, try scoreboard (SECONDARY - 75-85% accuracy)
+        4. Formation region for validation only (manual screenshots)
 
         Args:
             frame_path: Path to frame image
@@ -356,18 +398,24 @@ class OCRReader:
         # Try FT score first (PRIMARY)
         ft_score_results = all_results.get('ft_score', [])
         if ft_score_results and not any('error' in r for r in ft_score_results):
-            return {
-                'primary_source': 'ft_score',
-                'results': ft_score_results,
-                'all_regions': all_results
-            }
+            # Only accept FT results if they look like genuine FT content
+            if self._looks_like_ft_content(ft_score_results):
+                return {
+                    'primary_source': 'ft_score',
+                    'results': ft_score_results,
+                    'all_regions': all_results
+                }
+            else:
+                logger.debug(
+                    f"FT region has text but doesn't look like FT content for {frame_path.name}, "
+                    f"trying scoreboard fallback"
+                )
 
         # Fall back to scoreboard (SECONDARY)
         scoreboard_results = all_results.get('scoreboard', [])
         if scoreboard_results and not any('error' in r for r in scoreboard_results):
             logger.debug(
-                f"FT score region yielded no results for {frame_path.name}, "
-                f"using scoreboard fallback"
+                f"Using scoreboard fallback for {frame_path.name}"
             )
             return {
                 'primary_source': 'scoreboard',
