@@ -4,7 +4,8 @@ import easyocr
 import cv2
 import numpy as np
 import re
-from typing import Dict, List, Tuple, Optional
+import json
+from typing import Dict, List, Tuple, Optional, Set
 from pathlib import Path
 import logging
 
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 class OCRReader:
     """Reads text from video frames using EasyOCR."""
 
-    def __init__(self, config: Dict):
+    def __init__(self, config: Dict, teams_path: Path | None = None):
         """
         Initialise OCR reader.
 
@@ -24,6 +25,8 @@ class OCRReader:
                 - gpu: Whether to use GPU (bool)
                 - confidence_threshold: Minimum confidence (float)
                 - regions: Dict of region definitions
+            teams_path: Path to teams JSON file for scoreboard validation.
+                        If None, uses default path (data/teams/premier_league_2025_26.json).
         """
         self.config = config
 
@@ -39,10 +42,49 @@ class OCRReader:
         self.confidence_threshold = config.get('confidence_threshold', 0.7)
         self.regions = config.get('regions', {})
 
+        # Load team codes for scoreboard validation
+        self.valid_team_codes = self._load_team_codes(teams_path)
+
         logger.info(
             f"OCR reader initialised with {len(self.regions)} regions, "
-            f"confidence threshold: {self.confidence_threshold}"
+            f"confidence threshold: {self.confidence_threshold}, "
+            f"{len(self.valid_team_codes)} team codes loaded"
         )
+
+    def _load_team_codes(self, teams_path: Path | None = None) -> Set[str]:
+        """
+        Load valid 3-character team codes from teams JSON file.
+
+        Args:
+            teams_path: Path to teams JSON file. If None, uses default path.
+
+        Returns:
+            Set of valid team codes (uppercase) for exact matching.
+
+        Raises:
+            FileNotFoundError: If teams file not found (fail fast on config error).
+            json.JSONDecodeError: If teams file is invalid JSON.
+        """
+        # Use provided path or default location
+        path = teams_path or Path('data/teams/premier_league_2025_26.json')
+
+        if not path.exists():
+            raise FileNotFoundError(
+                f"Teams file not found: {path}. "
+                f"Ensure config['teams']['path'] points to valid file."
+            )
+
+        with open(path, 'r', encoding='utf-8') as f:
+            teams_data = json.load(f)
+
+        # Extract all codes from all teams
+        codes = set()
+        for team in teams_data.get('teams', []):
+            for code in team.get('codes', []):
+                codes.add(code.upper())
+
+        logger.debug(f"Loaded {len(codes)} team codes from {path}")
+        return codes
 
     def extract_region(
         self,
@@ -237,6 +279,57 @@ class OCRReader:
         logger.debug(
             f"FT validation failed: teams={len(detected_teams)}, "
             f"score={has_score}, ft_text={has_ft}"
+        )
+        return False
+
+    def validate_scoreboard(self, ocr_results: List[Dict]) -> bool:
+        """
+        Validate that OCR results are from a genuine scoreboard graphic.
+
+        BBC scoreboards follow format: "BBC [CODE] [SCORE]|[SCORE] [CODE]"
+        Example: "BBC LIV 0|0 FOR"
+
+        Requirements:
+        1. Score pattern (lenient, same as FT validation): \\d+\\s*[-–—|]?\\s*\\d+
+        2. At least 2 distinct 3-character team codes (loaded from teams JSON)
+
+        This filters out:
+        - Intro montage graphics ("The CL UB BALL")
+        - Studio overlays with team mentions but no score
+        - Partial/corrupt OCR reads
+
+        Args:
+            ocr_results: List of raw OCR results from EasyOCR
+
+        Returns:
+            True if this is a genuine scoreboard, False otherwise
+        """
+        if not ocr_results:
+            return False
+
+        # Extract all OCR text (uppercase for case-insensitive matching)
+        all_text = ' '.join([r.get('text', '').upper() for r in ocr_results])
+
+        # Check for score pattern (lenient - same as FT validation)
+        # Matches "2-1", "0 - 0", "2 0", "3 | 0", "1–0" (en dash), "1—0" (em dash)
+        score_pattern = r'\b\d+\s*[-–—|]?\s*\d+\b'
+        has_score = bool(re.search(score_pattern, all_text))
+
+        # Check for at least 2 distinct 3-character team codes
+        # Split text into words and find exact matches against valid codes
+        words = all_text.split()
+        found_codes = set(w for w in words if w in self.valid_team_codes)
+        has_two_codes = len(found_codes) >= 2
+
+        if has_score and has_two_codes:
+            logger.debug(
+                f"Scoreboard validation passed: codes={found_codes}, score pattern found"
+            )
+            return True
+
+        logger.debug(
+            f"Scoreboard validation failed: codes={found_codes} (need 2), "
+            f"score={has_score}"
         )
         return False
 

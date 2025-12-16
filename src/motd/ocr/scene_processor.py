@@ -120,9 +120,10 @@ class SceneProcessor:
         1. Run OCR with fallback strategy
         2. Match teams from OCR text
         3. Infer opponent if only 1 team detected (FT graphics)
-        4. Validate FT graphics
-        5. Validate fixture pair
-        6. Build result
+        4. Validate FT graphics (requires FT indicator + team/score)
+        5. Validate scoreboard graphics (requires 2 team codes + score)
+        6. Validate fixture pair
+        7. Build result
 
         Args:
             scene: Parent scene (for metadata)
@@ -164,12 +165,20 @@ class SceneProcessor:
                     # See docs/architecture.md "Pass 2: Accept scoreboards if no FT found"
                     return None
 
-            # Step 5: Validate fixture pair
+            # Step 5: Validate scoreboard graphics
+            if ocr_result.primary_source == 'scoreboard':
+                if not self.ocr_reader.validate_scoreboard(ocr_result.results):
+                    self.logger.debug(
+                        f"Scene {scene.scene_number}: Scoreboard validation failed"
+                    )
+                    return None
+
+            # Step 6: Validate fixture pair
             validated_teams, fixture = self._validate_fixture_pair(teams)
             if not validated_teams:
                 return None
 
-            # Step 6: Build result
+            # Step 7: Build result
             return self._build_result(scene, frame, ocr_result, validated_teams, fixture)
 
         except Exception as e:
@@ -416,7 +425,7 @@ class SceneProcessor:
         if team1.team == fixture['away_team'] and team2.team == fixture['home_team']:
             self.logger.debug(
                 f"Swapping team order to match fixture: "
-                f"{team1.team} vs {team2.team} � {team2.team} vs {team1.team}"
+                f"{team1.team} vs {team2.team} → {team2.team} vs {team1.team}"
             )
             return [team2, team1]
 

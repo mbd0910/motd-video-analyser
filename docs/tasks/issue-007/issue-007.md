@@ -2,7 +2,7 @@
 
 **GitHub Issue:** [#7](https://github.com/mbd0910/motd-video-analyser/issues/7)
 **Branch:** `feature/issue-7-scoreboard-validation`
-**Status:** Planning Complete
+**Status:** Complete
 
 ## Problem Statement
 
@@ -35,86 +35,89 @@ BBC LIV 0|0 FOR
 
 ---
 
-## Implementation Plan
+## Implementation Plan (TDD Approach)
 
-### Phase 1: Add Scoreboard Validation
+### Phase 0: Setup
+- [x] Create feature branch `feature/issue-7-scoreboard-validation`
+- [x] Update task file with refined plan
 
-**File:** `src/motd/ocr/reader.py`
-
-- [ ] Add `validate_scoreboard()` method mirroring FT validation pattern
-- [ ] Requirements for valid scoreboard:
-  1. Score pattern with pipe separator: `\b\d+\s*\|\s*\d+\b`
-  2. At least one exact 3-character team code (ARS, LIV, FOR, etc.)
-
-### Phase 2: Integration
-
-**File:** `src/motd/ocr/scene_processor.py`
-
-- [ ] Call `validate_scoreboard()` for scoreboard sources (currently only FT validated)
-
-### Phase 3: Testing
+### Phase 1: RED - Write Failing Tests
 
 **File:** `tests/unit/ocr/test_scoreboard_validation.py`
 
-- [ ] Test valid scoreboards pass ("BBC LIV 0|0 FOR")
-- [ ] Test invalid detections rejected ("The CL UB BALL")
+- [x] Create test file with 18 test cases (expanded from original 13)
+- [x] Tests initially FAILED (method didn't exist)
+
+### Phase 2: GREEN - Implement Validation
+
+**File:** `src/motd/ocr/reader.py`
+
+- [x] Load team codes from `data/teams/premier_league_2025_26.json` in `__init__`
+- [x] Add `validate_scoreboard()` method
+- [x] Requirements for valid scoreboard:
+  1. **Exactly 2 distinct 3-character team codes** (dynamic from JSON)
+  2. **Score pattern (lenient):** `\b\d+\s*[-–—|]?\s*\d+\b`
+
+### Phase 3: Integration
+
+**File:** `src/motd/ocr/scene_processor.py`
+
+- [x] Call `validate_scoreboard()` for scoreboard sources in `_process_single_frame()`
+- [x] Renumbered pipeline steps 1-7 (was 1-6 with step 4b)
 
 ### Phase 4: Verification
 
-- [ ] Re-run OCR on Nov 22 episode with `--force`
-- [ ] Verify Brighton 39s detection eliminated
-- [ ] Verify legitimate scoreboards still detected
+- [x] Re-run OCR on Nov 22 episode
+- [x] Verify Brighton 39s detection eliminated (**CONFIRMED: 0 detections in first 100s**)
+- [x] Verify legitimate scoreboards still detected (first valid: 127s Liverpool vs Forest)
+
+**Results:**
+| Metric | Before | After |
+|--------|--------|-------|
+| Scenes with teams | 305 | 193 |
+| Detections < 100s | 1 (false positive) | 0 |
+| FT graphics | - | 7 (correct) |
+| Expected teams | 14/14 | 14/14 |
+| Unexpected detections | - | 0 |
+
+### Phase 5: Final
+
+- [x] Code review
+- [x] Squash merge to main
 
 ---
 
-## Implementation Details
+## Key Design Decisions
 
-### Scoreboard Validation Method
+### Why exactly 2 team codes (not 1)?
+Scoreboard format always shows both teams (`LIV 0|0 FOR`). Unlike FT graphics (where one team may be non-bold with low OCR confidence), scoreboard codes are uniform style and should be reliably detected.
 
-```python
-def validate_scoreboard(self, ocr_results: List[Dict], detected_teams: List[str]) -> bool:
-    """
-    Validate that OCR results are from a genuine scoreboard graphic.
+### Why lenient score pattern (not pipe-only)?
+OCR frequently misreads `|` as `I`, `l`, `1`. Using the same lenient pattern as FT validation (`\d+\s*[-–—|]?\s*\d+`) is more robust. The team codes alone filter intro montage false positives.
 
-    BBC scoreboards follow format: "BBC [CODE] [SCORE]|[SCORE] [CODE]"
-    Example: "BBC LIV 0|0 FOR"
-
-    Requirements:
-    1. Score pattern with pipe separator (BBC format)
-    2. At least one exact 3-character team code
-    """
-    all_text = ' '.join([r.get('text', '').upper() for r in ocr_results])
-
-    # Check for BBC scoreboard score pattern (uses pipe separator)
-    score_pattern = r'\b\d+\s*\|\s*\d+\b'
-    has_score = bool(re.search(score_pattern, all_text))
-
-    # Check for exact 3-character team codes
-    valid_codes = {'ARS', 'AVL', 'BOU', 'BRE', 'BRI', 'BUR', 'CHE', 'CRY',
-                   'EVE', 'FUL', 'LEE', 'LIV', 'MCI', 'MUN', 'NEW', 'NFO',
-                   'SUN', 'TOT', 'WHU', 'WOL', 'FOR'}
-
-    words = all_text.split()
-    found_codes = [w for w in words if w in valid_codes]
-    has_code = len(found_codes) >= 1
-
-    return has_score and has_code
-```
+### Why load team codes dynamically?
+Ensures consistency with project's source of truth (`data/teams/premier_league_2025_26.json`). Includes primary codes (ARS, LIV) and alternates (BRI, FOR, AST).
 
 ---
 
 ## Test Cases
 
 ### Should PASS (Valid Scoreboards)
-- `"BBC LIV 0|0 FOR"` → Liverpool vs Forest
-- `"BBC BRI 2|1 BRE"` → Brighton vs Brentford
-- `"LIV 0 | 0 FOR"` → Score with spaces
+- `"BBC LIV 0|0 FOR"` → Pipe separator
+- `"LIV 0-0 FOR"` → Hyphen separator (lenient)
+- `"LIV 0 0 FOR"` → Space only (lenient)
+- `"BBC BRI 2|1 BRE"` → Non-zero scores
+- `"LIV 0|0 NFO"` → Primary code for Forest
+- `"LIV 0|0 FOR"` → Alternate code for Forest
 
 ### Should FAIL (Reject)
 - `"The CL UB BALL"` → No score pattern, no exact codes
-- `"Brighton Club Football"` → No score pattern
-- `"0 0"` → No pipe separator (wrong format)
+- `"Brighton Club Football"` → Full name, not 3-char code
+- `"0-0"` → Score but no team codes
+- `"BBC LIV FOR"` → Team codes but no score
+- `"LIV 0|0"` → Only 1 team code (need exactly 2)
 - `"BBC SPORT"` → No teams, no score
+- `[]` → Empty results
 
 ---
 
@@ -122,22 +125,13 @@ def validate_scoreboard(self, ocr_results: List[Dict], detected_teams: List[str]
 
 | File | Change |
 |------|--------|
-| `src/motd/ocr/reader.py` | Add `validate_scoreboard()` method |
+| `tests/unit/ocr/test_scoreboard_validation.py` | **NEW** - TDD tests |
+| `src/motd/ocr/reader.py` | Add `validate_scoreboard()` + load team codes |
 | `src/motd/ocr/scene_processor.py` | Call validation for scoreboard sources |
-| `tests/unit/ocr/test_scoreboard_validation.py` | New test file |
-
----
-
-## Estimated Effort
-
-- `validate_scoreboard()` implementation: ~20 mins
-- Scene processor integration: ~10 mins
-- Unit tests: ~30 mins
-- Re-run OCR + verification: ~15 mins
-- **Total: ~1.5 hours**
 
 ---
 
 ## Notes & Decisions
 
-- **2025-12-12:** Investigation complete. Root cause: scoreboard detections bypass validation that FT graphics require.
+- **2025-12-12:** Investigation complete. Root cause: scoreboard detections bypass validation.
+- **2025-12-16:** Refined plan: TDD approach, exactly 2 team codes, lenient score pattern, dynamic team codes from JSON.

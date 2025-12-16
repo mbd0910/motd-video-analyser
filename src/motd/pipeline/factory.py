@@ -38,7 +38,8 @@ class ServiceFactory:
         Returns:
             Configured OCRReader instance
         """
-        return OCRReader(self.config['ocr'])
+        teams_path = Path(self.config['teams']['path'])
+        return OCRReader(self.config['ocr'], teams_path=teams_path)
 
     def create_team_matcher(self) -> TeamMatcher:
         """
