@@ -5,7 +5,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from motd.pipeline.models import RunningOrderResult
+from motd.llm.prompt_builder import BuiltPrompt
 
 
 class PipelineOrchestrator:
@@ -16,7 +16,7 @@ class PipelineOrchestrator:
     1. Scene Detection (video → scenes.json + frames/)
     2. Team Extraction (scenes.json → ocr_results.json)
     3. Transcription (video → transcript.json)
-    4. Running Order Analysis (ocr_results.json + transcript.json → running_order.json)
+    4. LLM Prompt Generation (→ transcript_for_llm.txt)
 
     Features:
     - Smart cache validation (skip completed stages if config unchanged)
@@ -61,12 +61,12 @@ class PipelineOrchestrator:
         secs = int(seconds % 60)
         return f"{minutes}m {secs}s"
 
-    def run_pipeline(self) -> RunningOrderResult:
+    def run_pipeline(self) -> tuple[BuiltPrompt, Path]:
         """
         Execute the full pipeline sequentially.
 
         Returns:
-            RunningOrderResult with detected matches and boundaries
+            Tuple of (BuiltPrompt with LLM prompt stats, output path)
 
         Raises:
             Exception: Any stage failure raises exception (fail-fast)
@@ -86,8 +86,8 @@ class PipelineOrchestrator:
         # Stage 3: Transcription
         transcript_path = self._run_stage_3_transcription()
 
-        # Stage 4: Running Order Analysis
-        result = self._run_stage_4_analysis()
+        # Stage 4: LLM Prompt Generation
+        result, output_path = self._run_stage_4_llm_prompt()
 
         # Pipeline complete
         pipeline_duration = time.time() - pipeline_start_time
@@ -98,7 +98,7 @@ class PipelineOrchestrator:
 
         self.logger.info(f"Pipeline completed successfully in {pipeline_duration:.1f}s")
 
-        return result
+        return result, output_path
 
     def _run_stage_1_scene_detection(self) -> tuple[Path, Path]:
         """
@@ -215,43 +215,46 @@ class PipelineOrchestrator:
             print(f"\n   To resume, run: motd run {self.video_path}")
             raise
 
-    def _run_stage_4_analysis(self) -> RunningOrderResult:
+    def _run_stage_4_llm_prompt(self) -> tuple[BuiltPrompt, Path]:
         """
-        Stage 4: Analyze running order and detect match boundaries.
+        Stage 4: Generate LLM prompt for episode analysis.
 
         Returns:
-            RunningOrderResult with detected matches
+            Tuple of (BuiltPrompt result, output path)
         """
-        from motd.__main__ import run_analysis
+        from motd.__main__ import run_llm_prompt_generation
 
-        print("▶ Stage 4/4: Running Order Analysis starting...")
+        print("▶ Stage 4/4: LLM Prompt Generation starting...")
         stage_start = time.time()
 
         try:
-            result = run_analysis(
+            result, output_path, cache_was_used = run_llm_prompt_generation(
                 episode_id=self.episode_id,
-                config=self.config
+                include_hints=True,
+                force=self.force
             )
 
             stage_duration = time.time() - stage_start
-            seconds = int(stage_duration)
 
-            print(f"✓ Stage 4/4: Running Order Analysis complete ({seconds}s)\n")
+            if cache_was_used:
+                print(f"⊘ Stage 4/4: LLM Prompt Generation skipped (file exists)\n")
+                self.logger.info(f"Stage 4 skipped (cache valid)")
+            else:
+                print(f"✓ Stage 4/4: LLM Prompt Generation complete ({int(stage_duration)}s)\n")
+                self.logger.info(f"Stage 4 completed in {stage_duration:.1f}s")
 
-            self.logger.info(f"Stage 4 completed in {stage_duration:.1f}s")
-            return result
+            return result, output_path
 
         except Exception as e:
             self.logger.error(f"Stage 4 failed: {e}", exc_info=True)
-            print(f"\n❌ Stage 4/4: Running Order Analysis FAILED")
+            print(f"\n❌ Stage 4/4: LLM Prompt Generation FAILED")
             print(f"   Error: {e}")
 
             # Check if it's a missing dependency error
             if "No such file" in str(e) or "not found" in str(e).lower():
                 print(f"\n   Possible causes:")
-                print(f"   - Missing ocr_results.json (Stage 2 incomplete)")
                 print(f"   - Missing transcript.json (Stage 3 incomplete)")
-                print(f"   - Episode not configured in episode_manifest.json")
+                print(f"   - Missing episode_manifest.json")
 
             print(f"\n   To resume, run: motd run {self.video_path}")
             raise

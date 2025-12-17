@@ -23,15 +23,10 @@ from motd.config.defaults import (
 )
 from motd.ocr import OCRReader, TeamMatcher, FixtureMatcher
 from motd.pipeline.factory import ServiceFactory
-from motd.pipeline.models import Scene, RunningOrderResult
+from motd.pipeline.models import Scene
 from motd.transcription import AudioExtractor, WhisperTranscriber
-from motd.analysis.running_order_detector import RunningOrderDetector
-from motd.cli.running_order_output import (
-    display_running_order_results,
-    display_validation_summary
-)
-from motd.cli.diagnostics import generate_clustering_diagnostics
 from motd.llm import PromptBuilder
+from motd.llm.prompt_builder import BuiltPrompt
 
 
 def load_config(config_path: Path = Path("config/config.yaml")) -> dict[str, Any]:
@@ -906,200 +901,62 @@ def transcribe_command(
         sys.exit(1)
 
 
-def run_analysis(
+def run_llm_prompt_generation(
     episode_id: str,
-    config: dict[str, Any],
-    debug: bool = False,
+    include_hints: bool = True,
+    force: bool = False,
     output: Path | None = None
-) -> RunningOrderResult:
+) -> tuple[BuiltPrompt, Path, bool]:
     """
-    Run running order analysis and match boundary detection (pure business logic).
+    Generate LLM prompt for episode analysis (pure business logic).
 
     Args:
         episode_id: Episode identifier (e.g., motd_2025-26_2025-11-01)
-        config: Configuration dictionary
-        debug: Enable debug mode with clustering diagnostics
-        output: Optional output path (defaults to data/output/{episode_id}/running_order.json)
+        include_hints: Whether to include OCR advisory hints
+        force: Overwrite existing prompt file
+        output: Optional output path (defaults to cache/{episode_id}/transcript_for_llm.txt)
 
     Returns:
-        RunningOrderResult with detected matches and boundaries
+        Tuple of (BuiltPrompt result, output path, cache_was_used)
 
     Raises:
-        FileNotFoundError: If required files are missing
-        Exception: If analysis fails
+        FileNotFoundError: If required cache files are missing
     """
     logger = logging.getLogger(__name__)
-    logger.info(f"Starting running order analysis for: {episode_id}")
+    logger.info(f"Generating LLM prompt for: {episode_id}")
 
-    # Define paths
-    cache_dir = Path(f'data/cache/{episode_id}')
-    ocr_path = cache_dir / 'ocr_results.json'
-    transcript_path = cache_dir / 'transcript.json'
-    teams_path = Path('data/teams/premier_league_2025_26.json')
+    # Determine cache path
+    cache_path = Path("data/cache") / episode_id
 
-    # Validate required files exist
-    missing_files = []
-    if not ocr_path.exists():
-        missing_files.append(str(ocr_path))
-    if not transcript_path.exists():
-        missing_files.append(str(transcript_path))
-    if not teams_path.exists():
-        missing_files.append(str(teams_path))
+    if not cache_path.exists():
+        raise FileNotFoundError(f"Cache folder not found: {cache_path}")
 
-    if missing_files:
-        error_msg = f"Required files not found: {', '.join(missing_files)}"
-        logger.error(error_msg)
-        raise FileNotFoundError(error_msg)
-
-    # Load data
-    print("Loading data...")
-    with open(ocr_path) as f:
-        ocr_data = json.load(f)
-    ocr_results = ocr_data['ocr_results']
-    print(f"  ✓ Loaded {len(ocr_results)} OCR results")
-    logger.info(f"Loaded {len(ocr_results)} OCR results from {ocr_path}")
-
-    with open(transcript_path) as f:
-        transcript = json.load(f)
-    print(f"  ✓ Loaded transcript ({len(transcript.get('segments', []))} segments)")
-    logger.info(f"Loaded transcript with {len(transcript.get('segments', []))} segments")
-
-    with open(teams_path) as f:
-        teams_data = json.load(f)
-    teams_list = teams_data['teams']
-    print(f"  ✓ Loaded {len(teams_list)} teams")
-    logger.info(f"Loaded {len(teams_list)} teams with alternates")
-
-    # Load fixtures
-    fixtures_path = Path('data/fixtures/premier_league_2025_26.json')
-    with open(fixtures_path) as f:
-        fixtures_data = json.load(f)
-    fixtures = fixtures_data['fixtures']
-    print(f"  ✓ Loaded {len(fixtures)} fixtures")
-    logger.info(f"Loaded {len(fixtures)} fixtures")
-
-    # Import and create venue matcher
-    from motd.analysis.venue_matcher import VenueMatcher
-    venues_path = Path('data/venues/premier_league_2025_26.json')
-    venue_matcher = VenueMatcher(str(venues_path))
-    print(f"  ✓ Initialized venue matcher\n")
-    logger.info("Initialized venue matcher")
-
-    # Create detector with all dependencies
-    print("Detecting running order...")
-    detector = RunningOrderDetector(
-        ocr_results=ocr_results,
-        transcript=transcript,
-        teams_data=teams_list,
-        fixtures=fixtures,
-        venue_matcher=venue_matcher
-    )
-
-    # Detect running order
-    running_order = detector.detect_running_order()
-    print(f"  ✓ Detected {len(running_order.matches)} matches")
-    print(f"  ✓ Consensus confidence: {running_order.consensus_confidence:.0%}\n")
-
-    # Detect match boundaries
-    print("Detecting match boundaries...")
-    result = detector.detect_match_boundaries(
-        running_order,
-        include_clustering_diagnostics=debug
-    )
-    print(f"  ✓ Detected all match boundaries\n")
-
-    # Generate debug diagnostics if requested
-    if debug:
-        generate_clustering_diagnostics(
-            result,
-            detector,
-            episode_id,
-            Path('data/output')
-        )
-
-    # Generate output path
+    # Determine output path
     if output is None:
-        output = Path(f'data/output/{episode_id}/running_order.json')
+        output = cache_path / "transcript_for_llm.txt"
 
-    # Save JSON output
-    output.parent.mkdir(parents=True, exist_ok=True)
-    json_output = result.model_dump_json(indent=2)
-    output.write_text(json_output)
+    # Check if output exists and we're not forcing regeneration
+    if output.exists() and not force:
+        logger.info(f"LLM prompt already exists, using cache: {output}")
+        # Build the result to return stats (prompt building is fast, ~10ms)
+        builder = PromptBuilder(cache_path, include_hints=include_hints)
+        result = builder.build()
+        return result, output, True
 
-    print(f"{'='*60}")
-    print(f"✓ Running order saved to: {output}")
-    if debug:
-        print(f"✓ Debug diagnostics saved to: {Path(f'data/output/{episode_id}/clustering_debug.json')}")
-    print(f"{'='*60}\n")
+    # Build the prompt
+    builder = PromptBuilder(cache_path, include_hints=include_hints)
+    result = builder.build()
 
-    logger.info(f"Running order analysis complete: {output}")
+    # Write to file
+    with open(output, "w") as f:
+        f.write(result.content)
 
-    return result
+    logger.info(f"LLM prompt generated: {output}")
+    logger.info(f"  Fixtures: {result.fixture_count}")
+    logger.info(f"  Segments: {result.transcript_stats.segment_count}")
+    logger.info(f"  Estimated tokens: ~{result.estimated_tokens:,}")
 
-
-@cli.command("analyze-running-order")
-@click.argument("episode_id")
-@click.option(
-    '--output',
-    type=click.Path(path_type=Path),
-    default=None,
-    help='Output path for running order JSON (default: data/output/{episode_id}/running_order.json)'
-)
-@click.option(
-    '--config',
-    type=click.Path(exists=True, path_type=Path),
-    default=Path('config/config.yaml'),
-    help='Path to config file'
-)
-@click.option(
-    '--debug',
-    is_flag=True,
-    default=False,
-    help='Enable debug mode with detailed clustering diagnostics'
-)
-def analyze_running_order_command(
-    episode_id: str,
-    output: Path | None,
-    config: Path,
-    debug: bool
-):
-    """
-    Analyze running order and detect match boundaries for an episode.
-
-    Combines OCR scoreboards, FT graphics, and transcript to detect:
-    - Running order (match sequence)
-    - Match boundaries (intro start, highlights start/end, post-match end)
-
-    Example:
-
-        python -m motd analyze-running-order motd_2025-26_2025-11-01
-    """
-    cfg = load_config(config)
-    setup_logging(cfg)
-    logger = logging.getLogger(__name__)
-
-    click.echo(f"\n{'='*60}")
-    click.echo(f"Running Order Analysis: {episode_id}")
-    click.echo(f"{'='*60}\n")
-
-    try:
-        run_analysis(
-            episode_id=episode_id,
-            config=cfg,
-            debug=debug,
-            output=output
-        )
-    except FileNotFoundError as e:
-        click.echo(f"Error: {e}", err=True)
-        click.echo("\nPlease run the following commands first:", err=True)
-        click.echo("  1. python -m motd detect-scenes <video>", err=True)
-        click.echo("  2. python -m motd extract-teams --scenes <scenes.json> --episode-id <id>", err=True)
-        click.echo("  3. python -m motd transcribe <video>", err=True)
-        sys.exit(1)
-    except Exception as e:
-        logger.error(f"Running order analysis failed: {e}", exc_info=True)
-        click.echo(f"\nError: {e}", err=True)
-        sys.exit(1)
+    return result, output, False
 
 
 @cli.command("run")
@@ -1124,7 +981,7 @@ def run_command(video_path: Path, force: bool, config: Path):
     1. Scene Detection (video → scenes.json + frames/)
     2. Team Extraction (scenes.json → ocr_results.json)
     3. Transcription (video → transcript.json)
-    4. Running Order Analysis (ocr_results.json + transcript.json → results)
+    4. LLM Prompt Generation (→ transcript_for_llm.txt)
 
     Smart caching automatically skips completed stages (unless --force).
 
@@ -1171,22 +1028,6 @@ def run_command(video_path: Path, force: bool, config: Path):
         click.echo(f"\n❌ Error reading manifest: {e}", err=True)
         sys.exit(1)
 
-    # Load fixtures (needed for display functions)
-    fixtures_path = Path("data/fixtures/premier_league_2025_26.json")
-    if not fixtures_path.exists():
-        click.echo(f"\n❌ Error: Fixtures file not found at {fixtures_path}", err=True)
-        sys.exit(1)
-
-    try:
-        with open(fixtures_path) as f:
-            fixtures_data = json.load(f)
-            fixtures = fixtures_data.get("fixtures", [])
-        logger.info(f"Loaded {len(fixtures)} fixtures")
-    except Exception as e:
-        logger.error(f"Failed to load fixtures: {e}", exc_info=True)
-        click.echo(f"\n❌ Error loading fixtures: {e}", err=True)
-        sys.exit(1)
-
     # Run pipeline
     try:
         from motd.pipeline.orchestrator import PipelineOrchestrator
@@ -1197,11 +1038,22 @@ def run_command(video_path: Path, force: bool, config: Path):
             force=force
         )
 
-        result = orchestrator.run_pipeline()
+        result, output_path = orchestrator.run_pipeline()
 
-        # Display results using existing display functions
-        display_running_order_results(result, fixtures)
-        display_validation_summary(result)
+        # Display LLM prompt summary
+        click.echo(f"\n{'='*60}")
+        click.echo("LLM Prompt Generated:")
+        click.echo(f"{'='*60}")
+        click.echo(f"  Output: {output_path}")
+        click.echo(f"  Fixtures: {result.fixture_count}")
+        click.echo(f"  Transcript segments: {result.transcript_stats.segment_count}")
+        click.echo(f"  OCR hints: {'Yes' if result.has_ocr_hints else 'No'}")
+        click.echo(f"  Estimated tokens: ~{result.estimated_tokens:,}")
+        click.echo(f"{'='*60}")
+
+        click.echo(f"\n📋 To analyse, copy the prompt into Claude:")
+        click.echo(f"   cat {output_path} | pbcopy  # macOS")
+        click.echo(f"   Then paste into https://claude.ai")
 
         logger.info("Pipeline completed successfully")
 
@@ -1211,9 +1063,7 @@ def run_command(video_path: Path, force: bool, config: Path):
         click.echo(f"\n   Check that all required files exist:", err=True)
         click.echo(f"   - data/cache/{episode_id}/ocr_results.json", err=True)
         click.echo(f"   - data/cache/{episode_id}/transcript.json", err=True)
-        click.echo(f"   - data/teams/premier_league_2025_26.json", err=True)
         click.echo(f"   - data/fixtures/premier_league_2025_26.json", err=True)
-        click.echo(f"   - data/venues/premier_league_2025_26.json", err=True)
         sys.exit(1)
 
     except Exception as e:

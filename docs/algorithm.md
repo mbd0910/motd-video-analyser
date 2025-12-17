@@ -8,14 +8,22 @@
 
 The analyser uses an **LLM-based workflow** for segment detection:
 
-1. **Run automated pipeline** - `python -m motd run <video>` extracts scenes, OCR results, and transcript
-2. **Generate LLM prompt** - `python -m motd generate-llm-prompt <episode_id>` creates a prompt with:
-   - Deduplicated transcript (Whisper "stutters" removed)
-   - Advisory hints from OCR (FT graphics, scoreboard timestamps)
-   - Expected fixtures for the broadcast date
-   - Segment definitions and output schema
-3. **Claude analysis** - Copy prompt to Claude web UI; Claude returns structured JSON
-4. **Save results** - Store output at `data/analysis/{episode_id}/analysis.json`
+1. **Run automated pipeline** - `python -m motd run <video>` executes all 4 stages:
+   - Stage 1: Scene Detection (video → scenes.json + frames/)
+   - Stage 2: Team Extraction via OCR (→ ocr_results.json)
+   - Stage 3: Transcription via Whisper (→ transcript.json)
+   - Stage 4: LLM Prompt Generation (→ transcript_for_llm.txt)
+
+2. **Claude analysis** - Copy the generated prompt to Claude web UI; Claude returns structured JSON
+   - The prompt includes: deduplicated transcript, OCR advisory hints, expected fixtures, and output schema
+
+3. **Save results** - Store Claude's output at `data/analysis/{episode_id}/analysis.json`
+
+**Standalone commands** are also available for individual stages:
+- `python -m motd detect-scenes <video>` - Scene detection only
+- `python -m motd extract-teams --scenes <scenes.json> --episode-id <id>` - OCR only
+- `python -m motd transcribe <video>` - Transcription only
+- `python -m motd generate-llm-prompt <episode_id>` - Prompt generation only
 
 The LLM-based approach replaced an earlier rule-based strategy, which struggled with nuanced segment boundaries.
 
