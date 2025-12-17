@@ -3,11 +3,11 @@
 import easyocr
 import cv2
 import numpy as np
-import re
-import json
-from typing import Dict, List, Tuple, Optional, Set
+from typing import Dict, List, Optional
 from pathlib import Path
 import logging
+
+from motd.ocr.validators import GraphicValidator
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,12 @@ logger = logging.getLogger(__name__)
 class OCRReader:
     """Reads text from video frames using EasyOCR."""
 
-    def __init__(self, config: Dict, teams_path: Path | None = None):
+    def __init__(
+        self,
+        config: Dict,
+        teams_path: Path | None = None,
+        validator: GraphicValidator | None = None
+    ):
         """
         Initialise OCR reader.
 
@@ -27,6 +32,8 @@ class OCRReader:
                 - regions: Dict of region definitions
             teams_path: Path to teams JSON file for scoreboard validation.
                         If None, uses default path (data/teams/premier_league_2025_26.json).
+            validator: Optional GraphicValidator instance for dependency injection.
+                       If None, creates one internally using teams_path.
         """
         self.config = config
 
@@ -42,49 +49,21 @@ class OCRReader:
         self.confidence_threshold = config.get('confidence_threshold', 0.7)
         self.regions = config.get('regions', {})
 
-        # Load team codes for scoreboard validation
-        self.valid_team_codes = self._load_team_codes(teams_path)
+        # Use injected validator or create one from teams file
+        if validator is not None:
+            self._validator = validator
+        else:
+            resolved_path = teams_path or Path('data/teams/premier_league_2025_26.json')
+            self._validator = GraphicValidator.from_teams_file(resolved_path)
+
+        # Expose team codes for backward compatibility
+        self.valid_team_codes = self._validator.valid_team_codes
 
         logger.info(
             f"OCR reader initialised with {len(self.regions)} regions, "
             f"confidence threshold: {self.confidence_threshold}, "
             f"{len(self.valid_team_codes)} team codes loaded"
         )
-
-    def _load_team_codes(self, teams_path: Path | None = None) -> Set[str]:
-        """
-        Load valid 3-character team codes from teams JSON file.
-
-        Args:
-            teams_path: Path to teams JSON file. If None, uses default path.
-
-        Returns:
-            Set of valid team codes (uppercase) for exact matching.
-
-        Raises:
-            FileNotFoundError: If teams file not found (fail fast on config error).
-            json.JSONDecodeError: If teams file is invalid JSON.
-        """
-        # Use provided path or default location
-        path = teams_path or Path('data/teams/premier_league_2025_26.json')
-
-        if not path.exists():
-            raise FileNotFoundError(
-                f"Teams file not found: {path}. "
-                f"Ensure config['teams']['path'] points to valid file."
-            )
-
-        with open(path, 'r', encoding='utf-8') as f:
-            teams_data = json.load(f)
-
-        # Extract all codes from all teams
-        codes = set()
-        for team in teams_data.get('teams', []):
-            for code in team.get('codes', []):
-                codes.add(code.upper())
-
-        logger.debug(f"Loaded {len(codes)} team codes from {path}")
-        return codes
 
     def extract_region(
         self,
@@ -221,156 +200,16 @@ class OCRReader:
         return results
 
     def validate_ft_graphic(self, ocr_results: List[Dict], detected_teams: List[str]) -> bool:
-        """
-        Validate that OCR results are from a genuine FT score graphic.
-
-        Uses two-tier validation to prioritize strong signals (teams + FT) over weak signals (score):
-
-        **Tier 1 (STRONG):** ≥1 team + FT indicator
-        - Score pattern is OPTIONAL (may have low OCR confidence)
-        - Most reliable signal: team names + "FT" text confirms end-of-match graphic
-        - Example: "Liverpool 2 FT" (score "0" missing due to low confidence)
-
-        **Tier 2 (FALLBACK):** Score pattern + FT indicator
-        - No teams detected (OCR failed on team names)
-        - Numeric score + FT still indicates genuine FT graphic
-        - Example: "3 1 FT" (team names completely missed)
-
-        This filters out:
-        - Possession bars (no FT text)
-        - Player statistics (no FT text)
-        - Formation graphics (team names but no FT)
-        - Studio overlays (team mentions but no FT)
-
-        Args:
-            ocr_results: List of raw OCR results from EasyOCR
-            detected_teams: List of matched team names
-
-        Returns:
-            True if this is a genuine FT graphic, False otherwise
-        """
-        # Extract all OCR text
-        all_text = ' '.join([r.get('text', '').upper() for r in ocr_results])
-
-        # Check for FT indicator
-        ft_indicators = ['FT', 'FULL TIME', 'FULL-TIME', 'FULLTIME']
-        has_ft = any(indicator in all_text for indicator in ft_indicators)
-
-        # Check for score pattern (matches "2-1", "0 - 0", "2 0", "3 | 0", etc.)
-        # BBC FT graphics show "2 | 0" and OCR may read hyphen, pipe, or space
-        score_pattern = r'\b\d+\s*[-–—|]?\s*\d+\b'
-        has_score = bool(re.search(score_pattern, all_text))
-
-        # Tier 1: Team name(s) + FT indicator (STRONG signal)
-        if len(detected_teams) >= 1 and has_ft:
-            logger.debug(
-                f"FT validation passed (Tier 1): {detected_teams} + FT indicator"
-            )
-            return True
-
-        # Tier 2: Score pattern + FT indicator (FALLBACK for missed teams)
-        if has_score and has_ft:
-            logger.debug(
-                f"FT validation passed (Tier 2): score pattern + FT indicator (no teams detected)"
-            )
-            return True
-
-        # Failed both tiers
-        logger.debug(
-            f"FT validation failed: teams={len(detected_teams)}, "
-            f"score={has_score}, ft_text={has_ft}"
-        )
-        return False
+        """Validate OCR results are from a genuine FT graphic (delegates to validator)."""
+        return self._validator.validate_ft_graphic(ocr_results, detected_teams)
 
     def validate_scoreboard(self, ocr_results: List[Dict]) -> bool:
-        """
-        Validate that OCR results are from a genuine scoreboard graphic.
-
-        BBC scoreboards follow format: "BBC [CODE] [SCORE]|[SCORE] [CODE]"
-        Example: "BBC LIV 0|0 FOR"
-
-        Requirement (relaxed - Issue #17):
-        - At least 2 distinct 3-character team codes (loaded from teams JSON)
-
-        Note: Score pattern requirement removed because OCR from cropped
-        scoreboard region (0,0 to 370x70) doesn't always capture the score.
-        Two distinct team codes is sufficient to distinguish real scoreboards
-        from noise (intro montage, studio overlays, etc.).
-
-        This filters out:
-        - Intro montage graphics ("The CL UB BALL")
-        - Studio overlays with team mentions but no teams
-        - Partial/corrupt OCR reads
-
-        Args:
-            ocr_results: List of raw OCR results from EasyOCR
-
-        Returns:
-            True if this is a genuine scoreboard, False otherwise
-        """
-        if not ocr_results:
-            return False
-
-        # Extract all OCR text (uppercase for case-insensitive matching)
-        all_text = ' '.join([r.get('text', '').upper() for r in ocr_results])
-
-        # Check for at least 2 distinct 3-character team codes
-        # Split text into words and find exact matches against valid codes
-        words = all_text.split()
-        found_codes = set(w for w in words if w in self.valid_team_codes)
-        has_two_codes = len(found_codes) >= 2
-
-        if has_two_codes:
-            logger.debug(
-                f"Scoreboard validation passed: codes={found_codes}"
-            )
-            return True
-
-        logger.debug(
-            f"Scoreboard validation failed: codes={found_codes} (need 2)"
-        )
-        return False
+        """Validate OCR results are from a genuine scoreboard (delegates to validator)."""
+        return self._validator.validate_scoreboard(ocr_results)
 
     def _looks_like_ft_content(self, ocr_results: List[Dict]) -> bool:
-        """
-        Quick check if OCR results look like genuine FT graphic content.
-
-        Used to decide whether to accept FT region results or fall back to scoreboard.
-        Less strict than validate_ft_graphic() - just checking for relevant content.
-
-        Returns True if results contain:
-        - FT indicators ("FT", "FULL TIME", etc.), OR
-        - Score pattern (e.g., "2-1", "0 | 0"), OR
-        - Valid team codes from the teams file
-
-        Args:
-            ocr_results: List of raw OCR results from EasyOCR
-
-        Returns:
-            True if results look like FT content, False otherwise
-        """
-        if not ocr_results:
-            return False
-
-        # Combine all text
-        all_text = ' '.join([r.get('text', '').upper() for r in ocr_results])
-
-        # Check for FT indicators
-        ft_indicators = ['FT', 'FULL TIME', 'FULL-TIME', 'FULLTIME']
-        if any(indicator in all_text for indicator in ft_indicators):
-            return True
-
-        # Check for score pattern
-        score_pattern = r'\b\d+\s*[-–—|]?\s*\d+\b'
-        if re.search(score_pattern, all_text):
-            return True
-
-        # Check for team codes
-        words = all_text.split()
-        if any(w in self.valid_team_codes for w in words):
-            return True
-
-        return False
+        """Quick check if OCR results look like FT content (delegates to validator)."""
+        return self._validator.looks_like_ft_content(ocr_results)
 
     def extract_with_fallback(self, frame_path: Path) -> Dict:
         """

@@ -1,24 +1,26 @@
-"""Unit tests for FT graphic validation logic."""
+"""Unit tests for FT graphic validation logic.
+
+Tests the GraphicValidator.validate_ft_graphic() method which uses two-tier
+validation to determine if OCR results represent genuine FT score graphics.
+
+These tests use GraphicValidator directly (no ML dependencies) enabling
+fast execution without loading torch/easyocr (~2GB).
+"""
 
 import pytest
-from motd.ocr.reader import OCRReader
+from motd.ocr.validators import GraphicValidator
 
 
+@pytest.mark.unit
 class TestFTGraphicValidation:
     """Test suite for validate_ft_graphic() method."""
 
     @pytest.fixture
-    def ocr_reader(self):
-        """Create OCRReader instance for testing."""
-        # Mock config to avoid loading actual EasyOCR model
-        config = {
-            'library': 'easyocr',
-            'languages': ['en'],
-            'gpu': False
-        }
-        return OCRReader(config)
+    def validator(self, test_team_codes):
+        """Create GraphicValidator with standard team codes."""
+        return GraphicValidator(test_team_codes)
 
-    def test_valid_ft_graphic_with_score_and_ft_text(self, ocr_reader):
+    def test_valid_ft_graphic_with_score_and_ft_text(self, validator):
         """Valid FT graphic: 2 teams + score + FT text."""
         ocr_results = [
             {'text': 'Liverpool'},
@@ -30,9 +32,9 @@ class TestFTGraphicValidation:
         ]
         detected_teams = ['Liverpool', 'Aston Villa']
 
-        assert ocr_reader.validate_ft_graphic(ocr_results, detected_teams) is True
+        assert validator.validate_ft_graphic(ocr_results, detected_teams) is True
 
-    def test_valid_ft_graphic_with_full_time_text(self, ocr_reader):
+    def test_valid_ft_graphic_with_full_time_text(self, validator):
         """Valid FT graphic: FULL TIME instead of FT."""
         ocr_results = [
             {'text': 'Arsenal'},
@@ -42,9 +44,9 @@ class TestFTGraphicValidation:
         ]
         detected_teams = ['Arsenal', 'Burnley']
 
-        assert ocr_reader.validate_ft_graphic(ocr_results, detected_teams) is True
+        assert validator.validate_ft_graphic(ocr_results, detected_teams) is True
 
-    def test_valid_only_one_team_tier1(self, ocr_reader):
+    def test_valid_only_one_team_tier1(self, validator):
         """Valid (Tier 1): Only 1 team detected + FT (updated from strict validation)."""
         ocr_results = [
             {'text': 'Liverpool'},
@@ -54,9 +56,9 @@ class TestFTGraphicValidation:
         detected_teams = ['Liverpool']
 
         # New behavior: Tier 1 allows ≥1 team + FT (score optional)
-        assert ocr_reader.validate_ft_graphic(ocr_results, detected_teams) is True
+        assert validator.validate_ft_graphic(ocr_results, detected_teams) is True
 
-    def test_valid_three_teams_tier1(self, ocr_reader):
+    def test_valid_three_teams_tier1(self, validator):
         """Valid (Tier 1): 3 teams detected + FT (updated from strict validation)."""
         ocr_results = [
             {'text': 'Liverpool'},
@@ -68,9 +70,9 @@ class TestFTGraphicValidation:
         detected_teams = ['Liverpool', 'Arsenal', 'Chelsea']
 
         # New behavior: Tier 1 allows ≥1 team + FT (even if 3 teams detected)
-        assert ocr_reader.validate_ft_graphic(ocr_results, detected_teams) is True
+        assert validator.validate_ft_graphic(ocr_results, detected_teams) is True
 
-    def test_valid_no_score_pattern_tier1(self, ocr_reader):
+    def test_valid_no_score_pattern_tier1(self, validator):
         """Valid (Tier 1): Has 2 teams and FT but no score (updated from strict validation)."""
         ocr_results = [
             {'text': 'Liverpool'},
@@ -80,9 +82,9 @@ class TestFTGraphicValidation:
         detected_teams = ['Liverpool', 'Aston Villa']
 
         # New behavior: Tier 1 allows teams + FT without score pattern
-        assert ocr_reader.validate_ft_graphic(ocr_results, detected_teams) is True
+        assert validator.validate_ft_graphic(ocr_results, detected_teams) is True
 
-    def test_invalid_no_ft_text(self, ocr_reader):
+    def test_invalid_no_ft_text(self, validator):
         """Invalid: Has 2 teams and score but no FT indicator."""
         ocr_results = [
             {'text': 'Liverpool'},
@@ -91,9 +93,9 @@ class TestFTGraphicValidation:
         ]
         detected_teams = ['Liverpool', 'Aston Villa']
 
-        assert ocr_reader.validate_ft_graphic(ocr_results, detected_teams) is False
+        assert validator.validate_ft_graphic(ocr_results, detected_teams) is False
 
-    def test_invalid_possession_bar(self, ocr_reader):
+    def test_invalid_possession_bar(self, validator):
         """Invalid: Possession bar (2 teams, no score/FT)."""
         ocr_results = [
             {'text': '54%'},
@@ -103,9 +105,9 @@ class TestFTGraphicValidation:
         ]
         detected_teams = ['Liverpool', 'Aston Villa']
 
-        assert ocr_reader.validate_ft_graphic(ocr_results, detected_teams) is False
+        assert validator.validate_ft_graphic(ocr_results, detected_teams) is False
 
-    def test_invalid_player_statistics(self, ocr_reader):
+    def test_invalid_player_statistics(self, validator):
         """Invalid: Player statistics with team names but no FT."""
         ocr_results = [
             {'text': 'Saka'},
@@ -118,9 +120,9 @@ class TestFTGraphicValidation:
 
         # No proper score pattern (7-14 would need to be "7 - 14")
         # No FT text
-        assert ocr_reader.validate_ft_graphic(ocr_results, detected_teams) is False
+        assert validator.validate_ft_graphic(ocr_results, detected_teams) is False
 
-    def test_score_pattern_variations(self, ocr_reader):
+    def test_score_pattern_variations(self, validator):
         """Valid: Different score pattern formats."""
         test_cases = [
             {'text': '2-1'},      # No spaces
@@ -141,10 +143,10 @@ class TestFTGraphicValidation:
             ]
             detected_teams = ['Liverpool', 'Aston Villa']
 
-            assert ocr_reader.validate_ft_graphic(ocr_results, detected_teams) is True, \
+            assert validator.validate_ft_graphic(ocr_results, detected_teams) is True, \
                 f"Failed for score pattern: {score_text['text']}"
 
-    def test_ft_text_variations(self, ocr_reader):
+    def test_ft_text_variations(self, validator):
         """Valid: Different FT text variations."""
         ft_variations = ['FT', 'FULL TIME', 'FULL-TIME', 'FULLTIME']
 
@@ -157,10 +159,10 @@ class TestFTGraphicValidation:
             ]
             detected_teams = ['Liverpool', 'Aston Villa']
 
-            assert ocr_reader.validate_ft_graphic(ocr_results, detected_teams) is True, \
+            assert validator.validate_ft_graphic(ocr_results, detected_teams) is True, \
                 f"Failed for FT text variation: {ft_text}"
 
-    def test_case_insensitive_matching(self, ocr_reader):
+    def test_case_insensitive_matching(self, validator):
         """Valid: Case-insensitive FT text matching."""
         ocr_results = [
             {'text': 'Liverpool'},
@@ -170,16 +172,16 @@ class TestFTGraphicValidation:
         ]
         detected_teams = ['Liverpool', 'Aston Villa']
 
-        assert ocr_reader.validate_ft_graphic(ocr_results, detected_teams) is True
+        assert validator.validate_ft_graphic(ocr_results, detected_teams) is True
 
-    def test_empty_ocr_results(self, ocr_reader):
+    def test_empty_ocr_results(self, validator):
         """Invalid: Empty OCR results."""
         ocr_results = []
         detected_teams = []
 
-        assert ocr_reader.validate_ft_graphic(ocr_results, detected_teams) is False
+        assert validator.validate_ft_graphic(ocr_results, detected_teams) is False
 
-    def test_real_world_false_positive_example(self, ocr_reader):
+    def test_real_world_false_positive_example(self, validator):
         """Invalid: Real-world false positive (possession bar from Scene 278)."""
         # This is what was incorrectly classified as FT graphic
         ocr_results = [
@@ -192,12 +194,13 @@ class TestFTGraphicValidation:
         detected_teams = ['Liverpool', 'Aston Villa']
 
         # Should FAIL validation (no score pattern, no FT text)
-        assert ocr_reader.validate_ft_graphic(ocr_results, detected_teams) is False
+        assert validator.validate_ft_graphic(ocr_results, detected_teams) is False
 
 
+@pytest.mark.unit
 class TestFTValidationTwoTier:
     """
-    Test two-tier FT validation logic (prioritize teams + FT over score).
+    Test two-tier FT validation logic (prioritise teams + FT over score).
 
     Uses real OCR data from Episode 01 and Episode 02 to test:
     - Tier 1: Team name(s) + FT indicator (score optional)
@@ -205,16 +208,11 @@ class TestFTValidationTwoTier:
     """
 
     @pytest.fixture
-    def ocr_reader(self):
-        """Create OCRReader instance for testing."""
-        config = {
-            'library': 'easyocr',
-            'languages': ['en'],
-            'gpu': False
-        }
-        return OCRReader(config)
+    def validator(self, test_team_codes):
+        """Create GraphicValidator with standard team codes."""
+        return GraphicValidator(test_team_codes)
 
-    def test_tier1_forest_manutd_draw_complete_signals(self, ocr_reader):
+    def test_tier1_forest_manutd_draw_complete_signals(self, validator):
         """
         Tier 1: Real OCR from Episode 01 - Nottingham Forest vs Man Utd (2-2 draw).
 
@@ -235,9 +233,9 @@ class TestFTValidationTwoTier:
         ]
         detected_teams = ['Nottingham Forest', 'Manchester United']
 
-        assert ocr_reader.validate_ft_graphic(ocr_results, detected_teams) is True
+        assert validator.validate_ft_graphic(ocr_results, detected_teams) is True
 
-    def test_tier1_liverpool_villa_one_team_missing(self, ocr_reader):
+    def test_tier1_liverpool_villa_one_team_missing(self, validator):
         """
         Tier 1: Real OCR from Episode 01 - Liverpool vs Aston Villa (2-0).
 
@@ -258,9 +256,9 @@ class TestFTValidationTwoTier:
         ]
         detected_teams = ['Liverpool']  # Only one team matched
 
-        assert ocr_reader.validate_ft_graphic(ocr_results, detected_teams) is True
+        assert validator.validate_ft_graphic(ocr_results, detected_teams) is True
 
-    def test_tier1_spurs_manutd_incomplete_score_episode02(self, ocr_reader):
+    def test_tier1_spurs_manutd_incomplete_score_episode02(self, validator):
         """
         Tier 1: Real OCR from Episode 02 - Tottenham vs Man Utd (2-2 draw).
 
@@ -286,9 +284,9 @@ class TestFTValidationTwoTier:
         detected_teams = ['Tottenham Hotspur', 'Manchester United']
 
         # This is the key test - should PASS with new logic, FAILS with old
-        assert ocr_reader.validate_ft_graphic(ocr_results, detected_teams) is True
+        assert validator.validate_ft_graphic(ocr_results, detected_teams) is True
 
-    def test_tier2_score_plus_ft_no_teams_fallback(self, ocr_reader):
+    def test_tier2_score_plus_ft_no_teams_fallback(self, validator):
         """
         Tier 2: OCR missed team names, but score + FT detected (fallback tier).
 
@@ -303,9 +301,9 @@ class TestFTValidationTwoTier:
         ]
         detected_teams = []  # No teams detected
 
-        assert ocr_reader.validate_ft_graphic(ocr_results, detected_teams) is True
+        assert validator.validate_ft_graphic(ocr_results, detected_teams) is True
 
-    def test_tier1_teams_plus_ft_no_score(self, ocr_reader):
+    def test_tier1_teams_plus_ft_no_score(self, validator):
         """
         Tier 1: Teams + FT, but score completely missing (OCR failed to read score).
 
@@ -318,9 +316,9 @@ class TestFTValidationTwoTier:
         ]
         detected_teams = ['Arsenal', 'Burnley']
 
-        assert ocr_reader.validate_ft_graphic(ocr_results, detected_teams) is True
+        assert validator.validate_ft_graphic(ocr_results, detected_teams) is True
 
-    def test_reject_no_ft_indicator_tier1_fail(self, ocr_reader):
+    def test_reject_no_ft_indicator_tier1_fail(self, validator):
         """
         Tier 1 rejection: Teams present but no FT indicator.
 
@@ -334,9 +332,9 @@ class TestFTValidationTwoTier:
         ]
         detected_teams = ['Chelsea', 'Wolverhampton Wanderers']
 
-        assert ocr_reader.validate_ft_graphic(ocr_results, detected_teams) is False
+        assert validator.validate_ft_graphic(ocr_results, detected_teams) is False
 
-    def test_reject_score_only_no_ft_tier2_fail(self, ocr_reader):
+    def test_reject_score_only_no_ft_tier2_fail(self, validator):
         """
         Tier 2 rejection: Score present but no FT indicator.
 
@@ -348,9 +346,9 @@ class TestFTValidationTwoTier:
         ]
         detected_teams = []
 
-        assert ocr_reader.validate_ft_graphic(ocr_results, detected_teams) is False
+        assert validator.validate_ft_graphic(ocr_results, detected_teams) is False
 
-    def test_reject_ft_only_no_context(self, ocr_reader):
+    def test_reject_ft_only_no_context(self, validator):
         """
         Rejection: Only FT indicator, no teams or score.
 
@@ -361,4 +359,4 @@ class TestFTValidationTwoTier:
         ]
         detected_teams = []
 
-        assert ocr_reader.validate_ft_graphic(ocr_results, detected_teams) is False
+        assert validator.validate_ft_graphic(ocr_results, detected_teams) is False

@@ -11,6 +11,7 @@ from typing import Dict, Any
 from motd.ocr.reader import OCRReader
 from motd.ocr.team_matcher import TeamMatcher
 from motd.ocr.fixture_matcher import FixtureMatcher
+from motd.ocr.validators import GraphicValidator
 from motd.ocr.scene_processor import SceneProcessor, EpisodeContext
 
 
@@ -31,15 +32,26 @@ class ServiceFactory:
         """
         self.config = config
 
+    def create_graphic_validator(self) -> GraphicValidator:
+        """
+        Create GraphicValidator from config.
+
+        Returns:
+            GraphicValidator with team codes loaded from teams file
+        """
+        teams_path = Path(self.config['teams']['path'])
+        return GraphicValidator.from_teams_file(teams_path)
+
     def create_ocr_reader(self) -> OCRReader:
         """
         Create OCRReader from config.
 
         Returns:
-            Configured OCRReader instance
+            Configured OCRReader instance with injected validator
         """
         teams_path = Path(self.config['teams']['path'])
-        return OCRReader(self.config['ocr'], teams_path=teams_path)
+        validator = self.create_graphic_validator()
+        return OCRReader(self.config['ocr'], teams_path=teams_path, validator=validator)
 
     def create_team_matcher(self) -> TeamMatcher:
         """

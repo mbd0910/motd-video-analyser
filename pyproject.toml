@@ -33,6 +33,8 @@ dependencies = [
     "python-dateutil==2.9.0.post0",
     "tqdm==4.67.1",
     "packaging==24.2",
+    "pydantic==2.10.3",
+    "rapidfuzz==3.11.0",
 ]
 
 [project.optional-dependencies]
@@ -46,3 +48,14 @@ motd = "motd.__main__:cli"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "unit: Unit tests (pure logic, no ML dependencies)",
+    "integration: Integration tests (requires full ML stack)",
+]
+filterwarnings = [
+    # Ignore PyTorch MPS warnings (not relevant on Linux CI runners)
+    "ignore::UserWarning:torch.*",
+]
