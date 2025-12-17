@@ -245,7 +245,7 @@ class MatchBoundary(BaseModel):
     Used by multi-strategy running order detection and boundary detection.
     """
     teams: tuple[str, str] = Field(..., description="Team pair (normalized/sorted)")
-    position: int = Field(..., ge=1, le=7, description="Running order position (1-7)")
+    position: int = Field(..., ge=1, le=10, description="Running order position (1-10, midweek episodes can have 9+)")
 
     # Timestamps (seconds)
     match_start: float | None = Field(None, ge=0, description="Match segment start (studio intro)")

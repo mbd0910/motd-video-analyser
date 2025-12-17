@@ -10,6 +10,7 @@ Follows TDD approach: Write tests first, then implement detector.
 import json
 import pytest
 from pathlib import Path
+from pydantic import ValidationError
 
 from motd.analysis.running_order_detector import RunningOrderDetector
 from motd.pipeline.models import RunningOrderResult, MatchBoundary
@@ -1334,3 +1335,153 @@ class TestTableReviewDetection:
         # Should return table cutoff (~4977s), not naive (5039s)
         assert result < 5000, f"Expected table cutoff <5000s, got {result}"
         assert 4975 <= result <= 4980, f"Expected ~4977s table cutoff, got {result}"
+
+
+class TestNoneTypeHandling:
+    """Test graceful handling of None values in boundary detection.
+
+    Issue #10: NoneType comparison crashes when highlights_end or highlights_start
+    is None. Functions should return None when search window is undefined.
+    """
+
+    def test_detect_match_start_returns_none_when_search_start_is_none(self, detector):
+        """_detect_match_start should return None when search_start is None."""
+        result = detector._detect_match_start(
+            teams=('Arsenal', 'Liverpool'),
+            search_start=None,  # Previous match had no highlights_end
+            highlights_start=100.0,
+            segments=[{'start': 50.0, 'text': 'Arsenal vs Liverpool'}],
+            is_first_match=False
+        )
+
+        assert result is None, "Should return None when search_start is None"
+
+    def test_detect_match_start_returns_none_when_highlights_start_is_none(self, detector):
+        """_detect_match_start should return None when highlights_start is None."""
+        result = detector._detect_match_start(
+            teams=('Arsenal', 'Liverpool'),
+            search_start=0.0,
+            highlights_start=None,  # No scoreboard detected for this match
+            segments=[{'start': 50.0, 'text': 'Arsenal vs Liverpool'}],
+            is_first_match=True
+        )
+
+        assert result is None, "Should return None when highlights_start is None"
+
+    def test_detect_match_start_venue_returns_none_when_search_start_is_none(self, detector):
+        """_detect_match_start_venue should return None when search_start is None."""
+        result = detector._detect_match_start_venue(
+            teams=('Arsenal', 'Liverpool'),
+            search_start=None,
+            highlights_start=100.0,
+            segments=[{'start': 50.0, 'text': 'Arsenal at the Emirates'}]
+        )
+
+        assert result is None, "Should return None when search_start is None"
+
+    def test_detect_match_start_venue_returns_none_when_highlights_start_is_none(self, detector):
+        """_detect_match_start_venue should return None when highlights_start is None."""
+        result = detector._detect_match_start_venue(
+            teams=('Arsenal', 'Liverpool'),
+            search_start=0.0,
+            highlights_start=None,
+            segments=[{'start': 50.0, 'text': 'Arsenal at the Emirates'}]
+        )
+
+        assert result is None, "Should return None when highlights_start is None"
+
+    def test_detect_match_start_clustering_returns_none_when_search_start_is_none(self, detector):
+        """_detect_match_start_clustering should return None when search_start is None."""
+        result = detector._detect_match_start_clustering(
+            teams=('Arsenal', 'Liverpool'),
+            search_start=None,
+            highlights_start=100.0,
+            segments=[{'start': 50.0, 'text': 'Arsenal vs Liverpool'}]
+        )
+
+        assert result is None, "Should return None when search_start is None"
+
+    def test_detect_match_start_clustering_returns_none_when_highlights_start_is_none(self, detector):
+        """_detect_match_start_clustering should return None when highlights_start is None."""
+        result = detector._detect_match_start_clustering(
+            teams=('Arsenal', 'Liverpool'),
+            search_start=0.0,
+            highlights_start=None,
+            segments=[{'start': 50.0, 'text': 'Arsenal vs Liverpool'}]
+        )
+
+        assert result is None, "Should return None when highlights_start is None"
+
+    def test_detect_match_end_returns_naive_when_highlights_end_is_none(self, detector, transcript):
+        """_detect_match_end should return naive fallback when highlights_end is None."""
+        result = detector._detect_match_end(
+            teams=('Arsenal', 'Liverpool'),
+            highlights_end=None,  # No FT graphic detected
+            next_match_start=500.0,
+            episode_duration=5000.0,
+            segments=transcript['segments']
+        )
+
+        # Should return next_match_start as naive fallback
+        assert result == 500.0, "Should return next_match_start when highlights_end is None"
+
+    def test_detect_match_end_returns_duration_when_last_match_and_highlights_end_none(self, detector, transcript):
+        """_detect_match_end should return episode_duration for last match when highlights_end is None."""
+        result = detector._detect_match_end(
+            teams=('Arsenal', 'Liverpool'),
+            highlights_end=None,
+            next_match_start=None,  # Last match
+            episode_duration=5000.0,
+            segments=transcript['segments']
+        )
+
+        # Should return episode_duration as fallback for last match
+        assert result == 5000.0, "Should return episode_duration for last match when highlights_end is None"
+
+
+class TestPositionConstraint:
+    """Test MatchBoundary position constraint allows midweek episodes with 8-10 matches.
+
+    Issue #10: Episode 2025-12-03 has 9 matches (midweek fixtures) but position
+    constraint was le=7. Should allow up to 10 matches.
+    """
+
+    def test_match_boundary_accepts_position_8(self):
+        """MatchBoundary should accept position=8."""
+        match = MatchBoundary(
+            teams=('Arsenal', 'Liverpool'),
+            position=8,
+            confidence=0.9,
+            detection_sources=['scoreboard']
+        )
+        assert match.position == 8
+
+    def test_match_boundary_accepts_position_9(self):
+        """MatchBoundary should accept position=9."""
+        match = MatchBoundary(
+            teams=('Arsenal', 'Liverpool'),
+            position=9,
+            confidence=0.9,
+            detection_sources=['scoreboard']
+        )
+        assert match.position == 9
+
+    def test_match_boundary_accepts_position_10(self):
+        """MatchBoundary should accept position=10."""
+        match = MatchBoundary(
+            teams=('Arsenal', 'Liverpool'),
+            position=10,
+            confidence=0.9,
+            detection_sources=['scoreboard']
+        )
+        assert match.position == 10
+
+    def test_match_boundary_rejects_position_11(self):
+        """MatchBoundary should reject position=11 (beyond max)."""
+        with pytest.raises(ValidationError):
+            MatchBoundary(
+                teams=('Arsenal', 'Liverpool'),
+                position=11,
+                confidence=0.9,
+                detection_sources=['scoreboard']
+            )

@@ -357,11 +357,11 @@ class RunningOrderDetector:
     def _detect_match_start(
         self,
         teams: tuple[str, str],
-        search_start: float,
-        highlights_start: float,
+        search_start: float | None,
+        highlights_start: float | None,
         segments: list[dict],
         is_first_match: bool
-    ) -> float:
+    ) -> float | None:
         """
         Detect match_start by searching backward from highlights_start for team mentions.
 
@@ -378,8 +378,12 @@ class RunningOrderDetector:
             is_first_match: Whether this is the first match in the episode (unused - same algorithm for all)
 
         Returns:
-            match_start timestamp (seconds)
+            match_start timestamp (seconds), or None if search window undefined
         """
+        # Guard: Return None if search window is undefined
+        if search_start is None or highlights_start is None:
+            return None
+
         # Find segments in the search window (between previous match and this one)
         relevant_segments = [
             s for s in segments
@@ -477,8 +481,8 @@ class RunningOrderDetector:
     def _detect_match_start_venue(
         self,
         teams: tuple[str, str],
-        search_start: float,
-        highlights_start: float,
+        search_start: float | None,
+        highlights_start: float | None,
         segments: list[dict],
     ) -> Optional[dict[str, Any]]:
         """
@@ -494,8 +498,12 @@ class RunningOrderDetector:
             segments: Transcript segments
 
         Returns:
-            Dict with timestamp and venue details, or None if not found
+            Dict with timestamp and venue details, or None if not found/window undefined
         """
+        # Guard: Return None if search window is undefined
+        if search_start is None or highlights_start is None:
+            return None
+
         # Find fixture for these teams to get expected venue
         fixture = self._find_fixture_for_teams(teams)
         if not fixture or not fixture.get('venue'):
@@ -896,8 +904,8 @@ class RunningOrderDetector:
     def _detect_match_start_clustering(
         self,
         teams: tuple[str, str],
-        search_start: float,
-        highlights_start: float,
+        search_start: float | None,
+        highlights_start: float | None,
         segments: list[dict],
         include_diagnostics: bool = False
     ) -> Optional[dict[str, Any]]:
@@ -926,8 +934,12 @@ class RunningOrderDetector:
             - 'confidence': 0.0-1.0 based on cluster density
             - 'window_seconds': window size used
             - 'diagnostics': (if include_diagnostics=True) detailed analysis
-            Or None if no significant cluster found
+            Or None if no significant cluster found/window undefined
         """
+        # Guard: Return None if search window is undefined
+        if search_start is None or highlights_start is None:
+            return None
+
         team1, team2 = teams
 
         # Extract all team mentions
@@ -1145,7 +1157,7 @@ class RunningOrderDetector:
     def _detect_match_end(
         self,
         teams: tuple[str, str],
-        highlights_end: float,
+        highlights_end: float | None,
         next_match_start: float | None,
         episode_duration: float,
         segments: list[dict]
@@ -1177,6 +1189,10 @@ class RunningOrderDetector:
         """
         # 1. Determine naive match_end (default approach)
         naive_match_end = next_match_start if next_match_start is not None else episode_duration
+
+        # Guard: If highlights_end is None, return naive fallback (can't search for interlude/table)
+        if highlights_end is None:
+            return naive_match_end
 
         # 2. Check for interlude if we have a next match (not last match)
         if next_match_start is not None:

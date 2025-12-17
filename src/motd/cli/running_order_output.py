@@ -10,6 +10,18 @@ from pathlib import Path
 from motd.pipeline.models import RunningOrderResult, MatchBoundary
 
 
+def _fmt_timestamp(ts: float | None) -> str:
+    """Format timestamp as MM:SS, or '--:--' if None."""
+    if ts is None:
+        return "--:--"
+    return f"{int(ts // 60):02d}:{int(ts % 60):02d}"
+
+
+def _fmt_duration(dur: float | None) -> str:
+    """Format duration in seconds, or 'N/A' if None."""
+    return f"{dur:.0f}s" if dur is not None else "N/A"
+
+
 def _get_home_away_teams(teams: tuple[str, str], fixtures: list[dict]) -> tuple[str, str]:
     """
     Reorder teams from alphabetical to home/away based on fixtures.
@@ -80,16 +92,20 @@ def display_running_order_results(
 
     for i, match in enumerate(result.matches, 1):
         # Format timestamps as MM:SS
-        match_start_str = f"{int(match.match_start // 60):02d}:{int(match.match_start % 60):02d}"
-        highlights_start_str = f"{int(match.highlights_start // 60):02d}:{int(match.highlights_start % 60):02d}"
-        highlights_end_str = f"{int(match.highlights_end // 60):02d}:{int(match.highlights_end % 60):02d}"
-        match_end_str = f"{int(match.match_end // 60):02d}:{int(match.match_end % 60):02d}"
+        match_start_str = _fmt_timestamp(match.match_start)
+        highlights_start_str = _fmt_timestamp(match.highlights_start)
+        highlights_end_str = _fmt_timestamp(match.highlights_end)
+        match_end_str = _fmt_timestamp(match.match_end)
 
-        # Calculate durations
-        intro_duration = match.highlights_start - match.match_start
-        highlights_duration = match.highlights_end - match.highlights_start
-        postmatch_duration = match.match_end - match.highlights_end
-        total_duration = match.match_end - match.match_start
+        # Calculate durations (handle None values)
+        intro_duration = (match.highlights_start - match.match_start
+                          if match.highlights_start and match.match_start else None)
+        highlights_duration = (match.highlights_end - match.highlights_start
+                               if match.highlights_end and match.highlights_start else None)
+        postmatch_duration = (match.match_end - match.highlights_end
+                              if match.match_end and match.highlights_end else None)
+        total_duration = (match.match_end - match.match_start
+                          if match.match_end and match.match_start else None)
 
         # Reorder teams to home/away (internal storage is alphabetical)
         home_team, away_team = _get_home_away_teams(match.teams, fixtures)
@@ -124,11 +140,12 @@ def display_running_order_results(
 
         # Display boundaries with dynamic strategy label
         strategy_label = _get_boundary_strategy_label(match)
+
         click.echo(f"\n  {strategy_label}:")
-        click.echo(f"    Intro:       {match_start_str} → {highlights_start_str} ({intro_duration:.0f}s)")
-        click.echo(f"    Highlights:  {highlights_start_str} → {highlights_end_str} ({highlights_duration:.0f}s)")
-        click.echo(f"    Post-match:  {highlights_end_str} → {match_end_str} ({postmatch_duration:.0f}s)")
-        click.echo(f"    Total:       {match_start_str} → {match_end_str} ({total_duration:.0f}s)")
+        click.echo(f"    Intro:       {match_start_str} → {highlights_start_str} ({_fmt_duration(intro_duration)})")
+        click.echo(f"    Highlights:  {highlights_start_str} → {highlights_end_str} ({_fmt_duration(highlights_duration)})")
+        click.echo(f"    Post-match:  {highlights_end_str} → {match_end_str} ({_fmt_duration(postmatch_duration)})")
+        click.echo(f"    Total:       {match_start_str} → {match_end_str} ({_fmt_duration(total_duration)})")
 
         # Display detection events for debugging (Task 012-03)
         _display_detection_events(match, i, result.matches)
