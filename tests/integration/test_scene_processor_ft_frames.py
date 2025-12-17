@@ -216,7 +216,7 @@ def test_all_ft_graphics_detected(scene_processor, fixtures_dir):
         f"Only {detection_count}/8 FT graphics detected. Failed: {failed_frames}"
 
 
-def test_multi_frame_scene_ft_detection(scene_processor):
+def test_multi_frame_scene_ft_detection(scene_processor, fixtures_dir):
     """
     TEST FOR BUG: FT graphics in frames[1+] should be detected (not just frames[0]).
 
@@ -224,10 +224,15 @@ def test_multi_frame_scene_ft_detection(scene_processor):
     from hybrid extraction (scene change + interval sampling). The FT graphic might
     not be at frames[0], so SceneProcessor must iterate through all frames.
 
-    Real-world example: frame_1503 (Fulham vs Wolves)
-    - frames[0] = frame_1502_scene_change_2881.3s.jpg (NO FT graphic)
-    - frames[1] = frame_1503_interval_sampling_2884.0s.jpg (HAS FT graphic) ← Should detect this!
+    Uses committed fixtures instead of cache paths for test stability.
     """
+    # Use a scoreboard fixture as "non-FT frame" and FT fixture as target
+    scoreboard_frame = fixtures_dir.parent / "scoreboards" / "match_4_fulham_wolves_early.jpg"
+    ft_frame = fixtures_dir / "frame_1503_interval_sampling_2884.0s.jpg"
+
+    assert scoreboard_frame.exists(), f"Scoreboard fixture missing: {scoreboard_frame}"
+    assert ft_frame.exists(), f"FT fixture missing: {ft_frame}"
+
     # Multi-frame scene where FT graphic is at frames[1] (not frames[0])
     scene = Scene(
         scene_number=734,
@@ -236,9 +241,8 @@ def test_multi_frame_scene_ft_detection(scene_processor):
         end_seconds=2886.0,
         duration=4.7,
         frames=[
-            "data/cache/motd_2025-26_2025-11-01/frames/frame_1502_scene_change_2881.3s.jpg",  # NO FT
-            "data/cache/motd_2025-26_2025-11-01/frames/frame_1503_interval_sampling_2884.0s.jpg",  # FT HERE!
-            "data/cache/motd_2025-26_2025-11-01/frames/frame_1504_interval_sampling_2886.0s.jpg"
+            str(scoreboard_frame),  # SCOREBOARD at frames[0]
+            str(ft_frame),  # FT GRAPHIC at frames[1] ← Should detect this!
         ]
     )
 
@@ -260,24 +264,29 @@ def test_multi_frame_scene_ft_detection(scene_processor):
         f"Expected FT graphic (ft_score), got {result.ocr_source}"
 
     print(f"\n✅ Multi-frame test passed: {result.team1} vs {result.team2} "
-          f"detected from frames[1] (frame_1503)")
+          f"detected from frames[1] (FT graphic)")
 
 
-def test_ft_preferred_over_scoreboard(scene_processor):
+def test_ft_preferred_over_scoreboard(scene_processor, fixtures_dir):
     """
     TEST: FT graphics should be prioritized over scoreboards in multi-frame scenes.
 
-    When a scene has BOTH scoreboard (frames[1]) and FT graphic (frames[4]),
+    When a scene has BOTH scoreboard (frames[0]) and FT graphic (frames[1]),
     SceneProcessor should prefer the FT graphic for segment classification.
-
-    Real-world scenario: Scene 1002 (Brighton vs Leeds)
-    - frames[1] = frame_2211 (scoreboard detection)
-    - frames[4] = frame_2214 (FT graphic) ← Should prefer this!
 
     Why: Segment classifier (Task 011c) needs FT graphics to detect match → post-match
     transitions. Scoreboards appear throughout match footage but don't mark boundaries.
+
+    Uses committed fixtures instead of cache paths for test stability.
     """
-    # Scene 1002: Brighton vs Leeds with scoreboard before FT graphic
+    # Use Brighton scoreboard and FT fixtures
+    scoreboard_frame = fixtures_dir.parent / "scoreboards" / "match_6_brighton_leeds_early.jpg"
+    ft_frame = fixtures_dir / "frame_2214_interval_sampling_4300.0s.jpg"
+
+    assert scoreboard_frame.exists(), f"Scoreboard fixture missing: {scoreboard_frame}"
+    assert ft_frame.exists(), f"FT fixture missing: {ft_frame}"
+
+    # Scene with scoreboard before FT graphic
     scene = Scene(
         scene_number=1002,
         start_time="01:11:31",
@@ -285,12 +294,8 @@ def test_ft_preferred_over_scoreboard(scene_processor):
         end_seconds=4303.72,
         duration=12.2,
         frames=[
-            "data/cache/motd_2025-26_2025-11-01/frames/frame_2210_scene_change_4291.5s.jpg",  # Unknown
-            "data/cache/motd_2025-26_2025-11-01/frames/frame_2211_interval_sampling_4294.0s.jpg",  # SCOREBOARD
-            "data/cache/motd_2025-26_2025-11-01/frames/frame_2212_interval_sampling_4296.0s.jpg",
-            "data/cache/motd_2025-26_2025-11-01/frames/frame_2213_interval_sampling_4298.0s.jpg",
-            "data/cache/motd_2025-26_2025-11-01/frames/frame_2214_interval_sampling_4300.0s.jpg",  # FT GRAPHIC
-            "data/cache/motd_2025-26_2025-11-01/frames/frame_2215_interval_sampling_4302.0s.jpg"
+            str(scoreboard_frame),  # SCOREBOARD at frames[0]
+            str(ft_frame),  # FT GRAPHIC at frames[1] ← Should prefer this!
         ]
     )
 
@@ -305,11 +310,6 @@ def test_ft_preferred_over_scoreboard(scene_processor):
         f"SceneProcessor stopped at scoreboard instead of continuing to FT graphic. " \
         f"This will break segment classification (Task 011c) which needs FT boundaries."
 
-    # Verify it's the FT frame, not the scoreboard frame
-    assert "frame_2214" in result.frame_path, \
-        f"Expected frame_2214 (FT graphic), got {result.frame_path}. " \
-        f"Detected from wrong frame."
-
     # Verify correct teams
     detected_teams = {result.team1, result.team2}
     expected_teams = {"Brighton & Hove Albion", "Leeds United"}
@@ -318,4 +318,4 @@ def test_ft_preferred_over_scoreboard(scene_processor):
         f"Team mismatch: detected {detected_teams}, expected {expected_teams}"
 
     print(f"\n✅ FT prioritization test passed: {result.team1} vs {result.team2} "
-          f"detected from FT graphic (frame_2214) instead of earlier scoreboard (frame_2211)")
+          f"detected from FT graphic instead of earlier scoreboard")

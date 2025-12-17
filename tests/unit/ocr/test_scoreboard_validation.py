@@ -11,9 +11,11 @@ class TestScoreboardValidation:
     BBC scoreboards follow format: "BBC [CODE] [SCORE]|[SCORE] [CODE]"
     Example: "BBC LIV 0|0 FOR"
 
-    Validation requirements:
-    1. Exactly 2 distinct 3-character team codes (from premier_league_2025_26.json)
-    2. Score pattern (lenient): \d+\s*[-–—|]?\s*\d+
+    Validation requirement (relaxed - Issue #17):
+    - At least 2 distinct 3-character team codes (from premier_league_2025_26.json)
+
+    Note: Score pattern requirement was removed because OCR from cropped
+    scoreboard region doesn't always capture the score.
     """
 
     @pytest.fixture(scope="class")
@@ -113,6 +115,35 @@ class TestScoreboardValidation:
         ]
         assert ocr_reader.validate_scoreboard(ocr_results) is True
 
+    def test_valid_two_codes_without_score(self, ocr_reader):
+        """
+        Valid: Two team codes without score should pass (relaxed requirement).
+
+        Rationale: OCR cropped region doesn't always capture score. Two distinct
+        team codes is sufficient to distinguish real scoreboards from noise.
+        Issue #17 root cause fix.
+        """
+        ocr_results = [
+            {'text': 'BUR', 'confidence': 1.0},
+            {'text': 'ARS', 'confidence': 1.0},
+        ]
+        assert ocr_reader.validate_scoreboard(ocr_results) is True
+
+    def test_valid_two_codes_with_noise_without_score(self, ocr_reader):
+        """
+        Valid: Two team codes with noise but no score should pass.
+
+        Matches real OCR output from failing integration test frames.
+        Issue #17 root cause fix.
+        """
+        ocr_results = [
+            {'text': 'BBC', 'confidence': 0.9},
+            {'text': 'FOR', 'confidence': 1.0},
+            {'text': 'MNU', 'confidence': 1.0},
+            {'text': 'Referee', 'confidence': 0.8},
+        ]
+        assert ocr_reader.validate_scoreboard(ocr_results) is True
+
     # =========================================================================
     # SHOULD FAIL (Reject Invalid)
     # =========================================================================
@@ -144,14 +175,19 @@ class TestScoreboardValidation:
         ]
         assert ocr_reader.validate_scoreboard(ocr_results) is False
 
-    def test_invalid_codes_no_score(self, ocr_reader):
-        """Invalid: BBC LIV FOR (team codes but no score)."""
+    def test_valid_codes_no_score(self, ocr_reader):
+        """
+        Valid: BBC LIV FOR (team codes but no score).
+
+        Issue #17: Relaxed validation - score pattern no longer required.
+        Two team codes is sufficient to distinguish real scoreboards from noise.
+        """
         ocr_results = [
             {'text': 'BBC'},
             {'text': 'LIV'},
             {'text': 'FOR'}
         ]
-        assert ocr_reader.validate_scoreboard(ocr_results) is False
+        assert ocr_reader.validate_scoreboard(ocr_results) is True
 
     def test_invalid_single_team_code(self, ocr_reader):
         """Invalid: LIV 0|0 (only 1 team code, need exactly 2)."""

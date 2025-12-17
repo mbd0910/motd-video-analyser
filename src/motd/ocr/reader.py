@@ -289,13 +289,17 @@ class OCRReader:
         BBC scoreboards follow format: "BBC [CODE] [SCORE]|[SCORE] [CODE]"
         Example: "BBC LIV 0|0 FOR"
 
-        Requirements:
-        1. Score pattern (lenient, same as FT validation): \\d+\\s*[-–—|]?\\s*\\d+
-        2. At least 2 distinct 3-character team codes (loaded from teams JSON)
+        Requirement (relaxed - Issue #17):
+        - At least 2 distinct 3-character team codes (loaded from teams JSON)
+
+        Note: Score pattern requirement removed because OCR from cropped
+        scoreboard region (0,0 to 370x70) doesn't always capture the score.
+        Two distinct team codes is sufficient to distinguish real scoreboards
+        from noise (intro montage, studio overlays, etc.).
 
         This filters out:
         - Intro montage graphics ("The CL UB BALL")
-        - Studio overlays with team mentions but no score
+        - Studio overlays with team mentions but no teams
         - Partial/corrupt OCR reads
 
         Args:
@@ -310,26 +314,20 @@ class OCRReader:
         # Extract all OCR text (uppercase for case-insensitive matching)
         all_text = ' '.join([r.get('text', '').upper() for r in ocr_results])
 
-        # Check for score pattern (lenient - same as FT validation)
-        # Matches "2-1", "0 - 0", "2 0", "3 | 0", "1–0" (en dash), "1—0" (em dash)
-        score_pattern = r'\b\d+\s*[-–—|]?\s*\d+\b'
-        has_score = bool(re.search(score_pattern, all_text))
-
         # Check for at least 2 distinct 3-character team codes
         # Split text into words and find exact matches against valid codes
         words = all_text.split()
         found_codes = set(w for w in words if w in self.valid_team_codes)
         has_two_codes = len(found_codes) >= 2
 
-        if has_score and has_two_codes:
+        if has_two_codes:
             logger.debug(
-                f"Scoreboard validation passed: codes={found_codes}, score pattern found"
+                f"Scoreboard validation passed: codes={found_codes}"
             )
             return True
 
         logger.debug(
-            f"Scoreboard validation failed: codes={found_codes} (need 2), "
-            f"score={has_score}"
+            f"Scoreboard validation failed: codes={found_codes} (need 2)"
         )
         return False
 
