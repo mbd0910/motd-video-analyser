@@ -4,11 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Context
 
-**Core pipeline operational** (scene detection, OCR, transcription). **Tasks 001-012 complete**: Running Order Detection (100% accuracy: 7/7 matches) + Match Boundary Detection (100% accuracy: ±1.27s avg error). **New work uses GitHub Issues** - see [Issue Workflow](.claude/commands/issue-workflow.md).
+**LLM-based analysis workflow operational.** The pipeline extracts scenes, OCR, and transcripts, then generates a prompt for Claude to analyse episode segments. **New work uses GitHub Issues** - see [Issue Workflow](.claude/commands/issue-workflow.md).
 
 ## What This Project Does
 
-**MOTD Analyser** - Automated video analysis pipeline to objectively measure coverage bias in BBC's Match of the Day. Analyses running order, airtime distribution, and post-match analysis patterns from MOTD episodes (2025/26 season).
+**MOTD Analyser** - Video analysis pipeline to objectively measure coverage bias in BBC's Match of the Day. Uses LLM-based analysis to identify running order, segment boundaries, and airtime distribution from MOTD episodes (2025/26 season).
+
+**Workflow:** Run automated pipeline → Generate LLM prompt → Claude analysis → Save structured JSON
 
 **User goal**: Settle football fan debates ("we're never on first!", "there's an agenda against my team") with data, not perception.
 
@@ -98,6 +100,8 @@ These used sequential numbering - preserved for historical context only.
 - **Config**: PyYAML
 - **Python**: 3.12.7
 
+**Note:** Scene detection, OCR, and transcription produce **advisory hints** for the LLM prompt. The actual segment analysis is performed by Claude via the `generate-llm-prompt` workflow.
+
 **Why faster-whisper is critical**: Standard openai-whisper takes 10-15 minutes per 90-minute video. faster-whisper does it in 3-4 minutes with identical accuracy. See [docs/tech-tradeoffs.md](docs/tech-tradeoffs.md) for benchmarks.
 
 ### If You Need to Pivot
@@ -112,6 +116,12 @@ See [docs/tech-tradeoffs.md](docs/tech-tradeoffs.md) for alternatives:
 # REQUIRED: Activate Python virtual environment before all Python commands
 source venv/bin/activate
 
+# Run full pipeline (stages 1-3: scenes, OCR, transcription)
+python -m motd run data/videos/motd_2025-26_2025-11-01.mp4
+
+# Generate LLM prompt for Claude analysis
+python -m motd generate-llm-prompt motd_2025-26_2025-11-01
+
 # Check video file properties (resolution, duration, codec)
 ffprobe -v error -select_streams v:0 -show_entries stream=width,height,duration,codec_name -of default=noprint_wrappers=1 video.mp4
 
@@ -125,7 +135,7 @@ pytest tests/test_scene_detection.py -v
 ls -lh data/cache/{episode_id}/
 
 # Validate JSON output files
-python -m json.tool data/output/analysis.json > /dev/null && echo "Valid JSON" || echo "Invalid JSON"
+python -m json.tool data/analysis/{episode_id}/analysis.json > /dev/null && echo "Valid JSON" || echo "Invalid JSON"
 
 # Check if cache exists before running expensive operation
 [ -f data/cache/{episode_id}/transcript.json ] && echo "Cache exists" || echo "Need to run transcription"
@@ -155,16 +165,14 @@ Each task has validation checklists - see individual task files in [docs/tasks/]
 ## Where to Find Information
 
 - **"What is this project?"** → [README.md](README.md) (overview, quick start, current results)
-- **"How does the algorithm work?"** → [docs/algorithm.md](docs/algorithm.md) (plain-English strategy explanation)
+- **"How does the workflow work?"** → [docs/algorithm.md](docs/algorithm.md) (LLM-based analysis workflow)
 - **"What does X mean?"** → [docs/domain/README.md](docs/domain/README.md) (domain glossary - FT graphics, running order, etc.)
 - **"What are the business rules?"** → [docs/domain/business_rules.md](docs/domain/business_rules.md) (validation logic, accuracy requirements)
 - **"How long do segments last?"** → [docs/domain/visual_patterns.md](docs/domain/visual_patterns.md) (episode structure, timings)
-- **"How do I implement X?"** → [docs/roadmap.md](docs/roadmap.md) (detailed code examples)
+- **"What JSON does Claude return?"** → [docs/domain/analysis_schema.md](docs/domain/analysis_schema.md) (LLM output schema)
 - **"Why this library?"** → [docs/tech-tradeoffs.md](docs/tech-tradeoffs.md) (comparisons + alternatives)
-- **"What's next?"** → [docs/tasks/README.md](docs/tasks/README.md) (task list + status)
-- **"What should the output look like?"** → [docs/prd.md](docs/prd.md) section 3.4 (JSON schema)
-- **"What's the big picture?"** → [docs/architecture.md](docs/architecture.md) (technical reference - OCR regions, Pydantic models, performance)
-- **"How do I start?"** → [docs/tasks/001-environment-setup.md](docs/tasks/001-environment-setup.md) (first task)
+- **"What's next?"** → [GitHub Issues](https://github.com/mbd0910/motd-video-analyser/issues) (current work items)
+- **"What's the big picture?"** → [docs/architecture.md](docs/architecture.md) (technical reference - pipeline stages, caching, performance)
 
 ## Documentation Navigation (For Claude Sessions)
 
@@ -196,8 +204,8 @@ graph TD
 
 #### 🆕 "I'm new to this project"
 **Read in order:**
-1. [README.md](README.md) - Overview, quick start, current results (7/7 matches, 100% accuracy)
-2. [docs/algorithm.md](docs/algorithm.md) - Understand the high-level strategy (venue + clustering + OCR)
+1. [README.md](README.md) - Overview, quick start, current results
+2. [docs/algorithm.md](docs/algorithm.md) - Understand the LLM-based workflow
 3. [docs/architecture.md](docs/architecture.md) - Technical deep dive (only if implementing code)
 
 **Time**: 10-15 mins reading
@@ -206,11 +214,11 @@ graph TD
 
 #### ⚙️ "I'm implementing a feature"
 **Read in order:**
-1. [docs/algorithm.md](docs/algorithm.md) - Understand high-level approach (e.g., Step 3 for match boundaries)
-2. [docs/domain/](docs/domain/) - Business rules, visual patterns (if match boundary/segment related)
-   - [business_rules.md](docs/domain/business_rules.md) - 5 core rules (FT validation, episode manifest, opponent inference)
+1. [docs/algorithm.md](docs/algorithm.md) - Understand LLM workflow and advisory hints
+2. [docs/domain/](docs/domain/) - Business rules, visual patterns
+   - [business_rules.md](docs/domain/business_rules.md) - Validation rules for OCR hints
    - [visual_patterns.md](docs/domain/visual_patterns.md) - Episode structure, timing patterns
-3. [docs/architecture.md](docs/architecture.md) - Specific section only (e.g., Section 4.6 for match boundaries)
+3. [docs/architecture.md](docs/architecture.md) - Pipeline stages (scene detection, OCR, transcription)
 4. Existing code in `src/motd/` - Read implementation before modifying
 
 **Skip**: Full architecture.md (too long), completed task files
@@ -220,11 +228,10 @@ graph TD
 #### 🐛 "I'm debugging an issue"
 **Read in order:**
 1. [docs/architecture.md](docs/architecture.md) - Technical reference for the failing stage
-   - Section 4.2: OCR issues (FT graphics, scoreboards, opponent inference)
-   - Section 4.5: Running order detection
-   - Section 4.6: Match boundary detection (venue, clustering, team mention)
+   - Section 4.2: OCR processing (FT graphics, scoreboards)
+   - Section 4.4: Transcription
    - Section 9: Performance bottlenecks
-2. [docs/algorithm.md](docs/algorithm.md) - Context on why it should work that way
+2. [docs/algorithm.md](docs/algorithm.md) - Context on the LLM workflow
 3. [docs/domain/business_rules.md](docs/domain/business_rules.md) - Validation requirements (if validation failing)
 
 **Focus**: Error messages, stack traces, validation failures
@@ -233,12 +240,12 @@ graph TD
 
 #### 📊 "I'm understanding business logic"
 **Read in order:**
-1. [docs/domain/business_rules.md](docs/domain/business_rules.md) - 5 core rules with source code links
-   - Rule 1: FT graphic validation (≥1 team, score pattern, FT text)
-   - Rule 2: Episode manifest constraint (search space reduction, confidence boost)
-   - Rule 3: Opponent inference (70% recovery rate)
+1. [docs/domain/business_rules.md](docs/domain/business_rules.md) - Validation rules for OCR hints
+   - FT graphic validation (≥1 team, score pattern, FT text)
+   - Episode manifest constraint (search space reduction)
+   - Opponent inference from fixtures
 2. [docs/domain/visual_patterns.md](docs/domain/visual_patterns.md) - Episode structure, timing patterns
-3. [docs/algorithm.md](docs/algorithm.md) - How rules are applied in practice (Step 2 for Rule 3 example)
+3. [docs/domain/analysis_schema.md](docs/domain/analysis_schema.md) - LLM output schema
 
 **Skip**: architecture.md (too technical for business logic questions)
 
@@ -258,11 +265,11 @@ graph TD
 
 #### ✅ "I'm adding tests"
 **Read in order:**
-1. [docs/algorithm.md](docs/algorithm.md) - Understand expected behavior (e.g., Step 3 for boundary detection)
+1. [docs/algorithm.md](docs/algorithm.md) - Understand expected behavior
 2. Existing code in `src/motd/` - Read implementation to test
 3. [.claude/commands/references/testing_guidelines.md](.claude/commands/references/testing_guidelines.md) - Testing patterns
 
-**Current tests**: 46/46 passing (Task 012)
+**Current tests**: 46/46 passing
 
 ---
 
@@ -294,15 +301,14 @@ graph TD
 
 | Misconception | Reality | Read This |
 |---------------|---------|-----------|
+| "OCR/rule-based detection is the primary analysis" | **LLM-based** - OCR/transcription produce hints for Claude | [algorithm.md](docs/algorithm.md) |
 | "Frame extraction is just 2-second intervals" | **HYBRID** (scene changes + 2s intervals + deduplication) | [architecture.md#4.2](docs/architecture.md#42-ocr-processing) |
-| "Scoreboards are the main OCR target" | **FT graphics PRIMARY** (90-95% accuracy), scoreboards BACKUP (75-85%) | [algorithm.md Step 2](docs/algorithm.md#step-2-running-order-detection-which-teams-in-which-order) |
 | "Transcription takes 3-4 minutes" | **15-20 minutes** (CPU-bound on M3 Pro, no MPS support yet) | [architecture.md#9](docs/architecture.md#9-performance-considerations) |
-| "Match boundaries use one strategy" | **THREE strategies** (venue + clustering + team mention), all implemented | [algorithm.md Step 3](docs/algorithm.md#step-3-match-boundary-detection-when-does-each-match-start) |
-| "Clustering is theoretical" | **Fully implemented** (7/7 matches, 100% agreement with venue) | [architecture.md#4.6](docs/architecture.md#46-match-boundary-detection) |
 | "OCR works on 1080p video" | **720p coordinates** in config (verify with ffprobe) | [architecture.md#4.2](docs/architecture.md#42-ocr-processing) |
+| "Analysis results go in data/cache/" | **data/analysis/{episode_id}/analysis.json** | [analysis_schema.md](docs/domain/analysis_schema.md) |
 
 ---
 
-**Remember**: This is a marathon, not a sprint. The planning is done. Now execute methodically, one task at a time, with validation at every step.
+**Remember**: This is a marathon, not a sprint. Execute methodically, one task at a time.
 
 Up the Addicks! ⚽🔴⚪

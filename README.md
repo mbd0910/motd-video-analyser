@@ -28,6 +28,26 @@ The MOTD Analyser automatically processes Match of the Day episodes (2025/26 sea
 
 ## How It Works
 
+### The Workflow
+
+The analyser uses an **LLM-based workflow** for segment detection:
+
+1. **Run automated pipeline** - Extract scenes, detect teams via OCR, transcribe audio
+2. **Generate LLM prompt** - Combines transcript + advisory hints (OCR detections, fixtures)
+3. **Claude analysis** - Paste prompt into Claude web UI, receive structured JSON
+4. **Save results** - Store analysis.json in source control
+
+The LLM approach is preferred over the rule-based detection we tried first, which struggled with nuanced segment boundaries.
+
+### What the Pipeline Produces
+
+The automated stages provide **advisory hints** to improve LLM accuracy:
+
+- **Scene Detection** - Frame extraction (~2,600 frames per episode)
+- **OCR** - FT graphics and scoreboard timestamps (anchor segment boundaries)
+- **Transcription** - Word-level timestamps for the full episode
+- **Fixtures** - Expected matches for the broadcast date
+
 ### Episode Structure
 
 Every Match of the Day episode follows a predictable pattern:
@@ -41,55 +61,7 @@ graph LR
     E --> F[League Table Review]
 ```
 
-### Multi-Strategy Detection
-
-The pipeline uses **three complementary strategies** to detect match boundaries with 100% accuracy:
-
-#### 1. Visual Analysis (OCR)
-- **FT Graphics** (primary): Full-time score graphics in lower-middle screen (90-95% accuracy)
-- **Scoreboards** (backup): Top-left scoreboards during highlights (75-85% accuracy)
-- **Hybrid Frame Extraction**: Combines scene change detection + 2-second interval sampling
-
-#### 2. Venue Detection
-- Searches backward from highlights start for stadium mentions ("Anfield", "Emirates", etc.)
-- Fuzzy matches against known Premier League venues
-- Validates against expected fixtures
-- **Results**: 7/7 matches detected, ±1.27s average error
-
-#### 3. Temporal Clustering
-- Analyses when teams are mentioned together in the audio transcript
-- Identifies dense clusters of co-mentions (sliding 20-second windows)
-- Returns earliest mention in densest cluster
-- **Results**: 7/7 matches, 100% agreement with venue strategy
-
-### Cross-Validation
-
-All three strategies run independently, then cross-validate:
-- ≤10s difference: ✅ Validated (confidence 1.0)
-- ≤30s difference: ⚠️ Minor discrepancy (confidence 0.8)
-- \>30s difference: ❌ Manual review required (confidence 0.5)
-
-**Current validation rate**: 7/7 matches with 0.0s difference between venue and clustering strategies.
-
-### Fixture-Based Intelligence
-
-The pipeline doesn't guess - it uses **episode manifests** with expected fixtures:
-
-```json
-{
-  "episode_id": "motd_2025-26_2025-11-01",
-  "expected_matches": [
-    "2025-11-01-liverpool-astonvilla",
-    "2025-11-01-burnley-arsenal"
-  ]
-}
-```
-
-**Benefits**:
-- 30% search space reduction (14 teams vs 20 in Premier League)
-- +10% confidence boost for expected teams
-- False positive filtering (rejects replays, promos, rival mentions)
-- Opponent inference (if OCR detects only 1 team, infer the other from fixtures)
+The LLM identifies these segments from the transcript, using OCR hints to anchor timestamps.
 
 ## Technology Stack
 
@@ -129,94 +101,69 @@ pip install -r requirements.txt
 
 ### Usage
 
-#### Production Pipeline (Recommended)
-
-Run the full pipeline with a single command:
+#### Full Workflow
 
 ```bash
-# Activate virtual environment (always required)
+# 1. Activate virtual environment (always required)
 source venv/bin/activate
 
-# Run full pipeline - automatically orchestrates all 4 stages
+# 2. Run automated pipeline (extracts scenes, OCR, transcript)
 python -m motd run data/videos/motd_2025-26_2025-11-01.mp4
 
-# Force full re-run (bypass cache)
-python -m motd run data/videos/motd_2025-26_2025-11-01.mp4 --force
+# 3. Generate LLM prompt
+python -m motd generate-llm-prompt motd_2025-26_2025-11-01
+
+# 4. Copy prompt and paste into Claude web UI
+cat data/cache/motd_2025-26_2025-11-01/transcript_for_llm.txt | pbcopy
+# → Paste into https://claude.ai → Claude returns JSON
+
+# 5. Save Claude's JSON response
+# → Save to data/analysis/motd_2025-26_2025-11-01/analysis.json
 ```
 
-**What happens:**
-1. **Scene Detection** - Extracts frames using hybrid sampling (~2,600 frames per episode)
-2. **Team Detection** - Runs OCR on frames to identify FT graphics and scoreboards
-3. **Transcription** - Transcribes audio with word-level timestamps
-4. **Analysis** - Detects match boundaries using venue + clustering strategies
-
-**Smart Caching:**
-- Completed stages are automatically skipped on re-runs (< 1 minute for cached episodes)
-- Cache invalidated when configuration changes
-- Use `--force` to bypass all caches
-
-**Performance** (M3 Pro, 90-minute episode):
+**Pipeline Performance** (M3 Pro, 90-minute episode):
 - **First run**: ~30-35 minutes total
   - Stage 1 (scenes): ~5-8 minutes
   - Stage 2 (OCR): ~8-12 minutes
-  - Stage 3 (transcription): ~15-20 minutes (CPU-bound, waiting for MPS support)
-  - Stage 4 (analysis): <1 minute
+  - Stage 3 (transcription): ~15-20 minutes (CPU-bound)
 - **Cached run**: <1 minute (all stages skipped)
 
-#### Advanced Usage (Individual Stages)
-
-Run individual stages for debugging or development:
+#### LLM Prompt Options
 
 ```bash
-# 1. Scene Detection
-python -m motd detect-scenes data/videos/motd_2025-26_2025-11-01.mp4
-
-# 2. Team Detection
-python -m motd extract-teams \
-  --scenes data/cache/motd_2025-26_2025-11-01/scenes.json \
-  --episode-id motd_2025-26_2025-11-01
-
-# 3. Transcription
-python -m motd transcribe data/videos/motd_2025-26_2025-11-01.mp4
-
-# 4. Analysis
-python -m motd analyze-running-order motd_2025-26_2025-11-01
-```
-
-#### LLM-Based Analysis (New - Semi-Automated)
-
-For more flexible segment detection, generate a prompt for Claude:
-
-```bash
-# Generate LLM-ready prompt file
+# Standard prompt (with OCR hints)
 python -m motd generate-llm-prompt motd_2025-26_2025-11-22
 
 # Without OCR hints
 python -m motd generate-llm-prompt motd_2025-26_2025-11-22 --no-hints
 
-# Force overwrite existing
+# Force overwrite existing prompt
 python -m motd generate-llm-prompt motd_2025-26_2025-11-22 --force
-```
-
-**What happens:**
-1. Loads transcript.json and deduplicates Whisper "stutters"
-2. Extracts FT graphics and first scoreboard timestamps as advisory hints
-3. Builds prompt with fixtures, segment definitions, JSON schema
-4. Writes to `data/cache/{episode_id}/transcript_for_llm.txt`
-
-**Usage:**
-```bash
-# Copy to clipboard (macOS)
-cat data/cache/motd_2025-26_2025-11-22/transcript_for_llm.txt | pbcopy
-
-# Paste into Claude web UI at https://claude.ai
-# Claude returns structured JSON with segment timestamps
 ```
 
 **Output schema** (what Claude returns):
 - Episode segments: intro, league_table, next_motd_promo, outro
 - Match segments: studio_intro, lineups, highlights, post_match_interviews, studio_analysis
 - All timestamps have independent start/end (either can be null)
+
+See [analysis_schema.md](docs/domain/analysis_schema.md) for the complete JSON schema.
+
+#### Individual Pipeline Stages
+
+Run individual stages for debugging or development:
+
+```bash
+# Scene Detection
+python -m motd detect-scenes data/videos/motd_2025-26_2025-11-01.mp4
+
+# Team Detection (OCR)
+python -m motd extract-teams \
+  --scenes data/cache/motd_2025-26_2025-11-01/scenes.json \
+  --episode-id motd_2025-26_2025-11-01
+
+# Transcription
+python -m motd transcribe data/videos/motd_2025-26_2025-11-01.mp4
+```
 
 ### Example Output
 
@@ -246,31 +193,31 @@ motd-video-analyser/
 │   ├── scene_detection/         # PySceneDetect integration
 │   ├── ocr/                     # EasyOCR + team matching
 │   ├── transcription/           # faster-whisper integration
-│   ├── analysis/                # Running order + boundary detection
+│   ├── llm/                     # LLM prompt generation
 │   └── pipeline/                # Pydantic models
 ├── data/
 │   ├── teams/                   # Premier League teams 2025/26
 │   ├── fixtures/                # Match schedules
-│   ├── venues/                  # Stadium names + aliases
 │   ├── episodes/                # Episode manifests
-│   └── cache/                   # Cached results (gitignored)
+│   ├── analysis/                # LLM analysis results (committed)
+│   └── cache/                   # Pipeline cache (gitignored)
 ├── docs/
 │   ├── tasks/                   # Task-driven development workflow
 │   ├── domain/                  # Business rules + visual patterns
 │   ├── architecture.md          # Technical reference
-│   └── algorithm.md             # High-level strategy explanation
+│   └── algorithm.md             # LLM workflow overview
 └── tests/                       # pytest test suite
 ```
 
 ## Documentation
 
-- **[algorithm.md](docs/algorithm.md)** - High-level strategy explanation (start here!)
-- **[architecture.md](docs/architecture.md)** - Technical reference documentation
+- **[algorithm.md](docs/algorithm.md)** - LLM-based workflow overview (start here!)
+- **[analysis_schema.md](docs/domain/analysis_schema.md)** - JSON schema for LLM output
+- **[architecture.md](docs/architecture.md)** - Technical reference (pipeline stages)
 - **[Domain Glossary](docs/domain/README.md)** - FT graphics, running order, episode structure
-- **[Business Rules](docs/domain/business_rules.md)** - Validation logic, accuracy requirements
-- **[Visual Patterns](docs/domain/visual_patterns.md)** - Episode timing patterns, ground truth data
+- **[Business Rules](docs/domain/business_rules.md)** - Validation rules for OCR hints
+- **[Visual Patterns](docs/domain/visual_patterns.md)** - Episode timing patterns
 - **[Tech Tradeoffs](docs/tech-tradeoffs.md)** - Library comparisons and alternatives
-- **[Tasks](docs/tasks/README.md)** - Development roadmap (001-015)
 
 ## Current Results
 
@@ -278,12 +225,9 @@ motd-video-analyser/
 
 | Metric | Result |
 |--------|--------|
-| Running Order Accuracy | 7/7 matches (100%) |
-| Match Boundary Detection | 7/7 matches (100%) |
-| Average Timing Error | ±1.27 seconds |
-| Cross-Validation Agreement | 7/7 matches (0.0s difference) |
 | OCR Accuracy (FT Graphics) | 90-95% |
 | Transcription Time (CPU) | ~15-20 minutes |
+| LLM Prompt Generation | ~22k tokens |
 | Tests Passing | 46/46 ✅ |
 
 ## Development Workflow

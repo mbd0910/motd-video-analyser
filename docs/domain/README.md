@@ -1,6 +1,6 @@
 # Domain Documentation
 
-**Purpose:** This directory contains the single source of truth for MOTD Analyser's business domain knowledge, terminology, and rules. All sub-tasks should reference these documents rather than duplicating context.
+**Purpose:** This directory contains the single source of truth for MOTD Analyser's business domain knowledge, terminology, and rules. The analyser uses an LLM-based workflow where the automated pipeline extracts advisory hints, and Claude performs the actual segment analysis.
 
 ---
 
@@ -8,10 +8,11 @@
 
 1. [Glossary](#glossary) - Core terminology and definitions
 2. [Data Relationships](#data-relationships) - How episodes, fixtures, and teams relate
-3. [Key Workflows](#key-workflows) - Common business processes
+3. [Key Workflows](#key-workflows) - Advisory hint extraction for LLM analysis
 
 **Related Documentation:**
-- [Business Rules](business_rules.md) - Detailed validation and processing rules
+- [Analysis Schema](analysis_schema.md) - LLM output JSON structure
+- [Business Rules](business_rules.md) - Validation rules for OCR hints
 - [Visual Patterns](visual_patterns.md) - MOTD episode structure and visual elements
 
 ---
@@ -525,275 +526,66 @@ Action: Flag as low-confidence detection, require additional validation
 
 ## Key Workflows
 
-### Workflow 1: OCR Fallback Strategy
+**Note:** These workflows describe how the automated pipeline extracts **advisory hints** for LLM analysis. The actual segment classification and running order detection is performed by Claude using the transcript and these hints.
 
-When processing a frame to detect teams and scores:
+### Workflow 1: OCR Hint Extraction
 
-```
-┌─────────────────────────────────────────────────┐
-│ Frame Input (e.g., frame_0329_scene_change_607.3s) │
-└─────────────────────────────────────────────────┘
-                     │
-                     ▼
-    ┌────────────────────────────────────────┐
-    │ Step 1: Try to Extract FT Graphic      │
-    │ Region: ft_score [320, 200, 640, 200]  │
-    └────────────────────────────────────────┘
-                     │
-          ┌──────────┴──────────┐
-          │                     │
-         YES                   NO
-          │                     │
-          ▼                     ▼
-  ┌───────────────────┐  ┌──────────────────────────────┐
-  │ Valid FT Graphic? │  │ Step 2: Try Extract Scoreboard│
-  │ - 2 teams         │  │ Region: scoreboard [20,20...]│
-  │ - Score present   │  └──────────────────────────────┘
-  │ - "FT" text       │                 │
-  └───────────────────┘      ┌──────────┴─────────┐
-          │                  │                    │
-          │                 YES                  NO
-          │                  │                    │
-          │                  ▼                    ▼
-          │          ┌──────────────────┐  ┌─────────────────────┐
-          │          │ Valid Scoreboard?│  │ Step 3: Try Opponent│
-          │          │ - 1-2 teams      │  │ Inference           │
-          │          │ - Score pattern  │  │ - 1 team detected?  │
-          │          └──────────────────┘  │ - Lookup fixture    │
-          │                  │             └─────────────────────┘
-          │                  │                       │
-          │                  │             ┌─────────┴────────┐
-          │                  │            YES               NO
-          │                  │             │                 │
-          │                  │             ▼                 ▼
-          │                  │    ┌────────────────┐  ┌──────────┐
-          │                  │    │ Infer Opponent │  │   SKIP   │
-          │                  │    │ from Fixtures  │  │  FRAME   │
-          │                  │    │ Confidence:0.75│  └──────────┘
-          │                  │    └────────────────┘
-          │                  │             │
-          ▼                  ▼             ▼
-    ┌──────────────────────────────────────────┐
-    │         Return ProcessedScene            │
-    │                                          │
-    │ FT Graphic:  Confidence = 0.95          │
-    │ Scoreboard:  Confidence = 0.80          │
-    │ Inferred:    Confidence = 0.75          │
-    └──────────────────────────────────────────┘
-```
+The OCR stage extracts team detections to help the LLM anchor segment boundaries:
 
-**Confidence Levels by Source:**
-- **FT Graphic:** 0.95 (gold standard - clean text, static, both teams visible)
-- **Scoreboard:** 0.80 (fallback - motion blur, smaller text, partial visibility)
-- **Opponent Inference:** 0.75 (derived - one team OCR'd, other inferred from fixture)
-- **Formation:** 0.70 (lowest - no score validation, single team visible)
+**Priority Order:**
+1. **FT Graphics** (0.95 confidence) - Clean text, static, both teams visible
+2. **Scoreboards** (0.80 confidence) - Motion blur, smaller text
+3. **Opponent Inference** (0.75 confidence) - One team OCR'd, other inferred from fixture
 
-**Why This Order:**
-1. FT graphics are most reliable (static, clean, complete information)
-2. Scoreboards are available throughout highlights (fallback for missed FT graphics)
-3. Opponent inference leverages fixture knowledge (better than skipping frame)
+**FT Graphic Validation:**
+- ≥1 team detected
+- Score pattern present (e.g., "2-0", "3 | 1")
+- "FT" text present
 
-**Edge Cases:**
-- If FT validation passes but only 1 team detected → Use opponent inference
-- If scoreboard detected but duration < 60s → Flag as potential false positive
-- If no teams detected after all 3 steps → Skip frame (insufficient data)
+**Output:** OCR hints included in LLM prompt via `generate-llm-prompt` command.
 
 ---
 
 ### Workflow 2: Fixture-Aware Team Matching
 
-When OCR extracts text from a frame:
+When OCR extracts text, it validates against the episode manifest:
 
-```
-┌──────────────────────────────────────┐
-│ OCR Extracted Text: "Liverpool 2 0"  │
-└──────────────────────────────────────┘
-                │
-                ▼
-    ┌───────────────────────────────┐
-    │ Step 1: Fuzzy Match Teams     │
-    │ - Split text into tokens      │
-    │ - Match against PL team list  │
-    │ - RapidFuzz similarity > 85%  │
-    └───────────────────────────────┘
-                │
-                ▼
-        ┌───────────────────┐
-        │ Match: "Liverpool"│
-        │ Confidence: 0.92  │
-        └───────────────────┘
-                │
-                ▼
-    ┌─────────────────────────────────────┐
-    │ Step 2: Fixture Validation          │
-    │ - Load episode expected_matches     │
-    │ - Is "Liverpool" in any fixture?    │
-    └─────────────────────────────────────┘
-                │
-        ┌───────┴────────┐
-       YES              NO
-        │                │
-        ▼                ▼
-┌───────────────────┐  ┌──────────────────────────┐
-│ Fixture Found:    │  │ Flag as Potential Error: │
-│ liverpool-        │  │ - Not in expected_matches│
-│ astonvilla        │  │ - Could be replay/promo  │
-│                   │  │ - Lower confidence       │
-│ Confidence: +10%  │  └──────────────────────────┘
-│ → 0.92 + 0.10     │
-│ = 1.0 (capped)    │
-└───────────────────┘
-        │
-        ▼
-┌─────────────────────────────────────────┐
-│ Step 3: Opponent Lookup                 │
-│ - Fixture: liverpool-astonvilla         │
-│ - Expected opponent: "Aston Villa"      │
-│ - Check if second team detected in OCR  │
-└─────────────────────────────────────────┘
-        │
-    ┌───┴────┐
-   YES       NO
-    │         │
-    ▼         ▼
-┌────────────────┐  ┌──────────────────────┐
-│ Verify Match:  │  │ Infer Opponent:      │
-│ - Is 2nd team  │  │ - Only 1 team in OCR │
-│   "Aston Villa"│  │ - Add "Aston Villa"  │
-│ - Confidence:  │  │ - Confidence: 0.75   │
-│   0.95 (both   │  │ - Mark as inferred   │
-│   teams OCR'd) │  └──────────────────────┘
-└────────────────┘
-```
+**Process:**
+1. Fuzzy match extracted text against Premier League team names (RapidFuzz > 85%)
+2. Validate against episode's expected_matches (14 teams from 7 fixtures)
+3. If only 1 team detected → infer opponent from fixture pairing
 
-**Benefits of Fixture-Aware Matching:**
-1. **Reduced false positives** - Rejects teams not in this episode
-2. **Confidence boost** - Expected teams get +10% confidence
-3. **Opponent inference** - Can complete partial OCR results
-4. **Validation** - Verifies team pairings match actual fixtures
+**Benefits:**
+- Reduced false positives (rejects teams not in this episode)
+- Opponent inference (completes partial OCR results)
+- Canonical team names (corrects OCR errors)
 
-**Example 1: Successful Validation**
-```
-OCR: "Liverpool" + "Aston Villa" detected
-Fixture check: liverpool-astonvilla exists in expected_matches ✓
-Result: Both teams confirmed, confidence = 0.95
-```
-
-**Example 2: Opponent Inference**
-```
-OCR: "Liverpool" detected, second team missing (non-bold font)
-Fixture check: liverpool-astonvilla exists in expected_matches ✓
-Infer opponent: "Aston Villa" (from fixture pairing)
-Result: Liverpool (OCR'd, 0.92) + Aston Villa (inferred, 0.75)
-```
-
-**Example 3: Invalid Team Detected**
-```
-OCR: "Manchester United" detected
-Fixture check: No fixture with Man Utd in expected_matches ✗
-Result: Flag as potential false positive (replay/promo?)
-Action: Require additional validation (FT text, score, etc.)
-```
+**Output:** Team detections with timestamps included in LLM prompt.
 
 ---
 
-### Workflow 3: Segment Classification (Multi-Signal)
+### Workflow 3: Segment Classification
 
-When classifying a scene into one of 4 segment types:
+**Approach:** LLM-based analysis via Claude
 
-```
-┌──────────────────────────────────┐
-│ Scene Input (e.g., Scene #47)    │
-│ Duration: 8.3 seconds            │
-│ Frames: 249 frames (30fps)       │
-└──────────────────────────────────┘
-              │
-              ▼
-┌──────────────────────────────────────────┐
-│ Signal 1: OCR Scoreboard Detection       │
-│ - Run OCR on sample frames               │
-│ - Check scoreboard region [20,20,300,80] │
-└──────────────────────────────────────────┘
-              │
-      ┌───────┴────────┐
-     YES              NO
-      │                │
-      ▼                ▼
-┌──────────────┐  ┌────────────────────────────────┐
-│ HIGHLIGHTS   │  │ Signal 2: Transcript Analysis  │
-│ (definitive) │  │ - Extract words for this scene │
-│              │  │ - Count team name mentions     │
-│ Scoreboard = │  └────────────────────────────────┘
-│ match footage│                 │
-└──────────────┘       ┌─────────┴─────────┐
-                       │                   │
-              High mentions (>5)    Low mentions (<2)
-                       │                   │
-                       ▼                   ▼
-            ┌────────────────────┐  ┌──────────────────┐
-            │ Signal 3: Duration │  │ Signal 3: Duration│
-            │ - 45-90s?          │  │ - 7-11s?         │
-            └────────────────────┘  └──────────────────┘
-                       │                   │
-                  ┌────┴─────┐        ┌────┴─────┐
-                 YES        NO       YES        NO
-                  │          │        │          │
-                  ▼          ▼        ▼          ▼
-          ┌──────────┐  ┌─────────────┐  ┌─────────────┐
-          │INTERVIEWS│  │STUDIO       │  │STUDIO       │
-          │          │  │ANALYSIS     │  │INTRO        │
-          │Brief     │  │(2-5 min,    │  │(7-11s,      │
-          │quotes    │  │team         │  │preview)     │
-          │from      │  │discussion)  │  └─────────────┘
-          │players   │  └─────────────┘
-          └──────────┘
-```
+Segment classification is performed by Claude using the transcript and OCR hints. The LLM identifies:
 
-**Signal Priority (Hierarchical Decision Tree):**
+**Episode-level segments:**
+- `intro` - Opening with pundit introductions
+- `league_table` - League standings review (if present)
+- `next_motd_promo` - Promo for next episode (if present)
+- `outro` - Closing credits
 
-1. **OCR Scoreboard** (highest priority)
-   - If scoreboard detected → `highlights` (definitive)
-   - Scoreboard only appears during match footage
+**Per-match segments:**
+- `studio_intro` - Pundit discussion before highlights
+- `lineups` - Formation graphics and team walkthrough
+- `highlights` - Match footage with commentary
+- `post_match_interviews` - Pitchside interviews
+- `studio_analysis` - Post-match pundit discussion
 
-2. **Transcript Team Mentions** (medium priority)
-   - High mentions (>5 per minute) → `studio_analysis` or `highlights`
-   - Low mentions (<2 per minute) → `studio_intro` or `interviews`
+**Output:** `data/analysis/{episode_id}/analysis.json`
 
-3. **Duration Pattern** (lowest priority, tie-breaker)
-   - 7-11 seconds → `studio_intro`
-   - 45-90 seconds → `interviews`
-   - 2-5 minutes → `studio_analysis`
-   - 5-10 minutes → `highlights` (if scoreboard missed)
-
-**Example Classifications:**
-
-**Scene A:**
-- OCR: Scoreboard detected ✓
-- Duration: 6.2 minutes
-- Classification: **`highlights`** (scoreboard is definitive)
-
-**Scene B:**
-- OCR: No scoreboard
-- Transcript: "Liverpool", "Salah", "goal" (8 team mentions)
-- Duration: 3.1 minutes
-- Classification: **`studio_analysis`** (high mentions + medium duration)
-
-**Scene C:**
-- OCR: No scoreboard
-- Transcript: "Now to Anfield" (1 team mention)
-- Duration: 9 seconds
-- Classification: **`studio_intro`** (low mentions + short duration)
-
-**Scene D:**
-- OCR: No scoreboard
-- Transcript: "Klopp" interview quotes (4 mentions)
-- Duration: 72 seconds
-- Classification: **`interviews`** (medium mentions + interview duration)
-
-**Edge Cases:**
-- Scoreboard detected but duration < 60s → Flag as error (highlights never this short)
-- High team mentions but duration > 10 min → Likely multiple scenes merged, re-check scene detection
-- No scoreboard + ambiguous signals → Default to `studio_analysis` (most common non-highlights segment)
+See [analysis_schema.md](analysis_schema.md) for the complete JSON schema.
 
 ---
 
@@ -824,4 +616,4 @@ Key source files implementing domain logic:
 
 ---
 
-**Last Updated:** 2025-11-18 (Task 011b-2 domain documentation initiative)
+**Last Updated:** 2025-12-17 (Issue #12 - LLM workflow documentation update)
