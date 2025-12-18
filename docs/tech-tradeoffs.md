@@ -1,5 +1,7 @@
 # Technology & Library Trade-offs
 
+> **Last reviewed:** 2025-12-18
+
 This document provides detailed analysis of library choices for the MOTD Analyser, including alternatives and migration paths. Use this as a reference if you need to pivot from the chosen technologies.
 
 ---

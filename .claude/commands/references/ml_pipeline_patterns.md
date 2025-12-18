@@ -1,5 +1,7 @@
 # ML Pipeline Patterns
 
+> **Last reviewed:** 2025-12-18
+
 MOTD-specific patterns for video processing, ML operations, and pipeline management.
 
 ---

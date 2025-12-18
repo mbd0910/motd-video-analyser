@@ -1,5 +1,7 @@
 # MOTD Analyser - Algorithm Overview
 
+> **Last reviewed:** 2025-12-18
+
 > **How MOTD Analyser identifies episode segments and match boundaries**
 
 ---

@@ -1,5 +1,7 @@
 # Domain Documentation
 
+> **Last reviewed:** 2025-12-18
+
 **Purpose:** This directory contains the single source of truth for MOTD Analyser's business domain knowledge, terminology, and rules. The analyser uses an LLM-based workflow where the automated pipeline extracts advisory hints, and Claude performs the actual segment analysis.
 
 ---

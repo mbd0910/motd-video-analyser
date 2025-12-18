@@ -1,5 +1,7 @@
 # Code Review Command
 
+> **Last reviewed:** 2025-12-18
+
 Review the current feature branch against a base branch (default: main).
 
 ## Usage

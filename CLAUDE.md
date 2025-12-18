@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+> **Last reviewed:** 2025-12-18
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Context

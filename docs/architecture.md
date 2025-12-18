@@ -1,5 +1,7 @@
 # Match of the Day Analyser - Technical Architecture
 
+> **Last reviewed:** 2025-12-18
+
 ## 1. System Overview
 
 ### Design Principles

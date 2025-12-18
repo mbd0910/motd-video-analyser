@@ -1,5 +1,7 @@
 # Python Coding Guidelines
 
+> **Last reviewed:** 2025-12-18
+
 Guidelines for writing Python code in the MOTD Analyser project.
 
 ---

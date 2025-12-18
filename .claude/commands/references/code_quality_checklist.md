@@ -1,5 +1,7 @@
 # Code Quality Checklist
 
+> **Last reviewed:** 2025-12-18
+
 ## Readability
 
 ### Naming

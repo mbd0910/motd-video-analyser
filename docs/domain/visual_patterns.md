@@ -1,7 +1,8 @@
 # Match of the Day - Visual Pattern Documentation
 
+> **Last reviewed:** 2025-12-18
+
 **Episode:** motd_2025-26_2025-11-01
-**Date Created:** 2025-11-11
 **Purpose:** Document recurring visual patterns in MOTD to guide OCR implementation
 
 ---

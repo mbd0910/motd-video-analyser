@@ -1,8 +1,23 @@
 # Future Enhancements
 
+> **Last reviewed:** 2025-12-18
+
 This document tracks post-MVP improvements, nice-to-haves identified during development, and technical debt to address later.
 
 **Status:** Living document - add items as they're discovered during implementation
+
+---
+
+## Future Directions
+
+High-level ideas for extending the project beyond current scope:
+
+- **Historical seasons** - Process previous MOTD seasons for trend analysis
+- **Lower league coverage** - Championship, League One, League Two highlights shows
+- **Podcast analysis** - Audio-only football content (e.g., The Totally Football Show, Football Weekly)
+- **Sentiment analysis** - Analyse tone of commentary/analysis per team
+- **Dashboard/visualisation** - Interactive web interface for exploring results
+- **Weekly automation** - Schedule processing of new episodes automatically
 
 ---
 
@@ -127,9 +142,7 @@ When implementing this enhancement:
 
 ### References
 
-- Validation report: `docs/validation/010f_accuracy_validation.md`
 - faster-whisper hotwords docs: [CTranslate2 Whisper documentation](https://github.com/SYSTRAN/faster-whisper)
-- Task 010f: `docs/tasks/010-transcription/010f-validation.md`
 
 ---
 

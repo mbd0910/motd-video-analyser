@@ -1,5 +1,7 @@
 # Python Architecture Patterns
 
+> **Last reviewed:** 2025-12-18
+
 Architectural and design pattern guidelines for the MOTD Analyser project.
 
 **Review Level**: These are **advisory** unless marked as "monumental smells" (blocking).

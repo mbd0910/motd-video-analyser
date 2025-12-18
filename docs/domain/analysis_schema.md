@@ -1,5 +1,7 @@
 # LLM Analysis Output Schema
 
+> **Last reviewed:** 2025-12-18
+
 This document defines the JSON structure for LLM-analysed episode data.
 
 ## Storage Location

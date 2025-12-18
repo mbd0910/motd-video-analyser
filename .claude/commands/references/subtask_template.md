@@ -1,5 +1,7 @@
 # Sub-Task Documentation Template
 
+> **Last reviewed:** 2025-12-18
+
 **Purpose:** This template provides a standard structure for all sub-task documentation files. Use this pattern to ensure sub-tasks have consistent context and are easy to understand.
 
 ---
@@ -250,7 +252,7 @@ See [Visual Patterns](../../domain/visual_patterns.md) for ground truth running 
 ```markdown
 ## Quick Context
 
-**Parent Task:** [010-transcription-pipeline](../010-transcription-pipeline/README.md)
+**Parent Task:** [010-transcription](../../docs/tasks/completed/010-transcription/README.md)
 **Domain Concepts:** [Episode](../../domain/README.md#episode), [Scene](../../domain/README.md#scene)
 **Business Rules:** N/A (pure data processing task)
 

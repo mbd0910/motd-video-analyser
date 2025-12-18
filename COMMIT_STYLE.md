@@ -1,5 +1,7 @@
 # Commit Message Style
 
+> **Last reviewed:** 2025-12-18
+
 * All commits should be human-readable summaries **without conventional prefixes**
 * Never use "feat" / "fix" / "docs" / "refactor" type prefixes. Focus on human readable sentences instead.
 

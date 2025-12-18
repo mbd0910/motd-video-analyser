@@ -1,5 +1,7 @@
 # Testing Guidelines
 
+> **Last reviewed:** 2025-12-18
+
 Testing conventions and coverage expectations for the MOTD Analyser project.
 
 ---
@@ -495,7 +497,6 @@ def _detect_table_review(self, teams, highlights_end, episode_duration, segments
 
 **See also**:
 - [Code Quality Checklist - Testing Section](code_quality_checklist.md#testing)
-- [Task 012-02 Phase 6](../../docs/tasks/012-classifier-integration/012-02-match-end-detection.md#phase-6-implementation-results-2025-11-20) (real TDD example)
 
 ---
 

@@ -1,61 +1,22 @@
 # Task 001: Environment Setup
 
-## Objective
-Set up Python virtual environment and prepare for project development.
+> **Last reviewed:** 2025-12-18
 
-## Prerequisites
-- Python 3.12.7 installed (via asdf or other version manager)
-- ffmpeg installed (✓ already done)
+## Summary
 
-## Steps
+Set up Python 3.12.7 virtual environment with ffmpeg for video processing.
 
-### 1. Set Python Version
-```bash
-cd /Users/michael/code/motd-video-analyser
-asdf local python 3.12.7
-# or use your preferred version manager
-```
+## Approach
 
-### 2. Create Virtual Environment
-```bash
-python -m venv venv
-```
+- Created Python venv using asdf version manager
+- Verified ffmpeg installation (pre-existing via Homebrew)
+- Configured `.python-version` for consistency
 
-### 3. Activate Virtual Environment
-```bash
-source venv/bin/activate
-```
+## Key Decisions
 
-### 4. Upgrade pip
-```bash
-pip install --upgrade pip
-```
+- **Python 3.12.7** chosen for latest features and compatibility
+- **Virtual environment** in `venv/` directory (gitignored)
 
-### 5. Verify Setup
-```bash
-# Verify Python version
-python --version
-# Should output: Python 3.12.7
+## Outcome
 
-# Verify ffmpeg is installed
-ffmpeg -version
-# Should show ffmpeg version info
-```
-
-## Validation Checklist
-- [x] Virtual environment created successfully
-- [x] Virtual environment activated (you should see `(venv)` in your prompt)
-- [x] pip upgraded to latest version
-- [x] `python --version` shows 3.12.7
-- [x] `ffmpeg -version` works
-
-## Estimated Time
-5-10 minutes
-
-## Notes
-- Keep the virtual environment activated for all subsequent tasks
-- If you need to deactivate: `deactivate`
-- To reactivate later: `source venv/bin/activate`
-
-## Next Task
-[002-create-project-structure.md](002-create-project-structure.md)
+Environment ready for dependency installation. Activate with `source venv/bin/activate`.

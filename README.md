@@ -1,5 +1,7 @@
 # MOTD Analyser
 
+> **Last reviewed:** 2025-12-18
+
 > **Automated video analysis pipeline to objectively measure coverage bias in BBC's Match of the Day**
 
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)

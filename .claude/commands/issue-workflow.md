@@ -1,5 +1,7 @@
 # Issue Workflow Command
 
+> **Last reviewed:** 2025-12-18
+
 Complete workflow for implementing GitHub issues with critical thinking, planning, execution, and code review.
 
 ## Usage
