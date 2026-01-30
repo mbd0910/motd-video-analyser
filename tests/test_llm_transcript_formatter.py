@@ -159,6 +159,98 @@ class TestTranscriptFormatterTimestamp:
         assert formatter._format_timestamp(4530.25) == "75:30.25"
 
 
+class TestTranscriptFormatterHallucinationCorrection:
+    """Tests for timestamp hallucination correction."""
+
+    def test_no_words_uses_segment_start(self):
+        """Test that segment start is used when no words available."""
+        formatter = TranscriptFormatter("/fake/path")
+        segment = {"start": 11.37, "text": "Some text"}
+
+        result = formatter._get_corrected_start_time(segment)
+
+        assert result == 11.37
+
+    def test_single_word_uses_segment_start(self):
+        """Test that segment start is used with only one word."""
+        formatter = TranscriptFormatter("/fake/path")
+        segment = {
+            "start": 11.37,
+            "text": "Hello",
+            "words": [{"word": "Hello", "start": 11.37, "end": 11.89}],
+        }
+
+        result = formatter._get_corrected_start_time(segment)
+
+        assert result == 11.37
+
+    def test_normal_gap_uses_segment_start(self):
+        """Test that normal word gaps use segment start time."""
+        formatter = TranscriptFormatter("/fake/path")
+        segment = {
+            "start": 9.23,
+            "text": "Welcome to",
+            "words": [
+                {"word": "Welcome", "start": 9.23, "end": 9.61},
+                {"word": "to", "start": 9.61, "end": 9.91},
+            ],
+        }
+
+        result = formatter._get_corrected_start_time(segment)
+
+        assert result == 9.23
+
+    def test_hallucination_gap_uses_second_word(self):
+        """Test that large gaps between first and second word use second word start."""
+        formatter = TranscriptFormatter("/fake/path")
+        # Real example: "It's" hallucinated at 11.37, actual speech at 51.86
+        segment = {
+            "start": 11.37,
+            "end": 53.52,
+            "text": "It's been a terrific day",
+            "words": [
+                {"word": "It's", "start": 11.37, "end": 11.89},
+                {"word": "been", "start": 51.86, "end": 51.98},
+                {"word": "a", "start": 51.98, "end": 52.08},
+            ],
+        }
+
+        result = formatter._get_corrected_start_time(segment)
+
+        # Should use second word's start time
+        assert result == 51.86
+
+    def test_hallucination_gap_threshold(self):
+        """Test that gap must exceed threshold to trigger correction."""
+        formatter = TranscriptFormatter("/fake/path")
+
+        # Gap of exactly 5 seconds (at threshold)
+        segment_at_threshold = {
+            "start": 10.0,
+            "text": "Test",
+            "words": [
+                {"word": "Test", "start": 10.0, "end": 10.5},
+                {"word": "text", "start": 15.5, "end": 16.0},  # 5.0s gap
+            ],
+        }
+
+        # Gap of 5.1 seconds (above threshold)
+        segment_above_threshold = {
+            "start": 10.0,
+            "text": "Test",
+            "words": [
+                {"word": "Test", "start": 10.0, "end": 10.5},
+                {"word": "text", "start": 15.6, "end": 16.0},  # 5.1s gap
+            ],
+        }
+
+        # At threshold: uses segment start
+        assert formatter._get_corrected_start_time(segment_at_threshold) == 10.0
+
+        # Above threshold: uses second word start
+        assert formatter._get_corrected_start_time(segment_above_threshold) == 15.6
+
+
 class TestTranscriptFormatterFormatAsText:
     """Tests for text formatting."""
 
@@ -192,6 +284,35 @@ class TestTranscriptFormatterFormatAsText:
         assert "[00:00.00] First" in result
         assert "[00:02.00] Second" in result
         assert result.count("\n") == 1  # Only one newline between two lines
+
+    def test_format_as_text_with_hallucination_correction(self):
+        """Test that format_as_text applies hallucination correction."""
+        formatter = TranscriptFormatter("/fake/path")
+        segments = [
+            {
+                "start": 9.23,
+                "text": "Welcome to Match of the Day.",
+                "words": [
+                    {"word": "Welcome", "start": 9.23, "end": 9.61},
+                    {"word": "to", "start": 9.61, "end": 9.91},
+                ],
+            },
+            {
+                "start": 11.37,  # Wrong start time
+                "text": "It's been a terrific day.",
+                "words": [
+                    {"word": "It's", "start": 11.37, "end": 11.89},
+                    {"word": "been", "start": 51.86, "end": 51.98},  # Actual start
+                ],
+            },
+        ]
+
+        result = formatter.format_as_text(segments)
+
+        # First segment should use 9.23
+        assert "[00:09.23] Welcome to Match of the Day." in result
+        # Second segment should use corrected time 51.86
+        assert "[00:51.86] It's been a terrific day." in result
 
 
 class TestTranscriptFormatterIntegration:

@@ -1,7 +1,8 @@
 """Transcript formatting for LLM analysis.
 
 Converts Whisper transcript.json to LLM-ready text format with
-deduplication of consecutive identical segments (Whisper "stutters").
+deduplication of consecutive identical segments (Whisper "stutters")
+and correction of timestamp hallucinations during non-speech audio.
 """
 
 from __future__ import annotations
@@ -45,8 +46,14 @@ class TranscriptFormatter:
     """Formats Whisper transcripts for LLM analysis.
 
     Handles loading transcript.json, deduplicating consecutive identical
-    segments (Whisper "stutters"), and formatting as timestamped text.
+    segments (Whisper "stutters"), correcting timestamp hallucinations,
+    and formatting as timestamped text.
     """
+
+    # Gap threshold for detecting hallucinated words (seconds).
+    # If gap between first and second word exceeds this, the first word
+    # is likely hallucinated during non-speech audio (e.g., title music).
+    HALLUCINATION_GAP_THRESHOLD = 5.0
 
     def __init__(self, cache_path: Path | str) -> None:
         """Initialise with path to episode cache folder.
@@ -132,10 +139,56 @@ class TranscriptFormatter:
 
         return deduplicated, stats
 
+    def _get_corrected_start_time(self, segment: dict[str, Any]) -> float:
+        """Get corrected start time using word-level timestamps.
+
+        Whisper can hallucinate words during non-speech audio (e.g., title
+        music), causing segment start times to be incorrect. This detects
+        such hallucinations by looking for large gaps between the first
+        and second word, and returns the second word's start time instead.
+
+        Args:
+            segment: Transcript segment with optional 'words' array.
+
+        Returns:
+            Corrected start time in seconds.
+        """
+        # Default to segment start time
+        segment_start = segment.get("start", 0)
+        words = segment.get("words", [])
+
+        # Need at least 2 words to detect hallucination gap
+        if len(words) < 2:
+            return segment_start
+
+        first_word = words[0]
+        second_word = words[1]
+
+        # Get timestamps (default to segment start if missing)
+        first_end = first_word.get("end", segment_start)
+        second_start = second_word.get("start", first_end)
+
+        # Check for hallucination gap
+        gap = second_start - first_end
+        if gap > self.HALLUCINATION_GAP_THRESHOLD:
+            logger.debug(
+                "Detected hallucination gap of %.1fs in segment at %.2fs: '%s' -> '%s'",
+                gap,
+                segment_start,
+                first_word.get("word", ""),
+                second_word.get("word", ""),
+            )
+            return second_start
+
+        return segment_start
+
     def format_as_text(self, segments: list[dict[str, Any]]) -> str:
         """Convert segments to timestamped text format.
 
         Format: [MM:SS.ss] Text content here
+
+        Uses word-level timestamps to correct hallucinated start times
+        that can occur during non-speech audio (e.g., title music).
 
         Args:
             segments: List of transcript segments.
@@ -146,7 +199,7 @@ class TranscriptFormatter:
         lines: list[str] = []
 
         for segment in segments:
-            start = segment.get("start", 0)
+            start = self._get_corrected_start_time(segment)
             text = segment.get("text", "").strip()
 
             if not text:
