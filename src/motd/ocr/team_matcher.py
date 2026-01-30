@@ -1,10 +1,13 @@
 """Team name matching with fuzzy logic and fixture awareness."""
 
+from __future__ import annotations
+
 import json
-from typing import List, Dict, Optional, Set
-from pathlib import Path
-from rapidfuzz import fuzz, process
 import logging
+from pathlib import Path
+from typing import Any
+
+from rapidfuzz import fuzz, process
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +31,7 @@ class TeamMatcher:
             f"{len(self.search_index)} search terms"
         )
 
-    def _load_teams(self, teams_path: Path) -> List[Dict]:
+    def _load_teams(self, teams_path: Path) -> list[dict[str, Any]]:
         """
         Load team data from JSON.
 
@@ -54,7 +57,7 @@ class TeamMatcher:
         logger.debug(f"Loaded {len(data['teams'])} teams from {teams_path}")
         return data['teams']
 
-    def _build_search_index(self) -> Dict[str, str]:
+    def _build_search_index(self) -> dict[str, str]:
         """
         Build searchable index mapping all name variations to canonical full name.
 
@@ -102,9 +105,9 @@ class TeamMatcher:
     def match(
         self,
         text: str,
-        candidate_teams: Optional[List[str]] = None,
-        threshold: float = 0.75
-    ) -> List[Dict]:
+        candidate_teams: list[str] | None = None,
+        threshold: float = 0.75,
+    ) -> list[dict[str, Any]]:
         """
         Match text against team names using fuzzy matching.
 
@@ -232,10 +235,10 @@ class TeamMatcher:
     def match_multiple(
         self,
         text: str,
-        candidate_teams: Optional[List[str]] = None,
+        candidate_teams: list[str] | None = None,
         threshold: float = 0.75,
-        max_teams: int = 2
-    ) -> List[Dict]:
+        max_teams: int = 2,
+    ) -> list[dict[str, Any]]:
         """
         Find multiple team names in text (e.g., "Brighton 2-0 Leeds").
 
@@ -260,7 +263,7 @@ class TeamMatcher:
         matches = self.match(text, candidate_teams, threshold)
         return matches[:max_teams]
 
-    def get_candidate_teams(self, team_full_names: List[str]) -> List[str]:
+    def get_candidate_teams(self, team_full_names: list[str]) -> list[str]:
         """
         Helper to validate team names exist in the dataset.
 
@@ -291,7 +294,7 @@ class TeamMatcher:
 
         return validated
 
-    def get_all_teams(self) -> List[str]:
+    def get_all_teams(self) -> list[str]:
         """
         Get list of all team full names.
 

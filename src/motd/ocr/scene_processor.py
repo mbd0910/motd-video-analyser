@@ -10,10 +10,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from motd.pipeline.models import Scene, ProcessedScene, TeamMatch, OCRResult
+from motd.ocr.fixture_matcher import FixtureMatcher
 from motd.ocr.reader import OCRReader
 from motd.ocr.team_matcher import TeamMatcher
-from motd.ocr.fixture_matcher import FixtureMatcher
+from motd.pipeline.models import OCRResult, ProcessedScene, Scene, TeamMatch
 
 
 @dataclass

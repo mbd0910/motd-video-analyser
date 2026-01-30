@@ -10,11 +10,13 @@ Extracted from OCRReader as part of Issue #9 (CI/CD setup) to enable:
 - Dependency injection for testing
 """
 
+from __future__ import annotations
+
 import json
+import logging
 import re
 from pathlib import Path
-from typing import Dict, List, Set
-import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +40,7 @@ class GraphicValidator:
     # BBC FT graphics show "2 | 0" and OCR may read hyphen, pipe, or space
     SCORE_PATTERN = r'\b\d+\s*[-–—|]?\s*\d+\b'
 
-    def __init__(self, team_codes: Set[str]):
+    def __init__(self, team_codes: set[str]):
         """
         Initialise validator with team codes.
 
@@ -50,7 +52,7 @@ class GraphicValidator:
         logger.debug(f"GraphicValidator initialised with {len(team_codes)} team codes")
 
     @classmethod
-    def from_teams_file(cls, teams_path: Path) -> 'GraphicValidator':
+    def from_teams_file(cls, teams_path: Path) -> GraphicValidator:
         """
         Factory method to create validator from teams JSON file.
 
@@ -68,7 +70,7 @@ class GraphicValidator:
         return cls(codes)
 
     @staticmethod
-    def _load_team_codes(teams_path: Path) -> Set[str]:
+    def _load_team_codes(teams_path: Path) -> set[str]:
         """
         Load valid 3-character team codes from teams JSON file.
 
@@ -88,7 +90,7 @@ class GraphicValidator:
                 f"Ensure config['teams']['path'] points to valid file."
             )
 
-        with open(teams_path, 'r', encoding='utf-8') as f:
+        with open(teams_path, encoding='utf-8') as f:
             teams_data = json.load(f)
 
         # Extract all codes from all teams
@@ -100,7 +102,7 @@ class GraphicValidator:
         logger.debug(f"Loaded {len(codes)} team codes from {teams_path}")
         return codes
 
-    def validate_ft_graphic(self, ocr_results: List[Dict], detected_teams: List[str]) -> bool:
+    def validate_ft_graphic(self, ocr_results: list[dict[str, Any]], detected_teams: list[str]) -> bool:
         """
         Validate that OCR results are from a genuine FT score graphic.
 
@@ -159,7 +161,7 @@ class GraphicValidator:
         )
         return False
 
-    def validate_scoreboard(self, ocr_results: List[Dict]) -> bool:
+    def validate_scoreboard(self, ocr_results: list[dict[str, Any]]) -> bool:
         """
         Validate that OCR results are from a genuine scoreboard graphic.
 
@@ -208,7 +210,7 @@ class GraphicValidator:
         )
         return False
 
-    def looks_like_ft_content(self, ocr_results: List[Dict]) -> bool:
+    def looks_like_ft_content(self, ocr_results: list[dict[str, Any]]) -> bool:
         """
         Quick check if OCR results look like genuine FT graphic content.
 
@@ -242,7 +244,4 @@ class GraphicValidator:
 
         # Check for team codes
         words = all_text.split()
-        if any(w in self.valid_team_codes for w in words):
-            return True
-
-        return False
+        return any(w in self.valid_team_codes for w in words)

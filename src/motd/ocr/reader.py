@@ -1,11 +1,13 @@
 """OCR reader for extracting text from video frames."""
 
-import easyocr
-import cv2
-import numpy as np
-from typing import Dict, List, Optional
-from pathlib import Path
+from __future__ import annotations
+
 import logging
+from pathlib import Path
+from typing import Any
+
+import cv2
+import easyocr
 
 from motd.ocr.validators import GraphicValidator
 
@@ -17,9 +19,9 @@ class OCRReader:
 
     def __init__(
         self,
-        config: Dict,
+        config: dict[str, Any],
         teams_path: Path | None = None,
-        validator: GraphicValidator | None = None
+        validator: GraphicValidator | None = None,
     ):
         """
         Initialise OCR reader.
@@ -68,8 +70,8 @@ class OCRReader:
     def extract_region(
         self,
         frame_path: Path,
-        region_name: str
-    ) -> List[Dict]:
+        region_name: str,
+    ) -> list[dict[str, Any]]:
         """
         Extract text from a specific region of a frame.
 
@@ -129,7 +131,7 @@ class OCRReader:
 
         return formatted
 
-    def extract_ft_score(self, frame_path: Path) -> List[Dict]:
+    def extract_ft_score(self, frame_path: Path) -> list[dict[str, Any]]:
         """
         Extract text from full-time score region (lower-middle).
 
@@ -144,7 +146,7 @@ class OCRReader:
         """
         return self.extract_region(frame_path, 'ft_score')
 
-    def extract_scoreboard(self, frame_path: Path) -> List[Dict]:
+    def extract_scoreboard(self, frame_path: Path) -> list[dict[str, Any]]:
         """
         Extract text from scoreboard region (top-left).
 
@@ -159,7 +161,7 @@ class OCRReader:
         """
         return self.extract_region(frame_path, 'scoreboard')
 
-    def extract_formation(self, frame_path: Path) -> List[Dict]:
+    def extract_formation(self, frame_path: Path) -> list[dict[str, Any]]:
         """
         Extract text from formation graphic region (bottom-right).
 
@@ -174,7 +176,7 @@ class OCRReader:
         """
         return self.extract_region(frame_path, 'formation')
 
-    def extract_all_regions(self, frame_path: Path) -> Dict[str, List[Dict]]:
+    def extract_all_regions(self, frame_path: Path) -> dict[str, list[dict[str, Any]]]:
         """
         Extract text from all defined regions.
 
@@ -187,7 +189,7 @@ class OCRReader:
             fallback to other regions without crashing the pipeline.
         """
         results = {}
-        for region_name in self.regions.keys():
+        for region_name in self.regions:
             try:
                 results[region_name] = self.extract_region(frame_path, region_name)
             except Exception as e:
@@ -199,19 +201,19 @@ class OCRReader:
 
         return results
 
-    def validate_ft_graphic(self, ocr_results: List[Dict], detected_teams: List[str]) -> bool:
+    def validate_ft_graphic(self, ocr_results: list[dict[str, Any]], detected_teams: list[str]) -> bool:
         """Validate OCR results are from a genuine FT graphic (delegates to validator)."""
         return self._validator.validate_ft_graphic(ocr_results, detected_teams)
 
-    def validate_scoreboard(self, ocr_results: List[Dict]) -> bool:
+    def validate_scoreboard(self, ocr_results: list[dict[str, Any]]) -> bool:
         """Validate OCR results are from a genuine scoreboard (delegates to validator)."""
         return self._validator.validate_scoreboard(ocr_results)
 
-    def _looks_like_ft_content(self, ocr_results: List[Dict]) -> bool:
+    def _looks_like_ft_content(self, ocr_results: list[dict[str, Any]]) -> bool:
         """Quick check if OCR results look like FT content (delegates to validator)."""
         return self._validator.looks_like_ft_content(ocr_results)
 
-    def extract_with_fallback(self, frame_path: Path) -> Dict:
+    def extract_with_fallback(self, frame_path: Path) -> dict[str, Any]:
         """
         Extract text using multi-tiered strategy: FT score → scoreboard → formation.
 

@@ -3,10 +3,11 @@ Extract key frames from video at scene transitions.
 These frames will be used for OCR to identify team names.
 """
 
-import cv2
+import logging
 from pathlib import Path
 from typing import Any
-import logging
+
+import cv2
 
 logger = logging.getLogger(__name__)
 

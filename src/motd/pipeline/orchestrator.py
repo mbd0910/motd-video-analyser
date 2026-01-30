@@ -78,13 +78,13 @@ class PipelineOrchestrator:
         print(f"{'='*70}\n")
 
         # Stage 1: Scene Detection
-        scenes_path, frames_dir = self._run_stage_1_scene_detection()
+        scenes_path, _frames_dir = self._run_stage_1_scene_detection()
 
         # Stage 2: Team Extraction
-        ocr_path = self._run_stage_2_team_extraction(scenes_path)
+        _ocr_path = self._run_stage_2_team_extraction(scenes_path)
 
         # Stage 3: Transcription
-        transcript_path = self._run_stage_3_transcription()
+        _transcript_path = self._run_stage_3_transcription()
 
         # Stage 4: LLM Prompt Generation
         result, output_path = self._run_stage_4_llm_prompt()
@@ -123,7 +123,7 @@ class PipelineOrchestrator:
 
             # Use explicit cache status instead of timing heuristic
             if cache_was_used:
-                print(f"⊘ Stage 1/4: Scene Detection skipped (cache valid)\n")
+                print("⊘ Stage 1/4: Scene Detection skipped (cache valid)\n")
             else:
                 print(f"✓ Stage 1/4: Scene Detection complete ({self._format_duration(stage_duration)})\n")
 
@@ -132,7 +132,7 @@ class PipelineOrchestrator:
 
         except Exception as e:
             self.logger.error(f"Stage 1 failed: {e}", exc_info=True)
-            print(f"\n❌ Stage 1/4: Scene Detection FAILED")
+            print("\n❌ Stage 1/4: Scene Detection FAILED")
             print(f"   Error: {e}")
             print(f"\n   To resume, run: motd run {self.video_path}")
             raise
@@ -164,7 +164,7 @@ class PipelineOrchestrator:
 
             # Use explicit cache status instead of timing heuristic
             if cache_was_used:
-                print(f"⊘ Stage 2/4: Team Extraction skipped (cache valid)\n")
+                print("⊘ Stage 2/4: Team Extraction skipped (cache valid)\n")
             else:
                 print(f"✓ Stage 2/4: Team Extraction complete ({self._format_duration(stage_duration)})\n")
 
@@ -173,7 +173,7 @@ class PipelineOrchestrator:
 
         except Exception as e:
             self.logger.error(f"Stage 2 failed: {e}", exc_info=True)
-            print(f"\n❌ Stage 2/4: Team Extraction FAILED")
+            print("\n❌ Stage 2/4: Team Extraction FAILED")
             print(f"   Error: {e}")
             print(f"\n   To resume, run: motd run {self.video_path}")
             raise
@@ -201,7 +201,7 @@ class PipelineOrchestrator:
 
             # Use explicit cache status instead of timing heuristic
             if cache_was_used:
-                print(f"⊘ Stage 3/4: Transcription skipped (cache valid)\n")
+                print("⊘ Stage 3/4: Transcription skipped (cache valid)\n")
             else:
                 print(f"✓ Stage 3/4: Transcription complete ({self._format_duration(stage_duration)})\n")
 
@@ -210,7 +210,7 @@ class PipelineOrchestrator:
 
         except Exception as e:
             self.logger.error(f"Stage 3 failed: {e}", exc_info=True)
-            print(f"\n❌ Stage 3/4: Transcription FAILED")
+            print("\n❌ Stage 3/4: Transcription FAILED")
             print(f"   Error: {e}")
             print(f"\n   To resume, run: motd run {self.video_path}")
             raise
@@ -237,8 +237,8 @@ class PipelineOrchestrator:
             stage_duration = time.time() - stage_start
 
             if cache_was_used:
-                print(f"⊘ Stage 4/4: LLM Prompt Generation skipped (file exists)\n")
-                self.logger.info(f"Stage 4 skipped (cache valid)")
+                print("⊘ Stage 4/4: LLM Prompt Generation skipped (file exists)\n")
+                self.logger.info("Stage 4 skipped (cache valid)")
             else:
                 print(f"✓ Stage 4/4: LLM Prompt Generation complete ({int(stage_duration)}s)\n")
                 self.logger.info(f"Stage 4 completed in {stage_duration:.1f}s")
@@ -247,14 +247,14 @@ class PipelineOrchestrator:
 
         except Exception as e:
             self.logger.error(f"Stage 4 failed: {e}", exc_info=True)
-            print(f"\n❌ Stage 4/4: LLM Prompt Generation FAILED")
+            print("\n❌ Stage 4/4: LLM Prompt Generation FAILED")
             print(f"   Error: {e}")
 
             # Check if it's a missing dependency error
             if "No such file" in str(e) or "not found" in str(e).lower():
-                print(f"\n   Possible causes:")
-                print(f"   - Missing transcript.json (Stage 3 incomplete)")
-                print(f"   - Missing episode_manifest.json")
+                print("\n   Possible causes:")
+                print("   - Missing transcript.json (Stage 3 incomplete)")
+                print("   - Missing episode_manifest.json")
 
             print(f"\n   To resume, run: motd run {self.video_path}")
             raise

@@ -3,9 +3,10 @@ Scene detection using PySceneDetect.
 Identifies transitions between segments (studio, highlights, interviews).
 """
 
-from scenedetect import detect, ContentDetector, AdaptiveDetector
-from typing import Any, TypedDict, Literal
 import logging
+from typing import Any, Literal, TypedDict
+
+from scenedetect import AdaptiveDetector, ContentDetector, detect
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +23,9 @@ class HybridFrame(TypedDict):
 # Workaround for PySceneDetect 0.6.x with NumPy 2.x
 # Issue: _frame_buffer_size is stored as float, needs to be int for numpy slicing
 try:
-    from packaging import version
-    import scenedetect
     import numpy as np
+    import scenedetect
+    from packaging import version
 
     # Only patch if using affected versions (PySceneDetect 0.6.x with NumPy 2.x)
     pyscenedetect_version = version.parse(scenedetect.__version__)
@@ -257,7 +258,7 @@ def hybrid_frame_extraction(
     scene_frames = sum(1 for f in deduplicated if f['source'] == 'scene_change')
     interval_frames = sum(1 for f in deduplicated if f['source'] == 'interval_sampling')
 
-    logger.info(f"Deduplication complete:")
+    logger.info("Deduplication complete:")
     logger.info(f"  Total frames: {len(deduplicated)}")
     logger.info(f"  Scene changes: {scene_frames}")
     logger.info(f"  Interval samples: {interval_frames}")

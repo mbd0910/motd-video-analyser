@@ -7,7 +7,6 @@ optimal format (16kHz mono WAV) using ffmpeg.
 import logging
 import subprocess
 from pathlib import Path
-from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +18,7 @@ class AudioExtractor:
     for faster-whisper transcription. Handles various input formats via ffmpeg.
     """
 
-    def __init__(self, config: Optional[Dict] = None):
+    def __init__(self, config: dict | None = None):
         """Initialise audio extractor with configuration.
 
         Args:
@@ -35,7 +34,7 @@ class AudioExtractor:
             f"{self.channels} channel(s)"
         )
 
-    def extract(self, video_path: str, output_path: str) -> Dict:
+    def extract(self, video_path: str, output_path: str) -> dict:
         """Extract audio from video to WAV format.
 
         Args:
@@ -184,11 +183,11 @@ class AudioExtractor:
             error_msg = e.stderr if e.stderr else str(e)
             if "Invalid data found" in error_msg:
                 raise RuntimeError(
-                    f"Video file appears corrupted or has invalid format"
+                    "Video file appears corrupted or has invalid format"
                 ) from e
             elif "Stream specifier ':a' does not match" in error_msg:
                 raise RuntimeError(
-                    f"Video file has no audio track"
+                    "Video file has no audio track"
                 ) from e
             else:
                 raise RuntimeError(f"ffmpeg extraction failed: {error_msg}") from e

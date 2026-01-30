@@ -12,8 +12,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from motd.llm.ocr_hints import OCRHintsExtractor, OCRHints
-from motd.llm.transcript_formatter import TranscriptFormatter, FormattedTranscript
+from motd.llm.ocr_hints import OCRHints, OCRHintsExtractor
+from motd.llm.transcript_formatter import FormattedTranscript, TranscriptFormatter
 
 logger = logging.getLogger(__name__)
 

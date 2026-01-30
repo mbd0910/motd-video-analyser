@@ -5,8 +5,9 @@ These models provide runtime validation, clear contracts between layers,
 and make the codebase more maintainable and testable.
 """
 
-from pydantic import BaseModel, Field, field_validator
 from typing import Any
+
+from pydantic import BaseModel, Field, field_validator
 
 
 class Scene(BaseModel):

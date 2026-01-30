@@ -1,18 +1,20 @@
 """
-Service factory for centralized initialization of pipeline components.
+Service factory for centralised initialisation of pipeline components.
 
 Provides single source of truth for creating OCR reader, team matcher,
 fixture matcher, and scene processor with configuration from config.yaml.
 """
 
-from pathlib import Path
-from typing import Dict, Any
+from __future__ import annotations
 
-from motd.ocr.reader import OCRReader
-from motd.ocr.team_matcher import TeamMatcher
+from pathlib import Path
+from typing import Any
+
 from motd.ocr.fixture_matcher import FixtureMatcher
+from motd.ocr.reader import OCRReader
+from motd.ocr.scene_processor import EpisodeContext, SceneProcessor
+from motd.ocr.team_matcher import TeamMatcher
 from motd.ocr.validators import GraphicValidator
-from motd.ocr.scene_processor import SceneProcessor, EpisodeContext
 
 
 class ServiceFactory:
@@ -23,7 +25,7 @@ class ServiceFactory:
     All paths are loaded from config.yaml.
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """
         Initialize factory with configuration dict.
 

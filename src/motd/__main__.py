@@ -4,29 +4,29 @@ MOTD Analyser CLI
 Command-line interface for video analysis pipeline.
 """
 
-import click
 import json
 import logging
 import sys
 import time
-import yaml
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from motd.scene_detection.detector import detect_scenes
-from motd.scene_detection.frame_extractor import extract_key_frames_for_scenes
+import click
+import yaml
+
 from motd.config.defaults import (
-    DEFAULT_THRESHOLD,
+    DEFAULT_DETECTOR_TYPE,
     DEFAULT_MIN_SCENE_DURATION,
-    DEFAULT_DETECTOR_TYPE
+    DEFAULT_THRESHOLD,
 )
-from motd.ocr import OCRReader, TeamMatcher, FixtureMatcher
-from motd.pipeline.factory import ServiceFactory
-from motd.pipeline.models import Scene
-from motd.transcription import AudioExtractor, WhisperTranscriber
 from motd.llm import PromptBuilder
 from motd.llm.prompt_builder import BuiltPrompt
+from motd.pipeline.factory import ServiceFactory
+from motd.pipeline.models import Scene
+from motd.scene_detection.detector import detect_scenes
+from motd.scene_detection.frame_extractor import extract_key_frames_for_scenes
+from motd.transcription import AudioExtractor, WhisperTranscriber
 
 
 def load_config(config_path: Path = Path("config/config.yaml")) -> dict[str, Any]:
@@ -272,7 +272,7 @@ def run_scene_detection(
     with open(output, "w") as f:
         json.dump(output_data, f, indent=2)
 
-    print(f"\nScene detection complete!")
+    print("\nScene detection complete!")
     print(f"  Scenes detected: {len(scenes)}")
     print(f"  Output JSON: {output}")
     print(f"  Frames directory: {frames_dir}")
@@ -285,7 +285,7 @@ def run_scene_detection(
         click.echo("\nWarning: Very many scenes detected (>200).", err=True)
         click.echo("  Consider raising threshold (try 35.0 or 40.0)", err=True)
     else:
-        print(f"\n  Scene count looks reasonable for video analysis.")
+        print("\n  Scene count looks reasonable for video analysis.")
 
     logger.info("Scene detection completed successfully")
 
@@ -485,7 +485,7 @@ def run_team_extraction(
     logger.info(f"Expected {len(expected_fixtures)} fixtures with {len(expected_teams)} teams")
 
     # Import here to avoid circular dependency
-    from motd.ocr.scene_processor import SceneProcessor, EpisodeContext
+    from motd.ocr.scene_processor import EpisodeContext, SceneProcessor
 
     # Create episode context and scene processor
     context = EpisodeContext(
@@ -615,7 +615,7 @@ def run_team_extraction(
     print(f"{'='*60}")
     print(f"\nOutput saved to: {output}")
 
-    logger.info(f"Team extraction completed successfully")
+    logger.info("Team extraction completed successfully")
     logger.info(f"Summary: {summary}")
     logger.info(f"Output: {output}")
 
@@ -757,7 +757,7 @@ def run_transcription(
             print("Use --force to re-transcribe")
             logger.info(f"Using cached transcript: {output}")
 
-            print(f"\nCached transcript info:")
+            print("\nCached transcript info:")
             print(f"  Duration: {cached.get('duration', 'unknown')}s")
             print(f"  Segments: {cached.get('segment_count', 'unknown')}")
             print(f"  Model: {cached_model}")
@@ -785,7 +785,7 @@ def run_transcription(
     logger.info(f"Audio extraction complete: {extraction_result}")
 
     # Transcribe audio
-    print(f"\nTranscribing audio with Whisper...")
+    print("\nTranscribing audio with Whisper...")
     logger.info("Starting transcription")
 
     # transcription_config already set earlier for cache validation
@@ -806,7 +806,7 @@ def run_transcription(
     output_data = {
         'metadata': {
             'video_path': str(video_path),
-            'processed_at': datetime.now(timezone.utc).isoformat(),
+            'processed_at': datetime.now(UTC).isoformat(),
             'model_size': transcription_config.get('model_size', 'large-v3'),
             'device': transcriber.device,
             'processing_time_seconds': round(elapsed, 2),
@@ -832,7 +832,7 @@ def run_transcription(
     print(f"{'='*60}")
     print(f"\nTranscript saved to: {output}")
 
-    logger.info(f"Transcription completed successfully")
+    logger.info("Transcription completed successfully")
     logger.info(f"Output: {output}")
 
     return output, False
@@ -1021,7 +1021,7 @@ def run_command(video_path: Path, force: bool, config: Path):
             click.echo(f"   Add episode to {manifest_path} first.", err=True)
             sys.exit(1)
 
-        logger.info(f"Episode validated in manifest")
+        logger.info("Episode validated in manifest")
 
     except Exception as e:
         logger.error(f"Failed to validate episode manifest: {e}", exc_info=True)
@@ -1051,19 +1051,19 @@ def run_command(video_path: Path, force: bool, config: Path):
         click.echo(f"  Estimated tokens: ~{result.estimated_tokens:,}")
         click.echo(f"{'='*60}")
 
-        click.echo(f"\n📋 To analyse, copy the prompt into Claude:")
+        click.echo("\n📋 To analyse, copy the prompt into Claude:")
         click.echo(f"   cat {output_path} | pbcopy  # macOS")
-        click.echo(f"   Then paste into https://claude.ai")
+        click.echo("   Then paste into https://claude.ai")
 
         logger.info("Pipeline completed successfully")
 
     except FileNotFoundError as e:
         logger.error(f"Pipeline failed - file not found: {e}", exc_info=True)
         click.echo(f"\n❌ Pipeline Error: {e}", err=True)
-        click.echo(f"\n   Check that all required files exist:", err=True)
+        click.echo("\n   Check that all required files exist:", err=True)
         click.echo(f"   - data/cache/{episode_id}/ocr_results.json", err=True)
         click.echo(f"   - data/cache/{episode_id}/transcript.json", err=True)
-        click.echo(f"   - data/fixtures/premier_league_2025_26.json", err=True)
+        click.echo("   - data/fixtures/premier_league_2025_26.json", err=True)
         sys.exit(1)
 
     except Exception as e:
@@ -1117,7 +1117,7 @@ def generate_llm_prompt_command(
 
     if not cache_path.exists():
         click.echo(f"Error: Cache folder not found: {cache_path}", err=True)
-        click.echo(f"\nMake sure the episode has been processed first:", err=True)
+        click.echo("\nMake sure the episode has been processed first:", err=True)
         click.echo(f"  python -m motd run data/videos/{episode_id}.mp4", err=True)
         sys.exit(1)
 
@@ -1128,7 +1128,7 @@ def generate_llm_prompt_command(
     # Check if output exists
     if output.exists() and not force:
         click.echo(f"Error: Output file already exists: {output}", err=True)
-        click.echo(f"  Use --force to overwrite", err=True)
+        click.echo("  Use --force to overwrite", err=True)
         sys.exit(1)
 
     click.echo(f"Generating LLM prompt for: {episode_id}")
@@ -1145,7 +1145,7 @@ def generate_llm_prompt_command(
             f.write(result.content)
 
         # Display summary
-        click.echo(f"\n✓ Prompt generated successfully!")
+        click.echo("\n✓ Prompt generated successfully!")
         click.echo(f"\n  Output: {output}")
         click.echo(f"  Fixtures: {result.fixture_count}")
         click.echo(f"  Transcript segments: {result.transcript_stats.segment_count}")
@@ -1154,15 +1154,15 @@ def generate_llm_prompt_command(
         click.echo(f"  Estimated tokens: ~{result.estimated_tokens:,}")
         click.echo(f"  File size: {output.stat().st_size / 1024:.1f} KB")
 
-        click.echo(f"\n📋 To analyse, copy the contents of this file into Claude:")
+        click.echo("\n📋 To analyse, copy the contents of this file into Claude:")
         click.echo(f"   cat {output} | pbcopy  # macOS")
-        click.echo(f"   Then paste into https://claude.ai")
+        click.echo("   Then paste into https://claude.ai")
 
     except FileNotFoundError as e:
         logger.error(f"Required file not found: {e}")
         click.echo(f"\nError: {e}", err=True)
-        click.echo(f"\nMake sure the episode has been processed:", err=True)
-        click.echo(f"  - Transcription: python -m motd transcribe <video>", err=True)
+        click.echo("\nMake sure the episode has been processed:", err=True)
+        click.echo("  - Transcription: python -m motd transcribe <video>", err=True)
         click.echo(f"  - OCR (optional): python -m motd extract-teams --episode {episode_id}", err=True)
         sys.exit(1)
 

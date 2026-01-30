@@ -4,12 +4,14 @@ This module uses faster-whisper (NOT openai-whisper) for 4x faster processing
 with identical accuracy. Generates word-level timestamps for precise analysis.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import re
 import time
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any
 
 from faster_whisper import WhisperModel
 
@@ -20,7 +22,7 @@ logger = logging.getLogger(__name__)
 # Whisper has ingrained biases from training data (e.g., "Molyneux" the surname
 # appears more frequently than "Molineux" the stadium).
 # See: https://github.com/SYSTRAN/faster-whisper/issues/948
-SPELLING_CORRECTIONS: Dict[str, str] = {
+SPELLING_CORRECTIONS: dict[str, str] = {
     "Molyneux": "Molineux",  # Wolves stadium (Whisper prefers the surname spelling)
 }
 
@@ -32,7 +34,7 @@ class WhisperTranscriber:
     Automatically detects and uses GPU (CUDA/MPS) if available, falls back to CPU.
     """
 
-    def __init__(self, config: Optional[Dict] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         """Initialise Whisper transcriber with configuration.
 
         Args:
@@ -81,7 +83,7 @@ class WhisperTranscriber:
             self.initial_prompt = None
             self.hotwords = None
 
-    def transcribe(self, audio_path: str) -> Dict:
+    def transcribe(self, audio_path: str) -> dict[str, Any]:
         """Transcribe audio file with word-level timestamps.
 
         Args:
@@ -150,7 +152,7 @@ class WhisperTranscriber:
         except Exception as e:
             raise RuntimeError(f"Transcription failed: {e}") from e
 
-    def _process_segments(self, segments_generator, info) -> Dict:
+    def _process_segments(self, segments_generator, info) -> dict[str, Any]:
         """Convert Whisper segments generator to structured output.
 
         Args:
@@ -259,15 +261,18 @@ class WhisperTranscriber:
         """
         for wrong, correct in SPELLING_CORRECTIONS.items():
             # Case-insensitive replacement preserving case
-            def replace_preserving_case(match: re.Match) -> str:
+            # Use default argument to bind `correct` at function definition time
+            def replace_preserving_case(
+                match: re.Match, replacement: str = correct
+            ) -> str:
                 matched = match.group(0)
                 if matched.isupper():
-                    return correct.upper()
+                    return replacement.upper()
                 elif matched.islower():
-                    return correct.lower()
+                    return replacement.lower()
                 elif matched[0].isupper():
-                    return correct.capitalize()
-                return correct
+                    return replacement.capitalize()
+                return replacement
 
             text = re.sub(wrong, replace_preserving_case, text, flags=re.IGNORECASE)
 

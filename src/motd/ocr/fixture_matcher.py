@@ -1,9 +1,8 @@
 """Fixture matching for validating OCR results against expected matches."""
 
 import json
-from typing import List, Dict, Optional, Set, Tuple
-from pathlib import Path
 import logging
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +37,7 @@ class FixtureMatcher:
             f"{len(self.episodes_by_id)} episodes"
         )
 
-    def _load_fixtures(self, path: Path) -> List[Dict]:
+    def _load_fixtures(self, path: Path) -> list[dict]:
         """
         Load fixtures from JSON.
 
@@ -67,7 +66,7 @@ class FixtureMatcher:
         logger.debug(f"Loaded {len(fixtures)} fixtures from {path}")
         return fixtures
 
-    def _load_manifest(self, path: Path) -> Dict:
+    def _load_manifest(self, path: Path) -> dict:
         """
         Load episode manifest from JSON.
 
@@ -95,7 +94,7 @@ class FixtureMatcher:
         )
         return data
 
-    def get_expected_fixtures(self, episode_id: str) -> List[Dict]:
+    def get_expected_fixtures(self, episode_id: str) -> list[dict]:
         """
         Get expected fixtures for an episode.
 
@@ -139,7 +138,7 @@ class FixtureMatcher:
 
         return fixtures
 
-    def get_expected_teams(self, episode_id: str) -> List[str]:
+    def get_expected_teams(self, episode_id: str) -> list[str]:
         """
         Get flat list of all expected team names for episode.
 
@@ -168,9 +167,9 @@ class FixtureMatcher:
 
     def validate_teams(
         self,
-        detected_teams: List[str],
+        detected_teams: list[str],
         episode_id: str
-    ) -> Dict:
+    ) -> dict:
         """
         Validate detected teams against expected fixtures.
 
@@ -227,7 +226,7 @@ class FixtureMatcher:
         team1: str,
         team2: str,
         episode_id: str
-    ) -> Optional[Dict]:
+    ) -> dict | None:
         """
         Identify fixture from two team names.
 
@@ -270,7 +269,7 @@ class FixtureMatcher:
         )
         return None
 
-    def get_fixture_by_id(self, match_id: str) -> Optional[Dict]:
+    def get_fixture_by_id(self, match_id: str) -> dict | None:
         """
         Get fixture by match_id.
 
@@ -282,7 +281,7 @@ class FixtureMatcher:
         """
         return self.fixtures_by_id.get(match_id)
 
-    def get_all_fixtures(self) -> List[Dict]:
+    def get_all_fixtures(self) -> list[dict]:
         """
         Get all fixtures in the dataset.
 
@@ -291,7 +290,7 @@ class FixtureMatcher:
         """
         return self.fixtures
 
-    def get_all_episodes(self) -> List[Dict]:
+    def get_all_episodes(self) -> list[dict]:
         """
         Get all episodes in the manifest.
 
