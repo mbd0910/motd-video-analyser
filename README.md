@@ -107,11 +107,13 @@ pip install -r requirements.txt
    ```bash
    python -m motd run data/videos/motd_2025-26_YYYY-MM-DD.mp4
    ```
+   Options: `--force` (ignore cache and re-run all stages)
 
 2. **Generate LLM prompt** - Combines transcript + OCR hints into Claude-ready prompt
    ```bash
    python -m motd generate-llm-prompt motd_2025-26_YYYY-MM-DD
    ```
+   Options: `--no-hints` (omit OCR hints), `--force` (overwrite existing)
 
 3. **Claude analysis** - Copy prompt to Claude, save JSON response
    ```bash
@@ -119,7 +121,10 @@ pip install -r requirements.txt
    # → Paste into Claude → Save to data/analysis/{episode_id}/analysis.json
    ```
 
-See `python -m motd --help` for individual stage commands and options.
+**Individual stages** (for debugging):
+- `python -m motd detect-scenes VIDEO` - Scene detection only
+- `python -m motd extract-teams --scenes PATH --episode-id ID` - OCR only
+- `python -m motd transcribe VIDEO` - Transcription only
 
 ### Example Output
 
