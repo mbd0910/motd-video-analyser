@@ -1,6 +1,6 @@
 # Issue Workflow Command
 
-> **Last reviewed:** 2025-12-18
+> **Last reviewed:** 2026-01-30
 
 Complete workflow for implementing GitHub issues with critical thinking, planning, execution, and code review.
 
@@ -14,26 +14,6 @@ Complete workflow for implementing GitHub issues with critical thinking, plannin
 ## Workflow Overview
 
 Critical Thinking ‖ Branch → Task file → Implementation ‖ Code Review ‖ Merge
-
----
-
-## Code Quality Standards
-
-Before implementing any feature, familiarise yourself with our coding standards:
-
-**Reference Files:**
-- [Code Quality Checklist](.claude/commands/references/code_quality_checklist.md)
-- [Python Guidelines](.claude/commands/references/python_guidelines.md)
-- [Architecture Patterns](.claude/commands/references/python_architecture_patterns.md)
-- [ML/Pipeline Patterns](.claude/commands/references/ml_pipeline_patterns.md)
-- [Testing Guidelines](.claude/commands/references/testing_guidelines.md)
-
-**Domain Documentation:**
-- [Domain Glossary](docs/domain/README.md) - Terminology (FT Graphics, Running Order, etc.)
-- [Business Rules](docs/domain/business_rules.md) - Validation logic, accuracy requirements
-- [Visual Patterns](docs/domain/visual_patterns.md) - Episode structure, timing patterns
-
-See [references/README.md](.claude/commands/references/README.md) for overview.
 
 ---
 

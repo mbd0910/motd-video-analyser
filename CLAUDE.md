@@ -1,12 +1,8 @@
 # CLAUDE.md
 
-> **Last reviewed:** 2025-12-18
+> **Last reviewed:** 2026-01-30
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Project Context
-
-**LLM-based analysis workflow operational.** The pipeline extracts scenes, OCR, and transcripts, then generates a prompt for Claude to analyse episode segments. **New work uses GitHub Issues** - see [Issue Workflow](.claude/commands/issue-workflow.md).
+This file provides guidance to Claude Code when working with this repository.
 
 ## What This Project Does
 
@@ -16,301 +12,78 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **User goal**: Settle football fan debates ("we're never on first!", "there's an agenda against my team") with data, not perception.
 
+## How Analysis Works
+
+**The analysis is LLM-based, not rule-based.** Scene detection, OCR, and transcription are preprocessing stages that produce advisory hints. Claude performs the actual segment analysis via `python -m motd generate-llm-prompt`.
+
+Don't try to improve accuracy by tweaking OCR rules - the LLM interprets imperfect hints.
+
+## Architecture Overview
+
+*Placeholder - to be expanded when productionising the project.*
+
+## Project Structure
+
+- `src/motd/` - Main package (pipeline, OCR, transcription, scene detection) - see `src/motd/CLAUDE.md`
+- `config/` - Configuration files (config.yaml)
+- `data/` - Videos, cache, analysis outputs (gitignored) - see `data/CLAUDE.md`
+- `docs/` - Documentation and domain knowledge
+- `tests/` - Test suite
+
 ## Critical Warnings
 
-**IMPORTANT**: This project uses GitHub Issues for new work. Before implementing any feature:
-1. Check [GitHub Issues](https://github.com/mbd0910/motd-video-analyser/issues) for existing issues
-2. Use `/issue-workflow {number}` to work on an issue
-3. Historical tasks (001-012) are in [docs/tasks/completed/](docs/tasks/completed/) for reference
-
-**YOU MUST**:
-- Always check video resolution with `ffprobe` before assuming 1920x1080 - BBC may change formats
-- Activate virtual environment (`source venv/bin/activate`) before running any Python commands
-- Check for cached results in `data/cache/{episode_id}/` before re-running expensive operations
-
-**NEVER**:
-- Run `openai-whisper` instead of `faster-whisper` (4x slower, wastes 6-12 mins per video)
-- Skip caching checks - Whisper transcription costs 15-20 minutes per video (CPU-bound on M3 Pro)
-- Commit files in `data/videos/` or `data/cache/` - they're gitignored for size reasons
-- Use Tesseract for OCR (poor on sports graphics) - use EasyOCR
-- Create deeply nested task structures (011a→011b-1→011b-2) - use sequential numbering (011-01, 011-02) instead
-- Assume 1920x1080 resolution without verification (current episodes are 720p)
-- Assume frame extraction is just 2-second intervals - it's HYBRID (scene changes + 2s intervals + deduplication)
+- Activate virtual environment (`source venv/bin/activate`) before running Python commands
+- Check `data/cache/{episode_id}/` before re-running expensive operations (transcription takes 15-20 mins)
+- Never commit files in `data/videos/` or `data/cache/`
 
 ## Repository Workflow
 
-* Before starting a task or set of tasks, create a feature branch.
-* git commit frequently when working on a task. Follow commit message format in [COMMIT_STYLE.md](COMMIT_STYLE.md).
-* Always use squash merge when merging a feature branch into main.
-* Always pause to ask the user before squash merging. Never assume the user wants Claude to squash merge before asking.
+- Create a feature branch before starting work
+- Commit frequently. Follow [COMMIT_STYLE.md](COMMIT_STYLE.md)
+- Always use squash merge when merging to main
+- Always ask before squash merging
 
-## Code Quality Guidelines
+## Code Style
 
-**Follow these guidelines when writing code:**
+- **Line length**: 100 characters
+- **Spelling**: British English (analyser, colour, optimise)
 
-- [Python Style & Conventions](.claude/commands/references/python_guidelines.md)
-- [Architecture & Design Patterns](.claude/commands/references/python_architecture_patterns.md)
-- [ML/Pipeline Patterns](.claude/commands/references/ml_pipeline_patterns.md) **(CRITICAL - caching, GPU, etc.)**
-- [Testing Guidelines](.claude/commands/references/testing_guidelines.md)
-- [Code Quality Checklist](.claude/commands/references/code_quality_checklist.md)
+## Python Skills
 
-## Domain Knowledge & Business Context
+When writing any Python code, whether that be creating new files, refactoring/editing existing ones, or deleting code, ALWAYS check the following agents/skills to see if any of them are applicable to the task being carried out:
 
-**Domain Documentation Hub** - [docs/domain/](docs/domain/)
+- `python-pro` - Modern Python 3.12+, best practices, production patterns
+- `python-testing-patterns` - pytest, fixtures, mocking, TDD
+- `python-performance-optimization` - Profiling, bottlenecks
+- `async-python-patterns` - asyncio, concurrent programming
+- `python-packaging` - pyproject.toml, distributable packages, PyPI
+- `uv-package-manager` - Fast dependency management, virtual environments
 
-Before implementing features, check the domain docs for business context:
-- **[Domain Glossary](docs/domain/README.md)** - Terminology (FT Graphics, Running Order, Episode Manifest, Segment Types, etc.)
-- **[Business Rules](docs/domain/business_rules.md)** - Validation logic, accuracy requirements, processing rules
-- **[Visual Patterns](docs/domain/visual_patterns.md)** - Episode structure, timing patterns, ground truth data
+## Domain Knowledge
 
-**Why:** Sub-tasks reference these instead of duplicating context. Business logic documented alongside code.
-
-**When writing sub-tasks:** Use [Sub-Task Template](.claude/commands/references/subtask_template.md) - includes Quick Context section linking to domain docs.
-
-## Development Workflow
-
-### New Work: GitHub Issues
-
-All new work uses GitHub Issues with the `/issue-workflow` command:
-
-```bash
-/issue-workflow 15              # Plan + execute issue #15
-/issue-workflow 15 --plan-only  # Create task file only
-/issue-workflow 15 --execute    # Execute existing plan
-```
-
-**Key benefits:**
-- Flexible numbering (no renumbering when inserting work)
-- Bi-directional links: Issue ↔ Task file ↔ Branch ↔ Commits
-- Four pause points: Critical thinking → Implementation → Code review → Merge
-- Task files remain in `docs/tasks/issue-{number}/` for reference
-
-See [Issue Workflow](.claude/commands/issue-workflow.md) for full details.
-
-### Historical Tasks (001-012)
-
-Completed tasks are archived in [docs/tasks/completed/](docs/tasks/completed/) for reference.
-These used sequential numbering - preserved for historical context only.
-
-## Technology Constraints (Critical)
-
-### Use These Libraries (Not Alternatives)
-- **Scene Detection**: PySceneDetect (ContentDetector) - *not raw OpenCV*
-- **OCR**: EasyOCR (GPU-accelerated) - *not Tesseract* (poor on sports graphics)
-- **Transcription**: **faster-whisper** - ***NOT* openai-whisper** (4x slower!)
-- **Video Processing**: ffmpeg + opencv-python
-- **Config**: PyYAML
-- **Python**: 3.12.7
-
-**Note:** Scene detection, OCR, and transcription produce **advisory hints** for the LLM prompt. The actual segment analysis is performed by Claude via the `generate-llm-prompt` workflow.
-
-**Why faster-whisper is critical**: Standard openai-whisper takes 10-15 minutes per 90-minute video. faster-whisper does it in 3-4 minutes with identical accuracy. See [docs/tech-tradeoffs.md](docs/tech-tradeoffs.md) for benchmarks.
-
-### If You Need to Pivot
-See [docs/tech-tradeoffs.md](docs/tech-tradeoffs.md) for alternatives:
-- EasyOCR too slow? → PaddleOCR (migration guide included)
-- faster-whisper has issues? → Whisper API (cloud, costs $5-10 for 10 videos)
-- Scene detection missing transitions? → Adjust threshold or try AdaptiveDetector
+See [docs/domain/](docs/domain/) for business context:
+- [Glossary](docs/domain/README.md) - FT Graphics, Running Order, Segment Types
+- [Business Rules](docs/domain/business_rules.md) - Validation logic
+- [Visual Patterns](docs/domain/visual_patterns.md) - Episode structure, timings
 
 ## Common Commands
 
 ```bash
-# REQUIRED: Activate Python virtual environment before all Python commands
 source venv/bin/activate
-
-# Run full pipeline (stages 1-3: scenes, OCR, transcription)
-python -m motd run data/videos/motd_2025-26_2025-11-01.mp4
-
-# Generate LLM prompt for Claude analysis
-python -m motd generate-llm-prompt motd_2025-26_2025-11-01
-
-# Check video file properties (resolution, duration, codec)
-ffprobe -v error -select_streams v:0 -show_entries stream=width,height,duration,codec_name -of default=noprint_wrappers=1 video.mp4
-
-# Verify GPU availability for EasyOCR/faster-whisper
-python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
-
-# Run tests for specific module
-pytest tests/test_scene_detection.py -v
-
-# Check cache status for episode
-ls -lh data/cache/{episode_id}/
-
-# Validate JSON output files
-python -m json.tool data/analysis/{episode_id}/analysis.json > /dev/null && echo "Valid JSON" || echo "Invalid JSON"
-
-# Check if cache exists before running expensive operation
-[ -f data/cache/{episode_id}/transcript.json ] && echo "Cache exists" || echo "Need to run transcription"
 ```
 
-## British English Conventions
+**Full pipeline:**
+- `python -m motd run VIDEO_PATH [--force] [--config PATH]`
 
-Use British spelling throughout codebase and docs:
-- **Code & docs**: analyser (not analyzer), colour (not color), optimise (not optimize), visualisation (not visualization), recognise (not recognize)
-- **Package name**: `motd` (not `motd-analyser` - avoid redundancy with repository name)
-- **Comments**: "colour space" not "color space", "optimised for GPU" not "optimized for GPU"
+**Individual stages:**
+- `python -m motd detect-scenes VIDEO_PATH [--threshold N] [--min-scene-duration N] [--output PATH]`
+- `python -m motd extract-teams --scenes PATH --episode-id ID [--output PATH]`
+- `python -m motd transcribe VIDEO_PATH [--model-size SIZE] [--force] [--output PATH]`
 
-## Configuration & Environment
+**Generate LLM prompt:**
+- `python -m motd generate-llm-prompt EPISODE_ID [--force] [--no-hints] [--output PATH]`
 
-### Premier League Teams - 2025/26 Season
-File: [data/teams/premier_league_2025_26.json](data/teams/premier_league_2025_26.json) - Contains 20 teams with promoted: Burnley, Leeds United, Sunderland
+**Tests:**
+- `pytest`
 
-### Video Resolution
-**Always verify** with ffprobe before processing - do not assume 1920x1080. Adjust OCR regions in config if resolution differs.
-
-### Caching Strategy
-**CRITICAL**: Never re-run Whisper unnecessarily - it's the slowest stage (15-20 minutes per video on M3 Pro CPU). Always check `data/cache/{episode_id}/transcript.json` exists before transcribing. See [ML/Pipeline Patterns](.claude/commands/references/ml_pipeline_patterns.md) for caching implementation.
-
-### Validation
-Each task has validation checklists - see individual task files in [docs/tasks/](docs/tasks/) for success criteria.
-
-## Where to Find Information
-
-- **"What is this project?"** → [README.md](README.md) (overview, quick start, current results)
-- **"How does the workflow work?"** → [docs/algorithm.md](docs/algorithm.md) (LLM-based analysis workflow)
-- **"What does X mean?"** → [docs/domain/README.md](docs/domain/README.md) (domain glossary - FT graphics, running order, etc.)
-- **"What are the business rules?"** → [docs/domain/business_rules.md](docs/domain/business_rules.md) (validation logic, accuracy requirements)
-- **"How long do segments last?"** → [docs/domain/visual_patterns.md](docs/domain/visual_patterns.md) (episode structure, timings)
-- **"What JSON does Claude return?"** → [docs/domain/analysis_schema.md](docs/domain/analysis_schema.md) (LLM output schema)
-- **"Why this library?"** → [docs/tech-tradeoffs.md](docs/tech-tradeoffs.md) (comparisons + alternatives)
-- **"What's next?"** → [GitHub Issues](https://github.com/mbd0910/motd-video-analyser/issues) (current work items)
-- **"What's the big picture?"** → [docs/architecture.md](docs/architecture.md) (technical reference - pipeline stages, caching, performance)
-
-## Documentation Navigation (For Claude Sessions)
-
-**Quick reference - which doc to read first?**
-
-This section helps stateless Claude sessions efficiently navigate documentation based on task type.
-
-### By Task Type (Flowchart)
-
-```mermaid
-graph TD
-    A[What are you doing?] --> B{Task Type}
-    B -->|First time seeing this repo| C[README.md]
-    B -->|Implementing new feature| D[algorithm.md + domain/]
-    B -->|Fixing bug in existing code| E[architecture.md Section X]
-    B -->|Understanding business logic| F[domain/business_rules.md]
-    B -->|Optimizing performance| G[architecture.md Section 9]
-    B -->|Adding tests| H[algorithm.md + code]
-
-    C --> I[Then: algorithm.md for strategy]
-    D --> J[Then: architecture.md if needed]
-    E --> K[Then: algorithm.md for context]
-    F --> L[Then: algorithm.md for flow]
-    G --> M[Then: ML/Pipeline Patterns]
-    H --> N[Then: testing_guidelines.md]
-```
-
-### Detailed Routing by Scenario
-
-#### 🆕 "I'm new to this project"
-**Read in order:**
-1. [README.md](README.md) - Overview, quick start, current results
-2. [docs/algorithm.md](docs/algorithm.md) - Understand the LLM-based workflow
-3. [docs/architecture.md](docs/architecture.md) - Technical deep dive (only if implementing code)
-
-**Time**: 10-15 mins reading
-
----
-
-#### ⚙️ "I'm implementing a feature"
-**Read in order:**
-1. [docs/algorithm.md](docs/algorithm.md) - Understand LLM workflow and advisory hints
-2. [docs/domain/](docs/domain/) - Business rules, visual patterns
-   - [business_rules.md](docs/domain/business_rules.md) - Validation rules for OCR hints
-   - [visual_patterns.md](docs/domain/visual_patterns.md) - Episode structure, timing patterns
-3. [docs/architecture.md](docs/architecture.md) - Pipeline stages (scene detection, OCR, transcription)
-4. Existing code in `src/motd/` - Read implementation before modifying
-
-**Skip**: Full architecture.md (too long), completed task files
-
----
-
-#### 🐛 "I'm debugging an issue"
-**Read in order:**
-1. [docs/architecture.md](docs/architecture.md) - Technical reference for the failing stage
-   - Section 4.2: OCR processing (FT graphics, scoreboards)
-   - Section 4.4: Transcription
-   - Section 9: Performance bottlenecks
-2. [docs/algorithm.md](docs/algorithm.md) - Context on the LLM workflow
-3. [docs/domain/business_rules.md](docs/domain/business_rules.md) - Validation requirements (if validation failing)
-
-**Focus**: Error messages, stack traces, validation failures
-
----
-
-#### 📊 "I'm understanding business logic"
-**Read in order:**
-1. [docs/domain/business_rules.md](docs/domain/business_rules.md) - Validation rules for OCR hints
-   - FT graphic validation (≥1 team, score pattern, FT text)
-   - Episode manifest constraint (search space reduction)
-   - Opponent inference from fixtures
-2. [docs/domain/visual_patterns.md](docs/domain/visual_patterns.md) - Episode structure, timing patterns
-3. [docs/domain/analysis_schema.md](docs/domain/analysis_schema.md) - LLM output schema
-
-**Skip**: architecture.md (too technical for business logic questions)
-
----
-
-#### ⚡ "I'm optimizing performance"
-**Read in order:**
-1. [docs/architecture.md](docs/architecture.md) Section 9 - Performance considerations
-   - Processing times: 45-55 mins per episode (transcription slowest at 15-20 mins)
-   - Caching impact (second run <1 min)
-   - Hybrid frame extraction (2,600 frames, 78% increase)
-2. [.claude/commands/references/ml_pipeline_patterns.md](.claude/commands/references/ml_pipeline_patterns.md) - Caching strategies
-
-**Focus**: Bottleneck analysis (transcription CPU-bound, waiting for CTranslate2 MPS support)
-
----
-
-#### ✅ "I'm adding tests"
-**Read in order:**
-1. [docs/algorithm.md](docs/algorithm.md) - Understand expected behavior
-2. Existing code in `src/motd/` - Read implementation to test
-3. [.claude/commands/references/testing_guidelines.md](.claude/commands/references/testing_guidelines.md) - Testing patterns
-
-**Current tests**: 46/46 passing
-
----
-
-### Context Budget Optimization
-
-**Limited token window?** Read in priority order:
-
-#### High Priority (Always Read)
-- **CLAUDE.md** (this file) - Critical warnings, technology constraints
-- **Relevant domain doc** (e.g., business_rules.md for validation work)
-- **Specific architecture.md section** (not the whole file!)
-
-#### Medium Priority (Read if Budget Allows)
-- **docs/algorithm.md** (for strategy understanding)
-- **README.md** (for project overview)
-
-#### Low Priority (Only if Needed)
-- **Full architecture.md** (7,000+ tokens - read specific sections instead)
-- **Historical task files** in docs/tasks/completed/
-- **Tech tradeoffs** (unless choosing libraries)
-
-**Pro tip**: Use Ctrl+F to jump to specific sections in architecture.md instead of reading the entire file.
-
----
-
-### Common Pitfalls (Check Before Starting!)
-
-**Before diving into docs, check if your task involves these common misconceptions:**
-
-| Misconception | Reality | Read This |
-|---------------|---------|-----------|
-| "OCR/rule-based detection is the primary analysis" | **LLM-based** - OCR/transcription produce hints for Claude | [algorithm.md](docs/algorithm.md) |
-| "Frame extraction is just 2-second intervals" | **HYBRID** (scene changes + 2s intervals + deduplication) | [architecture.md#4.2](docs/architecture.md#42-ocr-processing) |
-| "Transcription takes 3-4 minutes" | **15-20 minutes** (CPU-bound on M3 Pro, no MPS support yet) | [architecture.md#9](docs/architecture.md#9-performance-considerations) |
-| "OCR works on 1080p video" | **720p coordinates** in config (verify with ffprobe) | [architecture.md#4.2](docs/architecture.md#42-ocr-processing) |
-| "Analysis results go in data/cache/" | **data/analysis/{episode_id}/analysis.json** | [analysis_schema.md](docs/domain/analysis_schema.md) |
-
----
-
-**Remember**: This is a marathon, not a sprint. Execute methodically, one task at a time.
-
-Up the Addicks! ⚽🔴⚪
+Use `--help` on any command for full options.

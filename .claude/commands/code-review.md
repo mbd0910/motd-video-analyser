@@ -1,6 +1,6 @@
 # Code Review Command
 
-> **Last reviewed:** 2025-12-18
+> **Last reviewed:** 2026-01-30
 
 Review the current feature branch against a base branch (default: main).
 
@@ -68,7 +68,6 @@ Replace `[base-branch]` with the provided argument (default: `main`).
    - Pythonic patterns (list comprehensions, context managers, pathlib)
    - Error handling (specific exceptions, no bare `except`)
    - British spelling in prose, US spelling in code identifiers acceptable
-   - See `.claude/commands/references/python_guidelines.md`
 
 2. **Architecture & Design**
    - Single responsibility (modules/functions focused)
@@ -76,7 +75,6 @@ Replace `[base-branch]` with the provided argument (default: `main`).
    - Dependency injection over hardcoding
    - Resource management (expensive operations loaded once)
    - YAGNI violations (over-engineering)
-   - See `.claude/commands/references/python_architecture_patterns.md`
 
 3. **ML/Pipeline Specific**
    - Caching strategy (never re-run Whisper)
@@ -84,21 +82,18 @@ Replace `[base-branch]` with the provided argument (default: `main`).
    - Confidence thresholds applied correctly
    - Config-driven behaviour
    - GPU resource management
-   - See `.claude/commands/references/ml_pipeline_patterns.md`
 
 4. **Testing**
    - New business logic has tests (>80% coverage target)
    - Critical paths fully tested
    - Appropriate mocking strategy
    - Integration tests for pipeline stages
-   - See `.claude/commands/references/testing_guidelines.md`
 
 5. **Code Quality Checklist**
    - Clear naming conventions
    - No code duplication
    - Edge cases handled
    - Security (input validation, no secrets in code)
-   - See `.claude/commands/references/code_quality_checklist.md`
 
 ### 4. Meta-Review (Self-Improvement)
 
@@ -190,19 +185,3 @@ Format the review with these sections:
 
 **Respect YAGNI:** Don't over-engineer - only suggest abstractions when they're needed
 
-## Common Review Patterns
-
-**Python code quality:**
-Reference `.claude/commands/references/python_guidelines.md` for type hints, docstrings, pythonic patterns, error handling, and project-specific conventions.
-
-**Architectural issues:**
-Reference `.claude/commands/references/python_architecture_patterns.md` for single responsibility, dependency injection, resource management, and monumental smells.
-
-**ML/Pipeline patterns:**
-Reference `.claude/commands/references/ml_pipeline_patterns.md` for caching strategy, graceful degradation, confidence thresholds, and GPU management.
-
-**Missing tests:**
-Reference `.claude/commands/references/testing_guidelines.md` for coverage expectations, priority levels, and mocking strategies.
-
-**General code quality:**
-Reference `.claude/commands/references/code_quality_checklist.md` for naming, DRY principles, error handling, and security.
