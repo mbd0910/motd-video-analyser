@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-> **Last reviewed:** 2026-01-30
+> **Last reviewed:** 2026-01-31
 
 This file provides guidance to Claude Code when working with this repository.
 
@@ -20,7 +20,16 @@ Don't try to improve accuracy by tweaking OCR rules - the LLM interprets imperfe
 
 ## Architecture Overview
 
-*Placeholder - to be expanded when productionising the project.*
+**4-stage pipeline:** Video → Scenes → OCR/Teams → Transcription → LLM Prompt
+
+**Modules** (`src/motd/`):
+- `scene_detection/` - **Find segment boundaries** (PySceneDetect, OpenCV)
+- `ocr/` - **Read team names from graphics** (EasyOCR, rapidfuzz)
+- `transcription/` - **Convert speech to text** (ffmpeg, faster-whisper)
+- `llm/` - **Prepare prompt for Claude** (OCR hints + transcript)
+- `pipeline/` - Orchestrator, service factory, Pydantic models
+
+**Key deps:** PySceneDetect, EasyOCR, faster-whisper, Pydantic v2
 
 ## Project Structure
 

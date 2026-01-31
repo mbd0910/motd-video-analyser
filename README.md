@@ -103,69 +103,23 @@ pip install -r requirements.txt
 
 ### Usage
 
-#### Full Workflow
+1. **Run automated pipeline** - Extracts scenes, runs OCR, transcribes audio
+   ```bash
+   python -m motd run data/videos/motd_2025-26_YYYY-MM-DD.mp4
+   ```
 
-```bash
-# 1. Activate virtual environment (always required)
-source venv/bin/activate
+2. **Generate LLM prompt** - Combines transcript + OCR hints into Claude-ready prompt
+   ```bash
+   python -m motd generate-llm-prompt motd_2025-26_YYYY-MM-DD
+   ```
 
-# 2. Run automated pipeline (extracts scenes, OCR, transcript)
-python -m motd run data/videos/motd_2025-26_2025-11-01.mp4
+3. **Claude analysis** - Copy prompt to Claude, save JSON response
+   ```bash
+   cat data/cache/motd_2025-26_YYYY-MM-DD/transcript_for_llm.txt | pbcopy
+   # → Paste into Claude → Save to data/analysis/{episode_id}/analysis.json
+   ```
 
-# 3. Generate LLM prompt
-python -m motd generate-llm-prompt motd_2025-26_2025-11-01
-
-# 4. Copy prompt and paste into Claude web UI
-cat data/cache/motd_2025-26_2025-11-01/transcript_for_llm.txt | pbcopy
-# → Paste into https://claude.ai → Claude returns JSON
-
-# 5. Save Claude's JSON response
-# → Save to data/analysis/motd_2025-26_2025-11-01/analysis.json
-```
-
-**Pipeline Performance** (M3 Pro, 90-minute episode):
-- **First run**: ~30-35 minutes total
-  - Stage 1 (scenes): ~5-8 minutes
-  - Stage 2 (OCR): ~8-12 minutes
-  - Stage 3 (transcription): ~15-20 minutes (CPU-bound)
-- **Cached run**: <1 minute (all stages skipped)
-
-#### LLM Prompt Options
-
-```bash
-# Standard prompt (with OCR hints)
-python -m motd generate-llm-prompt motd_2025-26_2025-11-22
-
-# Without OCR hints
-python -m motd generate-llm-prompt motd_2025-26_2025-11-22 --no-hints
-
-# Force overwrite existing prompt
-python -m motd generate-llm-prompt motd_2025-26_2025-11-22 --force
-```
-
-**Output schema** (what Claude returns):
-- Episode segments: intro, league_table, next_motd_promo, outro
-- Match segments: studio_intro, lineups, highlights, post_match_interviews, studio_analysis
-- All timestamps have independent start/end (either can be null)
-
-See [analysis_schema.md](docs/domain/analysis_schema.md) for the complete JSON schema.
-
-#### Individual Pipeline Stages
-
-Run individual stages for debugging or development:
-
-```bash
-# Scene Detection
-python -m motd detect-scenes data/videos/motd_2025-26_2025-11-01.mp4
-
-# Team Detection (OCR)
-python -m motd extract-teams \
-  --scenes data/cache/motd_2025-26_2025-11-01/scenes.json \
-  --episode-id motd_2025-26_2025-11-01
-
-# Transcription
-python -m motd transcribe data/videos/motd_2025-26_2025-11-01.mp4
-```
+See `python -m motd --help` for individual stage commands and options.
 
 ### Example Output
 
@@ -204,18 +158,15 @@ motd-video-analyser/
 │   ├── analysis/                # LLM analysis results (committed)
 │   └── cache/                   # Pipeline cache (gitignored)
 ├── docs/
-│   ├── tasks/                   # Task-driven development workflow
 │   ├── domain/                  # Business rules + visual patterns
-│   ├── architecture.md          # Technical reference
-│   └── algorithm.md             # LLM workflow overview
+│   └── architecture.md          # Technical reference
 └── tests/                       # pytest test suite
 ```
 
 ## Documentation
 
-- **[algorithm.md](docs/algorithm.md)** - LLM-based workflow overview (start here!)
+- **[architecture.md](docs/architecture.md)** - Technical reference (config, caching, performance)
 - **[analysis_schema.md](docs/domain/analysis_schema.md)** - JSON schema for LLM output
-- **[architecture.md](docs/architecture.md)** - Technical reference (pipeline stages)
 - **[Domain Glossary](docs/domain/README.md)** - FT graphics, running order, episode structure
 - **[Business Rules](docs/domain/business_rules.md)** - Validation rules for OCR hints
 - **[Visual Patterns](docs/domain/visual_patterns.md)** - Episode timing patterns

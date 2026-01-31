@@ -4,7 +4,7 @@
 
 **Purpose:** Document the validation rules enforced by the automated pipeline that produce advisory hints for LLM analysis. The pipeline extracts scenes, OCR results, and transcripts; Claude (LLM) performs the actual segment analysis using these hints.
 
-**Workflow context:** See [algorithm.md](../algorithm.md) for the full LLM-based workflow.
+**Workflow context:** See [README.md](../../README.md) for the full workflow.
 
 ---
 
@@ -142,7 +142,7 @@ Claude's analysis is saved to `data/analysis/{episode_id}/analysis.json`. See [a
 
 ## Related Documentation
 
-- [Algorithm Overview](../algorithm.md) - Full LLM-based workflow
+- [Architecture](../architecture.md) - Technical reference
 - [Domain Glossary](README.md#glossary) - Terminology definitions
 - [Visual Patterns](visual_patterns.md) - MOTD episode structure
 - [Analysis Schema](analysis_schema.md) - LLM output format
