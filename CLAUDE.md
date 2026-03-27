@@ -1,9 +1,5 @@
 # CLAUDE.md
 
-> **Last reviewed:** 2026-01-31
-
-This file provides guidance to Claude Code when working with this repository.
-
 ## What This Project Does
 
 **MOTD Analyser** - Video analysis pipeline to objectively measure coverage bias in BBC's Match of the Day. Uses LLM-based analysis to identify running order, segment boundaries, and airtime distribution from MOTD episodes (2025/26 season).
@@ -45,28 +41,10 @@ Don't try to improve accuracy by tweaking OCR rules - the LLM interprets imperfe
 - Check `data/cache/{episode_id}/` before re-running expensive operations (transcription takes 15-20 mins)
 - Never commit files in `data/videos/` or `data/cache/`
 
-## Repository Workflow
-
-- Create a feature branch before starting work
-- Commit frequently. Follow [COMMIT_STYLE.md](COMMIT_STYLE.md)
-- Always use squash merge when merging to main
-- Always ask before squash merging
-
 ## Code Style
 
 - **Line length**: 100 characters
 - **Spelling**: British English (analyser, colour, optimise)
-
-## Python Skills
-
-When writing any Python code, whether that be creating new files, refactoring/editing existing ones, or deleting code, ALWAYS check the following agents/skills to see if any of them are applicable to the task being carried out:
-
-- `python-pro` - Modern Python 3.12+, best practices, production patterns
-- `python-testing-patterns` - pytest, fixtures, mocking, TDD
-- `python-performance-optimization` - Profiling, bottlenecks
-- `async-python-patterns` - asyncio, concurrent programming
-- `python-packaging` - pyproject.toml, distributable packages, PyPI
-- `uv-package-manager` - Fast dependency management, virtual environments
 
 ## Domain Knowledge
 
