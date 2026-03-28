@@ -34,3 +34,14 @@
   - DownloadError for clear failure messages
   - CLI: `python -m motd download URL_OR_ID [--output-dir DIR]`
   - 19 new tests (3 URL, 3 date parsing, 5 season, 2 episode ID, 6 integration), 74 total, clean mypy + ruff
+
+#24 End-to-end CLI: wire all stages with logging — DONE
+  - Pipeline orchestrator: Download (optional) → Transcribe → Analyse → Publish
+  - Cache-aware: skips transcription if transcript.json exists, writes analysis.json
+  - --skip-to flag resumes from a specific stage (requires --episode-id)
+  - --force flag re-processes even when cached outputs exist
+  - Error handling preserves completed stage outputs (transcript survives analysis failure)
+  - Per-stage timing logs (start, completion, duration)
+  - PipelineError for clear user-facing error messages (no fixtures, missing inputs)
+  - CLI `run` command wired to pipeline with PipelineError → sys.exit(1)
+  - 13 new tests (3 full pipeline, 1 URL path, 2 validation, 2 skip-to, 2 error handling, 2 caching, 1 no-fixtures), 87 total, clean mypy + ruff
