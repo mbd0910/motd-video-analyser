@@ -45,3 +45,14 @@
   - PipelineError for clear user-facing error messages (no fixtures, missing inputs)
   - CLI `run` command wired to pipeline with PipelineError → sys.exit(1)
   - 13 new tests (3 full pipeline, 1 URL path, 2 validation, 2 skip-to, 2 error handling, 2 caching, 1 no-fixtures), 87 total, clean mypy + ruff
+
+#22 Website MVP: display episode data from R2 — DONE
+  - Astro static site scaffolded at site/
+  - Episode list page (/): fetches index.json from R2, cards sorted by date, match count + season
+  - Episode detail page (/episode?id=...): running order table with highlights/studio durations, scores, venues, notes
+  - Loading, empty, and error states on both pages
+  - Mobile-responsive: table hides venue/notes columns on small screens
+  - R2 URL configurable via PUBLIC_R2_URL env var (falls back to /data/ for local dev)
+  - TypeScript types mirroring Python Pydantic models
+  - Local test fixture data in public/data/episodes/ for development
+  - Astro build succeeds, 87 Python tests still pass
