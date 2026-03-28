@@ -26,9 +26,25 @@ def cli() -> None:
 
 @cli.command()
 @click.argument("url_or_id")
-def download(url_or_id: str) -> None:
+@click.option(
+    "--output-dir",
+    default="data/videos",
+    type=click.Path(),
+    help="Directory to save downloaded video.",
+)
+def download(url_or_id: str, output_dir: str) -> None:
     """Download an MOTD episode from BBC iPlayer."""
-    click.echo("Download not yet implemented — see issue #23")
+    from motd.downloader import DownloadError
+    from motd.downloader import download as do_download
+
+    try:
+        result = do_download(url_or_id, output_dir=output_dir)
+    except DownloadError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+
+    click.echo(f"Episode ID: {result.episode_id}")
+    click.echo(f"Video path: {result.video_path}")
 
 
 @cli.command()
