@@ -83,3 +83,32 @@ class and wrap `CalledProcessError` at the call site.
 - `pipeline.py` reading cached transcript/analysis JSON — a corrupt cache file raising
   `ValidationError` is a reasonable failure mode since the pipeline can be re-run with `--force`.
 - `publisher.py` `os.environ[]` for R2 credentials — deployment-time config, not runtime input.
+
+## Category 7: Test quality
+
+**Addressed:** Improved test coverage at system boundaries and tightened assertions.
+
+- **`test_downloader.py`**: Added `test_malformed_metadata_json_raises` — the `json.loads` error
+  path on yt-dlp metadata (wrapped as `DownloadError` in category 3) had no test coverage.
+- **`test_analyser.py`**: `test_analyse_returns_valid_analysis` previously only checked
+  `len(analysis.matches) == 2` and verified the mock was called — it now asserts episode_id,
+  broadcast_date, season, match order, and team names to verify end-to-end parsing.
+- **`test_analyser.py`**: `test_prompt_formats_timestamps_as_mmss` (renamed) now asserts exact
+  `[MM:SS]` format (`[00:00]`, `[00:10]`, `[01:00]`) instead of the loose
+  `"00:00" in prompt or "0.0" in prompt` which would accept wrong formats.
+- **`test_fixtures.py`**: `test_fixture_missing_required_field_raises` parametrised over all four
+  required fields (`match_id`, `date`, `home_team`, `away_team`). Previously only tested `match_id`.
+- **`test_transcriber.py`**: Added `test_chunk_audio_ffmpeg_failure_raises` — the
+  `CalledProcessError` → `TranscriptionError` wrapping in `_chunk_audio` had no test.
+- **`test_transcriber.py`**: Added `test_ffprobe_failure_raises` — the subprocess failure path
+  in `_get_audio_duration` had no test.
+- **`test_transcriber.py`**: Added `test_empty_chunk_produces_no_segments` — verifies the
+  transcribe flow handles a silent chunk (empty segment list) without breaking.
+
+**Left alone:**
+- Pipeline tests are heavily mocked but this is appropriate for unit tests — the pipeline is
+  an orchestrator and its value is in sequencing/caching logic, not data transformation.
+- Publisher tests use a FakeR2Client rather than mocking boto3 — this is fine for unit tests;
+  real S3 protocol verification belongs in integration tests against a local S3 endpoint.
+- No integration tests added for cache corruption in pipeline — the current behaviour (Pydantic
+  `ValidationError` propagates, user re-runs with `--force`) is acceptable and documented.

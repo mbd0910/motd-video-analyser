@@ -123,6 +123,17 @@ class TestChunkAudio:
             _chunk_audio(str(tmp_path / "video.mp4"), str(output_dir))
 
     @patch("motd.transcriber.subprocess.run")
+    def test_chunk_audio_ffmpeg_failure_raises(
+        self, mock_run: MagicMock, tmp_path: Path
+    ) -> None:
+        import subprocess
+        mock_run.side_effect = subprocess.CalledProcessError(
+            1, "ffmpeg", stderr="No such file"
+        )
+        with pytest.raises(TranscriptionError, match="ffmpeg"):
+            _chunk_audio(str(tmp_path / "video.mp4"), str(tmp_path / "out"))
+
+    @patch("motd.transcriber.subprocess.run")
     def test_chunk_audio_sorted_order(self, mock_run: MagicMock, tmp_path: Path) -> None:
         video = tmp_path / "video.mp4"
         video.touch()
@@ -175,6 +186,15 @@ class TestGetAudioDuration:
             _get_audio_duration("/fake/video.mp4")
 
     @patch("motd.transcriber.subprocess.run")
+    def test_ffprobe_failure_raises(self, mock_run: MagicMock) -> None:
+        import subprocess
+        mock_run.side_effect = subprocess.CalledProcessError(
+            1, "ffprobe", stderr="not found"
+        )
+        with pytest.raises(TranscriptionError, match="ffprobe"):
+            _get_audio_duration("/fake/video.mp4")
+
+    @patch("motd.transcriber.subprocess.run")
     def test_valid_duration_returned(self, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(stdout="5400.123\n", stderr="")
         assert _get_audio_duration("/fake/video.mp4") == 5400.123
@@ -213,3 +233,29 @@ class TestTranscribeIntegration:
         # Second chunk offset = 1 * chunk_duration (default 1200)
         assert transcript.segments[1].start == 1200.0
         assert transcript.segments[1].end == 1203.0
+
+    @patch("motd.transcriber._get_audio_duration")
+    @patch("motd.transcriber._transcribe_chunk")
+    @patch("motd.transcriber._chunk_audio")
+    def test_empty_chunk_produces_no_segments(
+        self,
+        mock_chunk: MagicMock,
+        mock_transcribe: MagicMock,
+        mock_duration: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """A chunk returning no segments (e.g. silence) should not break the flow."""
+        video = tmp_path / "video.mp4"
+        video.touch()
+
+        mock_duration.return_value = 2400.0
+        mock_chunk.return_value = ["/chunk_000.mp3", "/chunk_001.mp3"]
+        mock_transcribe.side_effect = [
+            [{"start": 0.0, "end": 5.0, "text": " First chunk."}],
+            [],  # second chunk has no speech
+        ]
+
+        transcript = transcribe(str(video), "ep1")
+
+        assert len(transcript.segments) == 1
+        assert transcript.segments[0].text == "First chunk."

@@ -93,12 +93,14 @@ class TestBuildPrompt:
         assert "Emirates Stadium" in prompt
         assert "Brighton" in prompt
 
-    def test_prompt_includes_timestamps(self) -> None:
+    def test_prompt_formats_timestamps_as_mmss(self) -> None:
         prompt = _build_prompt(
             SAMPLE_TRANSCRIPT, SAMPLE_FIXTURES,
             "motd_2025-26_2025-11-01", "2025-11-01", "2025-26",
         )
-        assert "00:00" in prompt or "0.0" in prompt
+        assert "[00:00]" in prompt
+        assert "[00:10]" in prompt
+        assert "[01:00]" in prompt
 
     def test_prompt_requests_json_output(self) -> None:
         prompt = _build_prompt(
@@ -179,8 +181,16 @@ class TestAnalyseIntegration:
         )
 
         assert isinstance(analysis, EpisodeAnalysis)
+        assert analysis.episode_id == "motd_2025-26_2025-11-01"
+        assert analysis.broadcast_date == "2025-11-01"
+        assert analysis.season == "2025-26"
         assert len(analysis.matches) == 2
-        mock_run.assert_called_once()
+        assert analysis.matches[0].order == 1
+        assert analysis.matches[0].home_team == "Arsenal"
+        assert analysis.matches[0].away_team == "Chelsea"
+        assert analysis.matches[1].order == 2
+        assert analysis.matches[1].home_team == "Brighton & Hove Albion"
+        # Verify subprocess was invoked with claude
         cmd = mock_run.call_args[0][0]
         assert "claude" in cmd
 

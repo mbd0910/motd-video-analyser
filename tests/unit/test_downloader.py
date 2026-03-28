@@ -200,6 +200,18 @@ class TestDownload:
         assert result.video_path.endswith(".mp4")
 
     @patch("motd.downloader.subprocess.run")
+    def test_malformed_metadata_json_raises(
+        self, mock_run: MagicMock, tmp_path: Path
+    ) -> None:
+        dump_result = MagicMock()
+        dump_result.stdout = "not valid json {{{}"
+        dump_result.returncode = 0
+        mock_run.return_value = dump_result
+
+        with pytest.raises(DownloadError, match="parse.*metadata"):
+            download("m0025t4g", output_dir=str(tmp_path))
+
+    @patch("motd.downloader.subprocess.run")
     def test_skips_download_if_video_exists(
         self, mock_run: MagicMock, tmp_path: Path
     ) -> None:
