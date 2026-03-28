@@ -34,7 +34,7 @@ class AudioExtractor:
             f"{self.channels} channel(s)"
         )
 
-    def extract(self, video_path: str, output_path: str) -> dict:
+    def extract(self, video_path: str | Path, output_path: str | Path) -> dict:
         """Extract audio from video to WAV format.
 
         Args:

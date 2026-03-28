@@ -1,6 +1,5 @@
-"""MOTD transcription module for audio extraction and transcription."""
+"""MOTD transcription module — audio extraction utilities."""
 
 from motd.transcription.audio_extractor import AudioExtractor
-from motd.transcription.whisper_transcriber import WhisperTranscriber
 
-__all__ = ["AudioExtractor", "WhisperTranscriber"]
+__all__ = ["AudioExtractor"]

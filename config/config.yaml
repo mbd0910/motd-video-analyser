@@ -1,80 +1,20 @@
-# Scene Detection Configuration
-scene_detection:
-  detector_type: content       # Detector type: "content" or "adaptive"
-  threshold: 20.0              # Scene detection sensitivity (lower = more sensitive)
-  min_scene_duration: 3.0      # Minimum scene length in seconds
+# MOTD Analyser Configuration
 
-# OCR Configuration
-ocr:
-  library: easyocr             # OCR library to use
-  languages: ['en']            # Languages for OCR
-  gpu: true                    # Use GPU acceleration if available
-  confidence_threshold: 0.7    # Minimum confidence for automatic acceptance
-
-  # Hybrid frame extraction strategy (Task 011b)
-  # Combines PySceneDetect scene changes with regular interval sampling
-  sampling:
-    use_hybrid: true              # Enable hybrid extraction (scene changes + intervals)
-    interval: 2.0                 # Regular sampling interval (seconds) - reduced from 5.0 in Task 011b-2
-    dedupe_threshold: 1.0         # Frames within 1s considered duplicates
-    include_scene_changes: true   # Include PySceneDetect frames
-
-  # Regions of interest (ROI) for OCR - adjust based on video resolution
-  # Coordinates calibrated for 720p (1280x720) video - MOTD 2025-26 season
-  # Multi-tiered strategy: FT scores (primary) > scoreboards (backup) > formations (validation)
-  regions:
-    ft_score:                  # Lower-middle full-time score graphic (PRIMARY - 90-95% auto-capture)
-      x: 157                   # Left edge (measured from frame_0834 - Fulham vs Wolves)
-      y: 545                   # Captures team names, crests, scores, and scorers
-      width: 966               # Nearly full-width (1123-157) to accommodate long names like "Wolverhampton Wanderers"
-      height: 140              # Includes scorer information below main score
-    scoreboard:                # Top-left live scoreboard graphic (SECONDARY - ubiquitous but motion-blurred)
-      x: 0
-      y: 0
-      width: 370               # Extended to ensure full "TEAM | SCORE | TEAM" layout captured (includes margin)
-      height: 70               # Measured to capture full scoreboard height
-    formation:                 # Bottom-right formation graphic (VALIDATION - manual screenshots)
-      x: 533                   # 800 * 0.667
-      y: 400                   # 600 * 0.667
-      width: 747               # 1280 - 533 = 747 (extends to right edge at 720p)
-      height: 320              # 720 - 400 = 320 (extends to bottom edge at 720p)
-
-# Transcription Configuration
-transcription:
-  model_size: large-v3         # faster-whisper model (tiny, base, small, medium, large, large-v3)
-                               # Note: Uses faster-whisper library, NOT openai-whisper
-  language: en                 # Language code
-  device: auto                 # Device: auto, cpu, cuda, mps (auto will use GPU if available)
-  word_timestamps: true        # Enable word-level timestamps
-
-# Team Names
-teams:
-  path: data/teams/premier_league_2025_26.json
-
-# Fixtures
+# Data paths
 fixtures:
   path: data/fixtures/premier_league_2025_26.json
 
-# Episodes
+teams:
+  path: data/teams/premier_league_2025_26.json
+
 episodes:
   manifest_path: data/episodes/episode_manifest.json
 
-# Caching Configuration
+# Cache
 cache:
-  enabled: true
   directory: data/cache
-  invalidate_on_config_change: true  # Re-run if config changes
 
-# Output Configuration
-output:
-  directory: data/output
-  format: json
-  indent: 2                    # JSON indentation for readability
-  include_metadata: true       # Include processing metadata in output
-
-# Logging Configuration
+# Logging
 logging:
-  level: INFO                  # DEBUG, INFO, WARNING, ERROR
-  file: logs/pipeline.log
-  console: true                # Also log to console
+  level: INFO
   format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

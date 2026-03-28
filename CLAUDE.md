@@ -10,28 +10,29 @@
 
 ## How Analysis Works
 
-**The analysis is LLM-based, not rule-based.** Scene detection, OCR, and transcription are preprocessing stages that produce advisory hints. Claude performs the actual segment analysis via `python -m motd generate-llm-prompt`.
-
-Don't try to improve accuracy by tweaking OCR rules - the LLM interprets imperfect hints.
+**The analysis is LLM-based, not rule-based.** Transcription (OpenAI Whisper API) produces a timestamped transcript. Claude analyses the transcript against fixture data to identify running order, segment boundaries, and durations.
 
 ## Architecture Overview
 
-**4-stage pipeline:** Video → Scenes → OCR/Teams → Transcription → LLM Prompt
+**4-stage pipeline:** Download (optional) → Transcribe → Analyse → Publish
 
 **Modules** (`src/motd/`):
-- `scene_detection/` - **Find segment boundaries** (PySceneDetect, OpenCV)
-- `ocr/` - **Read team names from graphics** (EasyOCR, rapidfuzz)
-- `transcription/` - **Convert speech to text** (ffmpeg, faster-whisper)
-- `llm/` - **Prepare prompt for Claude** (OCR hints + transcript)
-- `pipeline/` - Orchestrator, service factory, Pydantic models
+- `models.py` - **Pydantic data contracts** (Transcript, EpisodeAnalysis, Fixture, etc.)
+- `fixtures.py` - **Fixture loading** (FixtureProvider interface + FileFixtureProvider)
+- `transcriber.py` - **Transcription** (OpenAI Whisper API, chunked)
+- `analyser.py` - **Analysis** (Claude via `claude -p`)
+- `publisher.py` - **Publishing** (Cloudflare R2)
+- `downloader.py` - **Download** (yt-dlp from BBC iPlayer)
+- `pipeline.py` - **Orchestrator** (sequences all stages)
+- `transcription/audio_extractor.py` - **Audio extraction** (ffmpeg)
 
-**Key deps:** PySceneDetect, EasyOCR, faster-whisper, Pydantic v2
+**Key deps:** Pydantic v2, Click
 
 ## Project Structure
 
-- `src/motd/` - Main package (pipeline, OCR, transcription, scene detection) - see `src/motd/CLAUDE.md`
+- `src/motd/` - Main package — see `src/motd/CLAUDE.md`
 - `config/` - Configuration files (config.yaml)
-- `data/` - Videos, cache, analysis outputs (gitignored) - see `data/CLAUDE.md`
+- `data/` - Videos, cache, analysis outputs (gitignored) — see `data/CLAUDE.md`
 - `docs/` - Documentation and domain knowledge
 - `tests/` - Test suite
 
@@ -60,15 +61,13 @@ source venv/bin/activate
 ```
 
 **Full pipeline:**
-- `python -m motd run VIDEO_PATH [--force] [--config PATH]`
+- `python -m motd run VIDEO_PATH [--url URL] [--episode-id ID] [--skip-to STAGE] [--force]`
 
 **Individual stages:**
-- `python -m motd detect-scenes VIDEO_PATH [--threshold N] [--min-scene-duration N] [--output PATH]`
-- `python -m motd extract-teams --scenes PATH --episode-id ID [--output PATH]`
-- `python -m motd transcribe VIDEO_PATH [--model-size SIZE] [--force] [--output PATH]`
-
-**Generate LLM prompt:**
-- `python -m motd generate-llm-prompt EPISODE_ID [--force] [--no-hints] [--output PATH]`
+- `python -m motd download URL_OR_ID`
+- `python -m motd transcribe VIDEO_PATH [--output PATH] [--force]`
+- `python -m motd analyse EPISODE_ID [--output PATH] [--force]`
+- `python -m motd publish EPISODE_ID`
 
 **Tests:**
 - `pytest`

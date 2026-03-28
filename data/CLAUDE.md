@@ -2,9 +2,8 @@
 
 - `videos/` - Source video files (gitignored, not committed)
 - `cache/{episode_id}/` - Pipeline outputs:
-  - `scenes.json` - Scene detection results
-  - `ocr_results.json` - Team extraction results
   - `transcript.json` - Transcription with timestamps
-  - `frames/` - Extracted key frames
-- `analysis/{episode_id}/` - Final analysis outputs
+  - `analysis.json` - Structured episode analysis
+- `fixtures/` - Fixture JSON files (e.g., `premier_league_2025_26.json`)
 - `teams/` - Team list JSON files (e.g., `premier_league_2025_26.json`)
+- `episodes/` - Episode manifest (episode_manifest.json)
