@@ -86,7 +86,8 @@ def transcribe(video_path: str, output: str | None, force: bool, episode_id: str
 def analyse(episode_id: str, output: str | None, force: bool) -> None:
     """Analyse a transcript and produce structured episode analysis."""
     from motd.analyser import analyse as do_analyse
-    from motd.fixtures import FileFixtureProvider
+    from motd.downloader import parse_episode_id
+    from motd.fixtures import DEFAULT_FIXTURES_PATH, FileFixtureProvider
     from motd.models import Transcript
 
     cache_dir = Path("data/cache") / episode_id
@@ -107,22 +108,18 @@ def analyse(episode_id: str, output: str | None, force: bool) -> None:
     transcript = Transcript.model_validate_json(transcript_path.read_text())
 
     # Derive broadcast date from episode_id (motd_YYYY-YY_YYYY-MM-DD)
-    parts = episode_id.split("_")
-    if len(parts) >= 3:
-        broadcast_date = parts[2]
-        season = parts[1]
-    else:
-        click.echo(f"Error: cannot derive date from episode_id: {episode_id}", err=True)
-        click.echo("Expected format: motd_YYYY-YY_YYYY-MM-DD")
+    try:
+        broadcast_date, season = parse_episode_id(episode_id)
+    except ValueError as exc:
+        click.echo(f"Error: {exc}", err=True)
         sys.exit(1)
 
     # Load fixtures
-    fixtures_path = Path("data/fixtures/premier_league_2025_26.json")
-    if not fixtures_path.exists():
-        click.echo(f"Error: fixtures file not found: {fixtures_path}", err=True)
+    if not DEFAULT_FIXTURES_PATH.exists():
+        click.echo(f"Error: fixtures file not found: {DEFAULT_FIXTURES_PATH}", err=True)
         sys.exit(1)
 
-    provider = FileFixtureProvider(fixtures_path)
+    provider = FileFixtureProvider(DEFAULT_FIXTURES_PATH)
     fixtures = provider.get_fixtures_for_date(broadcast_date)
 
     if not fixtures:

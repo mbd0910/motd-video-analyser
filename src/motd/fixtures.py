@@ -8,6 +8,8 @@ from pathlib import Path
 
 from motd.models import Fixture, Score
 
+DEFAULT_FIXTURES_PATH = Path("data/fixtures/premier_league_2025_26.json")
+
 
 class FixtureProvider(ABC):
     """Interface for loading fixture data."""

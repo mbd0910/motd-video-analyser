@@ -16,6 +16,7 @@ from motd.downloader import (
     _normalise_url,
     _parse_broadcast_date,
     download,
+    parse_episode_id,
 )
 
 
@@ -78,6 +79,31 @@ class TestDeriveEpisodeId:
 
     def test_spring_date(self) -> None:
         assert _derive_episode_id("2026-03-15") == "motd_2025-26_2026-03-15"
+
+
+class TestParseEpisodeId:
+    """Test parsing broadcast_date and season from episode_id."""
+
+    def test_standard_episode_id(self) -> None:
+        date, season = parse_episode_id("motd_2025-26_2025-11-01")
+        assert date == "2025-11-01"
+        assert season == "2025-26"
+
+    def test_spring_episode_id(self) -> None:
+        date, season = parse_episode_id("motd_2025-26_2026-03-15")
+        assert date == "2026-03-15"
+        assert season == "2025-26"
+
+    def test_invalid_format_raises(self) -> None:
+        with pytest.raises(ValueError, match="Cannot derive date"):
+            parse_episode_id("bad_id")
+
+    def test_roundtrip_with_derive(self) -> None:
+        """parse_episode_id is the inverse of _derive_episode_id."""
+        episode_id = _derive_episode_id("2025-11-01")
+        date, season = parse_episode_id(episode_id)
+        assert date == "2025-11-01"
+        assert season == "2025-26"
 
 
 class TestDownload:

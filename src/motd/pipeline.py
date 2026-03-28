@@ -9,7 +9,7 @@ import logging
 import time
 from pathlib import Path
 
-from motd.models import EpisodeAnalysis, Transcript
+from motd.models import EpisodeAnalysis, Fixture, Transcript
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +100,12 @@ def run(
             )
 
         # Parse broadcast date and season from episode_id
-        broadcast_date, season = _parse_episode_id(episode_id)
+        from motd.downloader import parse_episode_id
+
+        try:
+            broadcast_date, season = parse_episode_id(episode_id)
+        except ValueError as exc:
+            raise PipelineError(str(exc)) from exc
 
         fixtures = _load_fixtures(broadcast_date)
         if not fixtures:
@@ -145,29 +150,14 @@ def _timed(stage_name: str, fn, **kwargs):  # type: ignore[no-untyped-def]
     return result
 
 
-def _parse_episode_id(episode_id: str) -> tuple[str, str]:
-    """Extract broadcast_date and season from episode_id.
-
-    Expected format: motd_YYYY-YY_YYYY-MM-DD
-    """
-    parts = episode_id.split("_")
-    if len(parts) >= 3:
-        return parts[2], parts[1]
-    raise PipelineError(
-        f"Cannot derive date from episode_id: {episode_id}. "
-        "Expected format: motd_YYYY-YY_YYYY-MM-DD"
-    )
-
-
-def _load_fixtures(broadcast_date: str) -> list:
+def _load_fixtures(broadcast_date: str) -> list[Fixture]:
     """Load fixtures for a broadcast date."""
-    from motd.fixtures import FileFixtureProvider
+    from motd.fixtures import DEFAULT_FIXTURES_PATH, FileFixtureProvider
 
-    fixtures_path = Path("data/fixtures/premier_league_2025_26.json")
-    if not fixtures_path.exists():
-        raise PipelineError(f"Fixtures file not found: {fixtures_path}")
+    if not DEFAULT_FIXTURES_PATH.exists():
+        raise PipelineError(f"Fixtures file not found: {DEFAULT_FIXTURES_PATH}")
 
-    provider = FileFixtureProvider(fixtures_path)
+    provider = FileFixtureProvider(DEFAULT_FIXTURES_PATH)
     return provider.get_fixtures_for_date(broadcast_date)
 
 
@@ -188,7 +178,7 @@ def _do_transcribe(video_path: str, episode_id: str) -> Transcript:
 
 def _do_analyse(
     transcript: Transcript,
-    fixtures: list,
+    fixtures: list[Fixture],
     episode_id: str,
     broadcast_date: str,
     season: str,

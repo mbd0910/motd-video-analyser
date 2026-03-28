@@ -67,6 +67,26 @@ def _derive_episode_id(broadcast_date: str) -> str:
     return f"motd_{season}_{broadcast_date}"
 
 
+def parse_episode_id(episode_id: str) -> tuple[str, str]:
+    """Extract broadcast_date and season from an episode_id.
+
+    Expected format: motd_YYYY-YY_YYYY-MM-DD
+
+    Returns:
+        (broadcast_date, season) tuple.
+
+    Raises:
+        ValueError: If the episode_id doesn't match the expected format.
+    """
+    parts = episode_id.split("_")
+    if len(parts) >= 3:
+        return parts[2], parts[1]
+    raise ValueError(
+        f"Cannot derive date from episode_id: {episode_id}. "
+        "Expected format: motd_YYYY-YY_YYYY-MM-DD"
+    )
+
+
 def download(url_or_id: str, output_dir: str = "data/videos") -> DownloadResult:
     """Download an MOTD episode from BBC iPlayer.
 

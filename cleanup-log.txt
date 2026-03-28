@@ -1,0 +1,32 @@
+## Category 1: Dead code
+
+**Addressed:** Removed `src/motd/transcription/` package (AudioExtractor class + __init__.py).
+This was leftover from the old pipeline — the new `transcriber.py` handles ffmpeg audio
+chunking directly via subprocess. No code in the project imported or used AudioExtractor.
+Updated both CLAUDE.md files to remove stale references.
+
+**Left alone:**
+- `src/motd/__init__.py` is empty but required for Python package structure.
+- `conftest.py` defines a `project_root` fixture not currently used by tests, but it's a
+  reasonable shared fixture to keep for future tests.
+
+## Category 4: Duplication
+
+**Addressed:** Extracted duplicated episode ID parsing and fixtures path constant.
+
+- **`parse_episode_id`**: Logic to split `motd_YYYY-YY_YYYY-MM-DD` into `(broadcast_date, season)`
+  was duplicated between `__main__.py` (inline) and `pipeline.py` (`_parse_episode_id` private fn).
+  Extracted as a public function in `downloader.py` (which owns the episode_id format via
+  `_derive_episode_id`). Both `__main__.py` and `pipeline.py` now import from there.
+- **`DEFAULT_FIXTURES_PATH`**: The path `data/fixtures/premier_league_2025_26.json` was hardcoded
+  identically in `__main__.py` and `pipeline.py`. Extracted as a constant in `fixtures.py` (which
+  owns fixture loading). Both consumers now import it.
+- **Type annotation fix**: `_load_fixtures` and `_do_analyse` in `pipeline.py` had bare `list`
+  return/param types — tightened to `list[Fixture]`.
+- Added tests for `parse_episode_id` including a roundtrip test with `_derive_episode_id`.
+
+**Left alone:**
+- Transcript/analysis JSON loading (`model_validate_json(path.read_text())`) appears in both
+  `__main__.py` and `pipeline.py` — this is a one-liner Pydantic pattern, not worth extracting.
+- Fixtures loading flow differs between CLI (user-facing error messages) and pipeline
+  (`PipelineError`) — the divergent error handling justifies the small repetition.
