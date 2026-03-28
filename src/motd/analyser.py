@@ -1,7 +1,7 @@
 """Analyser module — produces structured episode analysis from transcript + fixtures.
 
-Constructs a prompt from Transcript and fixture data, invokes Claude
-via `claude -p`, and parses the response into a validated EpisodeAnalysis.
+Constructs a prompt from Transcript and fixture data, invokes an LLM
+backend, and parses the response into a validated EpisodeAnalysis.
 """
 
 from __future__ import annotations
@@ -10,9 +10,11 @@ import json
 import logging
 import re
 import subprocess
+from typing import Protocol, runtime_checkable
 
 from pydantic import ValidationError
 
+from motd.episode import Episode
 from motd.models import EpisodeAnalysis, Fixture, MatchCoverage, Transcript
 
 logger = logging.getLogger(__name__)
@@ -22,32 +24,20 @@ class AnalysisError(Exception):
     """Raised when analysis fails."""
 
 
-def analyse(
-    transcript: Transcript,
-    fixtures: list[Fixture],
-    episode_id: str,
-    broadcast_date: str,
-    season: str,
-) -> EpisodeAnalysis:
-    """Analyse a transcript against fixtures and return structured analysis.
+@runtime_checkable
+class LlmBackend(Protocol):
+    """Protocol for LLM text completion backends.
 
-    Args:
-        transcript: Episode transcript with timestamped segments.
-        fixtures: Fixtures for the episode's broadcast date.
-        episode_id: Episode identifier.
-        broadcast_date: Broadcast date (YYYY-MM-DD).
-        season: Season identifier (e.g. "2025-26").
-
-    Returns:
-        Validated EpisodeAnalysis.
-
-    Raises:
-        AnalysisError: If Claude invocation or response parsing fails.
+    Any callable satisfying (str) -> str works, including lambdas.
     """
-    prompt = _build_prompt(transcript, fixtures, episode_id, broadcast_date, season)
-    logger.info("Analysing %s (%d segments, %d fixtures)",
-                episode_id, len(transcript.segments), len(fixtures))
 
+    def __call__(self, prompt: str) -> str:
+        """Send a prompt and return the raw text response."""
+        ...
+
+
+def _claude_cli_backend(prompt: str) -> str:
+    """Default backend — invokes `claude -p` via subprocess."""
     try:
         result = subprocess.run(
             ["claude", "-p", prompt],
@@ -57,13 +47,55 @@ def analyse(
         )
     except subprocess.CalledProcessError as e:
         raise AnalysisError(
-            f"Claude analysis failed for {episode_id}: {e.stderr or e}"
+            f"Claude CLI failed: {e.stderr or e}"
         ) from e
+    return result.stdout.strip()
 
-    response_text = result.stdout.strip()
-    logger.debug("Claude response length: %d chars", len(response_text))
 
-    analysis = _parse_response(response_text, episode_id, broadcast_date, season)
+def analyse(
+    transcript: Transcript,
+    fixtures: list[Fixture],
+    episode_id: str,
+    *,
+    backend: LlmBackend | None = None,
+) -> EpisodeAnalysis:
+    """Analyse a transcript against fixtures and return structured analysis.
+
+    Args:
+        transcript: Episode transcript with timestamped segments.
+        fixtures: Fixtures for the episode's broadcast date.
+        episode_id: Episode identifier (format: motd_YYYY-YY_YYYY-MM-DD).
+        backend: LLM backend to use. Defaults to Claude CLI subprocess.
+
+    Returns:
+        Validated EpisodeAnalysis.
+
+    Raises:
+        AnalysisError: If episode_id parsing, LLM invocation, or response
+            parsing fails.
+    """
+    if backend is None:
+        backend = _claude_cli_backend
+
+    try:
+        ep = Episode.from_id(episode_id)
+    except ValueError as exc:
+        raise AnalysisError(str(exc)) from exc
+
+    prompt = _build_prompt(
+        transcript, fixtures, episode_id, ep.broadcast_date, ep.season
+    )
+    logger.info(
+        "Analysing %s (%d segments, %d fixtures)",
+        episode_id, len(transcript.segments), len(fixtures),
+    )
+
+    response_text = backend(prompt)
+    logger.debug("LLM response length: %d chars", len(response_text))
+
+    analysis = _parse_response(
+        response_text, episode_id, ep.broadcast_date, ep.season
+    )
     logger.info("Analysis complete: %d matches identified", len(analysis.matches))
     return analysis
 
@@ -75,18 +107,7 @@ def _build_prompt(
     broadcast_date: str,
     season: str,
 ) -> str:
-    """Build the analysis prompt from transcript and fixture data.
-
-    Args:
-        transcript: Episode transcript.
-        fixtures: Fixtures for the broadcast date.
-        episode_id: Episode identifier.
-        broadcast_date: Broadcast date.
-        season: Season identifier.
-
-    Returns:
-        Complete prompt string for Claude.
-    """
+    """Build the analysis prompt from transcript and fixture data."""
     # Format transcript with timestamps
     transcript_lines = []
     for seg in transcript.segments:
@@ -165,21 +186,7 @@ def _parse_response(
     broadcast_date: str,
     season: str,
 ) -> EpisodeAnalysis:
-    """Parse Claude's JSON response into a validated EpisodeAnalysis.
-
-    Args:
-        response_text: Raw text response from Claude.
-        episode_id: Episode identifier.
-        broadcast_date: Broadcast date.
-        season: Season identifier.
-
-    Returns:
-        Validated EpisodeAnalysis.
-
-    Raises:
-        AnalysisError: If the response cannot be parsed as valid JSON or
-            doesn't match the expected schema.
-    """
+    """Parse LLM JSON response into a validated EpisodeAnalysis."""
     # Strip markdown fences if present
     cleaned = response_text.strip()
     fence_match = re.search(r"```(?:json)?\s*\n(.*?)\n```", cleaned, re.DOTALL)
@@ -189,14 +196,17 @@ def _parse_response(
     try:
         data = json.loads(cleaned)
     except json.JSONDecodeError as e:
-        raise AnalysisError(f"Failed to parse Claude response as JSON: {e}") from e
+        raise AnalysisError(
+            f"Failed to parse LLM response as JSON: {e}"
+        ) from e
 
     # Build EpisodeAnalysis from parsed data
     try:
         matches_data = data.get("matches", [])
         if not isinstance(matches_data, list):
             raise AnalysisError(
-                f"Expected 'matches' to be a list, got {type(matches_data).__name__}"
+                f"Expected 'matches' to be a list, "
+                f"got {type(matches_data).__name__}"
             )
         matches = [MatchCoverage.model_validate(m) for m in matches_data]
 
@@ -208,5 +218,5 @@ def _parse_response(
         )
     except ValidationError as e:
         raise AnalysisError(
-            f"Claude response doesn't match expected schema: {e}"
+            f"LLM response doesn't match expected schema: {e}"
         ) from e

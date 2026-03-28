@@ -7,7 +7,9 @@ import pytest
 
 from motd.models import Transcript, TranscriptSegment
 from motd.transcriber import (
+    TranscriberBackend,
     TranscriptionError,
+    WhisperTranscriber,
     _assemble_transcript,
     _chunk_audio,
     _get_audio_duration,
@@ -259,3 +261,37 @@ class TestTranscribeIntegration:
 
         assert len(transcript.segments) == 1
         assert transcript.segments[0].text == "First chunk."
+
+
+class TestWhisperTranscriber:
+    """Test the WhisperTranscriber class directly."""
+
+    @patch("motd.transcriber._get_audio_duration")
+    @patch("motd.transcriber._transcribe_chunk")
+    @patch("motd.transcriber._chunk_audio")
+    def test_class_based_transcription(
+        self,
+        mock_chunk: MagicMock,
+        mock_transcribe_chunk: MagicMock,
+        mock_duration: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        video = tmp_path / "video.mp4"
+        video.touch()
+
+        mock_duration.return_value = 1000.0
+        mock_chunk.return_value = ["/chunk_000.mp3"]
+        mock_transcribe_chunk.return_value = [
+            {"start": 0.0, "end": 5.0, "text": " Hello."}
+        ]
+
+        transcriber = WhisperTranscriber(chunk_duration=600, model="whisper-1")
+        transcript = transcriber.transcribe(str(video), "ep1")
+
+        assert isinstance(transcript, Transcript)
+        assert transcript.episode_id == "ep1"
+        assert len(transcript.segments) == 1
+
+    def test_satisfies_protocol(self) -> None:
+        transcriber = WhisperTranscriber()
+        assert isinstance(transcriber, TranscriberBackend)

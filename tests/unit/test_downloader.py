@@ -11,13 +11,11 @@ import pytest
 
 from motd.downloader import (
     DownloadError,
-    _derive_episode_id,
-    _derive_season,
     _normalise_url,
     _parse_broadcast_date,
     download,
-    parse_episode_id,
 )
+from motd.episode import Episode
 
 
 class TestNormaliseUrl:
@@ -52,58 +50,47 @@ class TestParseBroadcastDate:
             _parse_broadcast_date({})
 
 
-class TestDeriveSeason:
-    """Test season derivation from broadcast date."""
+class TestEpisodeDerivation:
+    """Test season derivation and episode_id construction via Episode."""
 
     def test_autumn_date_is_first_year(self) -> None:
-        assert _derive_season("2025-11-01") == "2025-26"
+        ep = Episode.from_broadcast_date("2025-11-01")
+        assert ep.season == "2025-26"
 
     def test_august_start(self) -> None:
-        assert _derive_season("2025-08-16") == "2025-26"
+        ep = Episode.from_broadcast_date("2025-08-16")
+        assert ep.season == "2025-26"
 
     def test_spring_date_is_second_year(self) -> None:
-        assert _derive_season("2026-03-15") == "2025-26"
+        ep = Episode.from_broadcast_date("2026-03-15")
+        assert ep.season == "2025-26"
 
     def test_may_end(self) -> None:
-        assert _derive_season("2026-05-25") == "2025-26"
+        ep = Episode.from_broadcast_date("2026-05-25")
+        assert ep.season == "2025-26"
 
     def test_january(self) -> None:
-        assert _derive_season("2026-01-10") == "2025-26"
-
-
-class TestDeriveEpisodeId:
-    """Test episode_id derivation."""
+        ep = Episode.from_broadcast_date("2026-01-10")
+        assert ep.season == "2025-26"
 
     def test_standard_date(self) -> None:
-        assert _derive_episode_id("2025-11-01") == "motd_2025-26_2025-11-01"
+        ep = Episode.from_broadcast_date("2025-11-01")
+        assert ep.episode_id == "motd_2025-26_2025-11-01"
 
     def test_spring_date(self) -> None:
-        assert _derive_episode_id("2026-03-15") == "motd_2025-26_2026-03-15"
+        ep = Episode.from_broadcast_date("2026-03-15")
+        assert ep.episode_id == "motd_2025-26_2026-03-15"
 
-
-class TestParseEpisodeId:
-    """Test parsing broadcast_date and season from episode_id."""
-
-    def test_standard_episode_id(self) -> None:
-        date, season = parse_episode_id("motd_2025-26_2025-11-01")
-        assert date == "2025-11-01"
-        assert season == "2025-26"
-
-    def test_spring_episode_id(self) -> None:
-        date, season = parse_episode_id("motd_2025-26_2026-03-15")
-        assert date == "2026-03-15"
-        assert season == "2025-26"
+    def test_roundtrip_with_from_id(self) -> None:
+        """from_id is the inverse of from_broadcast_date."""
+        ep1 = Episode.from_broadcast_date("2025-11-01")
+        ep2 = Episode.from_id(ep1.episode_id)
+        assert ep2.broadcast_date == "2025-11-01"
+        assert ep2.season == "2025-26"
 
     def test_invalid_format_raises(self) -> None:
-        with pytest.raises(ValueError, match="Cannot derive date"):
-            parse_episode_id("bad_id")
-
-    def test_roundtrip_with_derive(self) -> None:
-        """parse_episode_id is the inverse of _derive_episode_id."""
-        episode_id = _derive_episode_id("2025-11-01")
-        date, season = parse_episode_id(episode_id)
-        assert date == "2025-11-01"
-        assert season == "2025-26"
+        with pytest.raises(ValueError, match="Invalid episode_id"):
+            Episode.from_id("bad_id")
 
 
 class TestDownload:

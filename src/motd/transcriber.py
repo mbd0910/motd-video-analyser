@@ -10,6 +10,7 @@ import logging
 import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Protocol, runtime_checkable
 
 import openai
 
@@ -21,8 +22,80 @@ logger = logging.getLogger(__name__)
 class TranscriptionError(Exception):
     """Raised when transcription fails."""
 
+
 DEFAULT_CHUNK_DURATION = 1200  # 20 minutes in seconds
 DEFAULT_MODEL = "whisper-1"
+
+
+@runtime_checkable
+class TranscriberBackend(Protocol):
+    """Protocol for transcription backends.
+
+    Any object with a transcribe(video_path, episode_id) method satisfies this.
+    """
+
+    def transcribe(self, video_path: str, episode_id: str) -> Transcript: ...
+
+
+class WhisperTranscriber:
+    """OpenAI Whisper transcriber — extracts audio via ffmpeg, chunks it,
+    sends to Whisper API, assembles result.
+
+    Args:
+        chunk_duration: Duration of each audio chunk in seconds.
+        model: OpenAI Whisper model to use.
+        openai_client: Injected OpenAI client (for testing). Defaults to OpenAI().
+    """
+
+    def __init__(
+        self,
+        *,
+        chunk_duration: int = DEFAULT_CHUNK_DURATION,
+        model: str = DEFAULT_MODEL,
+        openai_client: openai.OpenAI | None = None,
+    ) -> None:
+        self._chunk_duration = chunk_duration
+        self._model = model
+        self._openai_client = openai_client
+
+    def transcribe(self, video_path: str, episode_id: str) -> Transcript:
+        """Transcribe a video file and return a structured Transcript."""
+        video = Path(video_path)
+        if not video.exists():
+            raise FileNotFoundError(f"Video file not found: {video_path}")
+
+        duration = _get_audio_duration(video_path)
+        logger.info(
+            "Transcribing %s (%.0fs) with model=%s",
+            video.name, duration, self._model,
+        )
+
+        with TemporaryDirectory(prefix="motd_chunks_") as tmp_dir:
+            chunk_paths = _chunk_audio(
+                video_path, tmp_dir, chunk_duration=self._chunk_duration
+            )
+            logger.info("Split into %d chunk(s)", len(chunk_paths))
+
+            all_segments: list[list[TranscriptSegment]] = []
+            for i, chunk_path in enumerate(chunk_paths):
+                offset = i * self._chunk_duration
+                logger.info(
+                    "Transcribing chunk %d/%d (offset=%ds)",
+                    i + 1, len(chunk_paths), offset,
+                )
+                raw_segments = _transcribe_chunk(
+                    chunk_path, model=self._model, client=self._openai_client
+                )
+                parsed = _parse_whisper_segments(raw_segments, offset=float(offset))
+                all_segments.append(parsed)
+
+        transcript = _assemble_transcript(
+            all_segments, episode_id, duration=duration
+        )
+        logger.info(
+            "Transcription complete: %d segments", len(transcript.segments)
+        )
+        return transcript
 
 
 def transcribe(
@@ -34,53 +107,17 @@ def transcribe(
 ) -> Transcript:
     """Transcribe a video file and return a structured Transcript.
 
-    Args:
-        video_path: Path to the video file.
-        episode_id: Episode identifier for the transcript.
-        chunk_duration: Duration of each audio chunk in seconds.
-        model: OpenAI Whisper model to use.
-
-    Returns:
-        Transcript with timestamped segments.
+    Backward-compatible module-level function. Delegates to WhisperTranscriber.
     """
-    video = Path(video_path)
-    if not video.exists():
-        raise FileNotFoundError(f"Video file not found: {video_path}")
-
-    duration = _get_audio_duration(video_path)
-    logger.info("Transcribing %s (%.0fs) with model=%s", video.name, duration, model)
-
-    with TemporaryDirectory(prefix="motd_chunks_") as tmp_dir:
-        chunk_paths = _chunk_audio(video_path, tmp_dir, chunk_duration=chunk_duration)
-        logger.info("Split into %d chunk(s)", len(chunk_paths))
-
-        all_segments: list[list[TranscriptSegment]] = []
-        for i, chunk_path in enumerate(chunk_paths):
-            offset = i * chunk_duration
-            logger.info("Transcribing chunk %d/%d (offset=%ds)", i + 1, len(chunk_paths), offset)
-
-            raw_segments = _transcribe_chunk(chunk_path, model=model)
-            parsed = _parse_whisper_segments(raw_segments, offset=float(offset))
-            all_segments.append(parsed)
-
-    transcript = _assemble_transcript(all_segments, episode_id, duration=duration)
-    logger.info("Transcription complete: %d segments", len(transcript.segments))
-    return transcript
+    return WhisperTranscriber(
+        chunk_duration=chunk_duration, model=model
+    ).transcribe(video_path, episode_id)
 
 
 def _chunk_audio(
     video_path: str, output_dir: str, *, chunk_duration: int = DEFAULT_CHUNK_DURATION
 ) -> list[str]:
-    """Split video audio into MP3 chunks using ffmpeg.
-
-    Args:
-        video_path: Path to the video file.
-        output_dir: Directory to write chunk files.
-        chunk_duration: Duration of each chunk in seconds.
-
-    Returns:
-        Sorted list of chunk file paths.
-    """
+    """Split video audio into MP3 chunks using ffmpeg."""
     output_pattern = str(Path(output_dir) / "chunk_%03d.mp3")
     cmd = [
         "ffmpeg",
@@ -111,17 +148,15 @@ def _chunk_audio(
     return [str(c) for c in chunks]
 
 
-def _transcribe_chunk(chunk_path: str, *, model: str = DEFAULT_MODEL) -> list[dict]:
-    """Send a single audio chunk to the OpenAI Whisper API.
-
-    Args:
-        chunk_path: Path to the audio chunk file.
-        model: Whisper model name.
-
-    Returns:
-        List of segment dicts with start, end, text keys.
-    """
-    client = openai.OpenAI()
+def _transcribe_chunk(
+    chunk_path: str,
+    *,
+    model: str = DEFAULT_MODEL,
+    client: openai.OpenAI | None = None,
+) -> list[dict]:
+    """Send a single audio chunk to the OpenAI Whisper API."""
+    if client is None:
+        client = openai.OpenAI()
 
     with open(chunk_path, "rb") as audio_file:
         response = client.audio.transcriptions.create(
@@ -139,15 +174,7 @@ def _transcribe_chunk(chunk_path: str, *, model: str = DEFAULT_MODEL) -> list[di
 def _parse_whisper_segments(
     raw_segments: list[dict], offset: float
 ) -> list[TranscriptSegment]:
-    """Parse Whisper API segments and apply timestamp offset.
-
-    Args:
-        raw_segments: List of dicts with start, end, text from the API.
-        offset: Seconds to add to each timestamp (chunk start time).
-
-    Returns:
-        List of TranscriptSegment with adjusted timestamps.
-    """
+    """Parse Whisper API segments and apply timestamp offset."""
     result = []
     for seg in raw_segments:
         text = seg["text"].strip()
@@ -169,16 +196,7 @@ def _assemble_transcript(
     *,
     duration: float,
 ) -> Transcript:
-    """Assemble a Transcript from multiple chunk results.
-
-    Args:
-        chunk_segments: List of segment lists, one per chunk.
-        episode_id: Episode identifier.
-        duration: Total duration in seconds.
-
-    Returns:
-        Assembled Transcript.
-    """
+    """Assemble a Transcript from multiple chunk results."""
     segments = [seg for chunk in chunk_segments for seg in chunk]
     return Transcript(
         episode_id=episode_id,
@@ -188,14 +206,7 @@ def _assemble_transcript(
 
 
 def _get_audio_duration(file_path: str) -> float:
-    """Get duration of an audio/video file using ffprobe.
-
-    Args:
-        file_path: Path to the file.
-
-    Returns:
-        Duration in seconds.
-    """
+    """Get duration of an audio/video file using ffprobe."""
     cmd = [
         "ffprobe",
         "-v", "error",

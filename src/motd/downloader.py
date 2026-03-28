@@ -12,6 +12,8 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from motd.episode import Episode
+
 logger = logging.getLogger(__name__)
 
 
@@ -43,48 +45,6 @@ def _parse_broadcast_date(metadata: dict[str, object]) -> str:
     if not raw or not isinstance(raw, str) or len(raw) != 8:
         raise DownloadError("Could not determine broadcast date from metadata")
     return f"{raw[:4]}-{raw[4:6]}-{raw[6:8]}"
-
-
-def _derive_season(broadcast_date: str) -> str:
-    """Derive the football season from a broadcast date.
-
-    Season runs Aug–May. Dates Aug–Dec belong to YYYY-(YY+1),
-    dates Jan–Jul belong to (YYYY-1)-YY.
-    """
-    year = int(broadcast_date[:4])
-    month = int(broadcast_date[5:7])
-    if month >= 8:
-        start_year = year
-    else:
-        start_year = year - 1
-    end_yy = (start_year + 1) % 100
-    return f"{start_year}-{end_yy:02d}"
-
-
-def _derive_episode_id(broadcast_date: str) -> str:
-    """Derive episode_id from broadcast date."""
-    season = _derive_season(broadcast_date)
-    return f"motd_{season}_{broadcast_date}"
-
-
-def parse_episode_id(episode_id: str) -> tuple[str, str]:
-    """Extract broadcast_date and season from an episode_id.
-
-    Expected format: motd_YYYY-YY_YYYY-MM-DD
-
-    Returns:
-        (broadcast_date, season) tuple.
-
-    Raises:
-        ValueError: If the episode_id doesn't match the expected format.
-    """
-    parts = episode_id.split("_")
-    if len(parts) >= 3:
-        return parts[2], parts[1]
-    raise ValueError(
-        f"Cannot derive date from episode_id: {episode_id}. "
-        "Expected format: motd_YYYY-YY_YYYY-MM-DD"
-    )
 
 
 def download(url_or_id: str, output_dir: str = "data/videos") -> DownloadResult:
@@ -121,16 +81,16 @@ def download(url_or_id: str, output_dir: str = "data/videos") -> DownloadResult:
     except json.JSONDecodeError as e:
         raise DownloadError(f"Failed to parse yt-dlp metadata: {e}") from e
     broadcast_date = _parse_broadcast_date(metadata)
-    episode_id = _derive_episode_id(broadcast_date)
+    ep = Episode.from_broadcast_date(broadcast_date)
     ext = metadata.get("ext", "mp4")
-    video_path = out_dir / f"{episode_id}.{ext}"
+    video_path = out_dir / f"{ep.episode_id}.{ext}"
 
-    logger.info("Episode: %s (broadcast %s)", episode_id, broadcast_date)
+    logger.info("Episode: %s (broadcast %s)", ep.episode_id, broadcast_date)
 
     # Step 2: Download (skip if already exists)
     if video_path.exists():
         logger.info("Video already exists: %s", video_path)
-        return DownloadResult(video_path=str(video_path), episode_id=episode_id)
+        return DownloadResult(video_path=str(video_path), episode_id=ep.episode_id)
 
     logger.info("Downloading to %s", video_path)
     try:
@@ -144,4 +104,4 @@ def download(url_or_id: str, output_dir: str = "data/videos") -> DownloadResult:
         raise DownloadError(f"Failed to download video: {exc.stderr}") from exc
 
     logger.info("Download complete: %s", video_path)
-    return DownloadResult(video_path=str(video_path), episode_id=episode_id)
+    return DownloadResult(video_path=str(video_path), episode_id=ep.episode_id)

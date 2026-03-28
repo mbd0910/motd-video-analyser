@@ -1,11 +1,10 @@
 """Tests for the analyser module."""
 
 import json
-from unittest.mock import MagicMock, patch
 
 import pytest
 
-from motd.analyser import AnalysisError, _build_prompt, _parse_response, analyse
+from motd.analyser import AnalysisError, LlmBackend, _build_prompt, _parse_response, analyse
 from motd.models import (
     EpisodeAnalysis,
     Fixture,
@@ -111,7 +110,7 @@ class TestBuildPrompt:
 
 
 class TestParseResponse:
-    """Test parsing Claude's JSON response into EpisodeAnalysis."""
+    """Test parsing LLM JSON response into EpisodeAnalysis."""
 
     def test_valid_response_parsed(self) -> None:
         analysis = _parse_response(
@@ -144,7 +143,7 @@ class TestParseResponse:
             _parse_response(bad_json, "ep1", "2025-11-01", "2025-26")
 
     def test_response_with_json_fence_parsed(self) -> None:
-        """Claude sometimes wraps JSON in markdown fences."""
+        """LLMs sometimes wrap JSON in markdown fences."""
         fenced = f"```json\n{VALID_ANALYSIS_JSON}\n```"
         analysis = _parse_response(
             fenced,
@@ -162,22 +161,14 @@ class TestParseResponse:
         assert orders == list(range(1, len(orders) + 1))
 
 
-class TestAnalyseIntegration:
-    """Integration test: mock Claude subprocess, verify full flow."""
+class TestAnalyseWithFakeBackend:
+    """Test analyse() with injected fake LLM backend — no subprocess mocking."""
 
-    @patch("motd.analyser.subprocess.run")
-    def test_analyse_returns_valid_analysis(
-        self, mock_run: MagicMock
-    ) -> None:
-        mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout=VALID_ANALYSIS_JSON,
-            stderr="",
-        )
-
+    def test_analyse_returns_valid_analysis(self) -> None:
         analysis = analyse(
             SAMPLE_TRANSCRIPT, SAMPLE_FIXTURES,
-            "motd_2025-26_2025-11-01", "2025-11-01", "2025-26",
+            "motd_2025-26_2025-11-01",
+            backend=lambda prompt: VALID_ANALYSIS_JSON,
         )
 
         assert isinstance(analysis, EpisodeAnalysis)
@@ -190,21 +181,53 @@ class TestAnalyseIntegration:
         assert analysis.matches[0].away_team == "Chelsea"
         assert analysis.matches[1].order == 2
         assert analysis.matches[1].home_team == "Brighton & Hove Albion"
-        # Verify subprocess was invoked with claude
-        cmd = mock_run.call_args[0][0]
-        assert "claude" in cmd
 
-    @patch("motd.analyser.subprocess.run")
-    def test_analyse_raises_on_claude_failure(
-        self, mock_run: MagicMock
-    ) -> None:
-        import subprocess
-        mock_run.side_effect = subprocess.CalledProcessError(
-            1, "claude", stderr="Claude error"
-        )
+    def test_analyse_raises_on_backend_failure(self) -> None:
+        def failing_backend(prompt: str) -> str:
+            raise AnalysisError("LLM unavailable")
 
-        with pytest.raises(AnalysisError, match="Claude"):
+        with pytest.raises(AnalysisError, match="LLM unavailable"):
             analyse(
                 SAMPLE_TRANSCRIPT, SAMPLE_FIXTURES,
-                "motd_2025-26_2025-11-01", "2025-11-01", "2025-26",
+                "motd_2025-26_2025-11-01",
+                backend=failing_backend,
             )
+
+    def test_analyse_raises_on_malformed_response(self) -> None:
+        with pytest.raises(AnalysisError, match="Failed to parse"):
+            analyse(
+                SAMPLE_TRANSCRIPT, SAMPLE_FIXTURES,
+                "motd_2025-26_2025-11-01",
+                backend=lambda prompt: "not json at all",
+            )
+
+    def test_analyse_raises_on_invalid_episode_id(self) -> None:
+        with pytest.raises(AnalysisError, match="Invalid episode_id"):
+            analyse(
+                SAMPLE_TRANSCRIPT, SAMPLE_FIXTURES,
+                "bad_id",
+                backend=lambda prompt: VALID_ANALYSIS_JSON,
+            )
+
+    def test_prompt_includes_fixtures(self) -> None:
+        """Verify the prompt sent to the backend includes fixture data."""
+        captured: dict[str, str] = {}
+
+        def capturing_backend(prompt: str) -> str:
+            captured["prompt"] = prompt
+            return VALID_ANALYSIS_JSON
+
+        analyse(
+            SAMPLE_TRANSCRIPT, SAMPLE_FIXTURES,
+            "motd_2025-26_2025-11-01",
+            backend=capturing_backend,
+        )
+
+        assert "Arsenal" in captured["prompt"]
+        assert "Emirates Stadium" in captured["prompt"]
+        assert "Brighton" in captured["prompt"]
+
+    def test_backend_satisfies_protocol(self) -> None:
+        """A lambda satisfies LlmBackend protocol."""
+        backend = lambda prompt: VALID_ANALYSIS_JSON  # noqa: E731
+        assert isinstance(backend, LlmBackend)

@@ -9,12 +9,13 @@ import logging
 import time
 from pathlib import Path
 
+from motd.cache import get_or_compute, load
+from motd.episode import DEFAULT_CACHE_DIR, Episode
 from motd.models import EpisodeAnalysis, Fixture, Transcript
 
 logger = logging.getLogger(__name__)
 
 STAGES = ("download", "transcribe", "analyse", "publish")
-DEFAULT_CACHE_DIR = "data/cache"
 
 
 class PipelineError(Exception):
@@ -27,7 +28,7 @@ def run(
     episode_id: str | None = None,
     skip_to: str | None = None,
     force: bool = False,
-    cache_dir: str = DEFAULT_CACHE_DIR,
+    cache_dir: str = str(DEFAULT_CACHE_DIR),
 ) -> None:
     """Run the full analysis pipeline.
 
@@ -63,35 +64,39 @@ def run(
     if not episode_id:
         raise PipelineError("Could not determine episode_id")
 
-    ep_cache = Path(cache_dir) / episode_id
-    ep_cache.mkdir(parents=True, exist_ok=True)
+    # Resolve episode identity and cache paths
+    try:
+        ep = Episode.from_id(episode_id, cache_base=Path(cache_dir))
+    except ValueError as exc:
+        raise PipelineError(str(exc)) from exc
+    ep.ensure_cache_dir()
 
     # --- Transcribe ---
     transcript: Transcript | None = None
-    transcript_path = ep_cache / "transcript.json"
 
     if "transcribe" in active_stages:
-        if transcript_path.exists() and not force:
-            logger.info("Using cached transcript: %s", transcript_path)
-            transcript = Transcript.model_validate_json(transcript_path.read_text())
-        else:
-            if not video_path:
-                raise PipelineError("Transcription requires a video path")
-            transcript = _timed(
+        if not video_path and (not ep.transcript_path.exists() or force):
+            raise PipelineError("Transcription requires a video path")
+        transcript, was_computed = get_or_compute(
+            ep.transcript_path, Transcript,
+            lambda: _timed(
                 "transcribe", _do_transcribe,
                 video_path=video_path, episode_id=episode_id,
+            ),
+            force=force,
+        )
+        if was_computed:
+            logger.info(
+                "Transcript cached: %s (%d segments)",
+                ep.transcript_path, len(transcript.segments),
             )
-            transcript_path.write_text(transcript.model_dump_json(indent=2))
-            logger.info("Transcript cached: %s (%d segments)",
-                        transcript_path, len(transcript.segments))
+        else:
+            logger.info("Using cached transcript: %s", ep.transcript_path)
     elif "analyse" in active_stages or "publish" in active_stages:
-        # Need transcript for analyse — load from cache
-        if transcript_path.exists():
-            transcript = Transcript.model_validate_json(transcript_path.read_text())
+        transcript = load(ep.transcript_path, Transcript)
 
     # --- Analyse ---
     analysis: EpisodeAnalysis | None = None
-    analysis_path = ep_cache / "analysis.json"
 
     if "analyse" in active_stages:
         if not transcript:
@@ -99,33 +104,24 @@ def run(
                 f"No transcript found for {episode_id}. Run transcription first."
             )
 
-        # Parse broadcast date and season from episode_id
-        from motd.downloader import parse_episode_id
-
-        try:
-            broadcast_date, season = parse_episode_id(episode_id)
-        except ValueError as exc:
-            raise PipelineError(str(exc)) from exc
-
-        fixtures = _load_fixtures(broadcast_date)
+        fixtures = _load_fixtures(ep.broadcast_date)
         if not fixtures:
             raise PipelineError(
-                f"No fixtures found for {broadcast_date}. "
+                f"No fixtures found for {ep.broadcast_date}. "
                 "This may not be a Premier League matchday."
             )
 
         analysis = _timed(
             "analyse", _do_analyse,
-            transcript=transcript, fixtures=fixtures,
-            episode_id=episode_id, broadcast_date=broadcast_date, season=season,
+            transcript=transcript, fixtures=fixtures, episode_id=episode_id,
         )
-        analysis_path.write_text(analysis.model_dump_json(indent=2))
-        logger.info("Analysis cached: %s (%d matches)",
-                    analysis_path, len(analysis.matches))
+        ep.analysis_path.write_text(analysis.model_dump_json(indent=2))
+        logger.info(
+            "Analysis cached: %s (%d matches)",
+            ep.analysis_path, len(analysis.matches),
+        )
     elif "publish" in active_stages:
-        # Need analysis for publish — load from cache
-        if analysis_path.exists():
-            analysis = EpisodeAnalysis.model_validate_json(analysis_path.read_text())
+        analysis = load(ep.analysis_path, EpisodeAnalysis)
 
     # --- Publish ---
     if "publish" in active_stages:
@@ -180,13 +176,11 @@ def _do_analyse(
     transcript: Transcript,
     fixtures: list[Fixture],
     episode_id: str,
-    broadcast_date: str,
-    season: str,
 ) -> EpisodeAnalysis:
     """Analyse a transcript against fixtures."""
     from motd.analyser import analyse
 
-    return analyse(transcript, fixtures, episode_id, broadcast_date, season)
+    return analyse(transcript, fixtures, episode_id)
 
 
 def _do_publish(analysis: EpisodeAnalysis) -> str:

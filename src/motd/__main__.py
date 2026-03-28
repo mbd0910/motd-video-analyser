@@ -11,6 +11,8 @@ from pathlib import Path
 
 import click
 
+from motd.episode import Episode
+
 
 @click.group()
 @click.version_option(version="0.2.0", prog_name="motd-analyser")
@@ -52,7 +54,8 @@ def download(url_or_id: str, output_dir: str) -> None:
 @click.option("--episode-id", help="Episode ID (derived from filename if omitted).")
 def transcribe(video_path: str, output: str | None, force: bool, episode_id: str | None) -> None:
     """Transcribe a video file to structured JSON."""
-    from motd.transcriber import TranscriptionError, transcribe as do_transcribe
+    from motd.transcriber import TranscriptionError
+    from motd.transcriber import transcribe as do_transcribe
 
     video = Path(video_path)
     if not video.exists():
@@ -62,10 +65,18 @@ def transcribe(video_path: str, output: str | None, force: bool, episode_id: str
     if episode_id is None:
         episode_id = video.stem
 
-    # Determine output path
-    cache_dir = Path("data/cache") / episode_id
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    out_path = Path(output) if output else cache_dir / "transcript.json"
+    try:
+        ep = Episode.from_id(episode_id)
+    except ValueError:
+        # Non-standard episode_id — use basic cache path
+        ep = None
+
+    if ep:
+        ep.ensure_cache_dir()
+        out_path = Path(output) if output else ep.transcript_path
+    else:
+        out_path = Path(output) if output else Path("data/cache") / episode_id / "transcript.json"
+        out_path.parent.mkdir(parents=True, exist_ok=True)
 
     if out_path.exists() and not force:
         click.echo(f"Transcript already exists: {out_path} (use --force to overwrite)")
@@ -87,34 +98,30 @@ def transcribe(video_path: str, output: str | None, force: bool, episode_id: str
 @click.option("--force", is_flag=True, help="Force re-analysis even if cached.")
 def analyse(episode_id: str, output: str | None, force: bool) -> None:
     """Analyse a transcript and produce structured episode analysis."""
-    from motd.analyser import AnalysisError, analyse as do_analyse
-    from motd.downloader import parse_episode_id
+    from motd.analyser import AnalysisError
+    from motd.analyser import analyse as do_analyse
     from motd.fixtures import DEFAULT_FIXTURES_PATH, FileFixtureProvider
     from motd.models import Transcript
 
-    cache_dir = Path("data/cache") / episode_id
-    transcript_path = cache_dir / "transcript.json"
+    try:
+        ep = Episode.from_id(episode_id)
+    except ValueError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
 
-    if not transcript_path.exists():
-        click.echo(f"Error: transcript not found: {transcript_path}", err=True)
+    if not ep.transcript_path.exists():
+        click.echo(f"Error: transcript not found: {ep.transcript_path}", err=True)
         click.echo("Run `python -m motd transcribe` first.")
         sys.exit(1)
 
-    out_path = Path(output) if output else cache_dir / "analysis.json"
+    out_path = Path(output) if output else ep.analysis_path
 
     if out_path.exists() and not force:
         click.echo(f"Analysis already exists: {out_path} (use --force to overwrite)")
         return
 
     # Load transcript
-    transcript = Transcript.model_validate_json(transcript_path.read_text())
-
-    # Derive broadcast date from episode_id (motd_YYYY-YY_YYYY-MM-DD)
-    try:
-        broadcast_date, season = parse_episode_id(episode_id)
-    except ValueError as exc:
-        click.echo(f"Error: {exc}", err=True)
-        sys.exit(1)
+    transcript = Transcript.model_validate_json(ep.transcript_path.read_text())
 
     # Load fixtures
     if not DEFAULT_FIXTURES_PATH.exists():
@@ -122,15 +129,15 @@ def analyse(episode_id: str, output: str | None, force: bool) -> None:
         sys.exit(1)
 
     provider = FileFixtureProvider(DEFAULT_FIXTURES_PATH)
-    fixtures = provider.get_fixtures_for_date(broadcast_date)
+    fixtures = provider.get_fixtures_for_date(ep.broadcast_date)
 
     if not fixtures:
-        click.echo(f"Error: no fixtures found for {broadcast_date}", err=True)
+        click.echo(f"Error: no fixtures found for {ep.broadcast_date}", err=True)
         click.echo("This may not be a Premier League matchday.")
         sys.exit(1)
 
     try:
-        analysis = do_analyse(transcript, fixtures, episode_id, broadcast_date, season)
+        analysis = do_analyse(transcript, fixtures, episode_id)
     except AnalysisError as exc:
         click.echo(f"Error: {exc}", err=True)
         sys.exit(1)
@@ -147,15 +154,18 @@ def publish(episode_id: str) -> None:
     from motd.models import EpisodeAnalysis
     from motd.publisher import publish as do_publish
 
-    cache_dir = Path("data/cache") / episode_id
-    analysis_path = cache_dir / "analysis.json"
+    try:
+        ep = Episode.from_id(episode_id)
+    except ValueError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
 
-    if not analysis_path.exists():
-        click.echo(f"Error: analysis not found: {analysis_path}", err=True)
+    if not ep.analysis_path.exists():
+        click.echo(f"Error: analysis not found: {ep.analysis_path}", err=True)
         click.echo("Run `python -m motd analyse` first.")
         sys.exit(1)
 
-    analysis = EpisodeAnalysis.model_validate_json(analysis_path.read_text())
+    analysis = EpisodeAnalysis.model_validate_json(ep.analysis_path.read_text())
     key = do_publish(analysis)
     click.echo(f"Published: {key}")
 
