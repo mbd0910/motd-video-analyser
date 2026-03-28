@@ -45,8 +45,8 @@ def analyse(
         AnalysisError: If Claude invocation or response parsing fails.
     """
     prompt = _build_prompt(transcript, fixtures, episode_id, broadcast_date, season)
-    logger.info(f"Analysing {episode_id} ({len(transcript.segments)} segments, "
-                f"{len(fixtures)} fixtures)")
+    logger.info("Analysing %s (%d segments, %d fixtures)",
+                episode_id, len(transcript.segments), len(fixtures))
 
     try:
         result = subprocess.run(
@@ -61,10 +61,10 @@ def analyse(
         ) from e
 
     response_text = result.stdout.strip()
-    logger.debug(f"Claude response length: {len(response_text)} chars")
+    logger.debug("Claude response length: %d chars", len(response_text))
 
     analysis = _parse_response(response_text, episode_id, broadcast_date, season)
-    logger.info(f"Analysis complete: {len(analysis.matches)} matches identified")
+    logger.info("Analysis complete: %d matches identified", len(analysis.matches))
     return analysis
 
 

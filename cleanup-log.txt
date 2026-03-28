@@ -112,3 +112,30 @@ class and wrap `CalledProcessError` at the call site.
   real S3 protocol verification belongs in integration tests against a local S3 endpoint.
 - No integration tests added for cache corruption in pipeline — the current behaviour (Pydantic
   `ValidationError` propagates, user re-runs with `--force`) is acceptable and documented.
+
+## Category 3 (continued): Inconsistent logging style
+
+**Addressed:** Standardised logging format strings across all modules.
+
+`downloader.py`, `publisher.py`, and `pipeline.py` used `%`-style formatting in logger calls
+(deferred evaluation — string not constructed unless the log level is active). `analyser.py` and
+`transcriber.py` used f-strings (eager evaluation). Converted all 7 f-string logger calls in
+`analyser.py` (3) and `transcriber.py` (4) to `%`-style to match the rest of the codebase.
+
+**Left alone:**
+- Pre-existing ruff I001 (import sorting) warnings in `__main__.py` for deferred imports inside
+  Click command functions — these are false positives since ruff doesn't understand that
+  `from motd.transcriber import TranscriptionError, transcribe as do_transcribe` is a single
+  logical import deferred for startup performance.
+
+## Categories 2 (Security) and 5 (Shallow modules)
+
+**Reviewed, no issues found.**
+
+- **Security**: All subprocess calls use list-form arguments (no `shell=True`). No hardcoded
+  secrets — R2 credentials loaded from environment variables (standard for CLI tools).
+  No path traversal risks — episode_id format is validated, output paths from CLI are
+  user-controlled (appropriate for a local CLI tool). No unsafe deserialisation.
+- **Shallow modules**: All modules provide meaningful abstraction. The `_do_*()` wrappers in
+  `pipeline.py` exist to support deferred imports (avoids importing heavyweight deps like
+  `openai`/`boto3` at module load time) — this is a legitimate pattern, not needless wrapping.

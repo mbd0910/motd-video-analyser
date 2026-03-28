@@ -48,23 +48,23 @@ def transcribe(
         raise FileNotFoundError(f"Video file not found: {video_path}")
 
     duration = _get_audio_duration(video_path)
-    logger.info(f"Transcribing {video.name} ({duration:.0f}s) with model={model}")
+    logger.info("Transcribing %s (%.0fs) with model=%s", video.name, duration, model)
 
     with TemporaryDirectory(prefix="motd_chunks_") as tmp_dir:
         chunk_paths = _chunk_audio(video_path, tmp_dir, chunk_duration=chunk_duration)
-        logger.info(f"Split into {len(chunk_paths)} chunk(s)")
+        logger.info("Split into %d chunk(s)", len(chunk_paths))
 
         all_segments: list[list[TranscriptSegment]] = []
         for i, chunk_path in enumerate(chunk_paths):
             offset = i * chunk_duration
-            logger.info(f"Transcribing chunk {i + 1}/{len(chunk_paths)} (offset={offset}s)")
+            logger.info("Transcribing chunk %d/%d (offset=%ds)", i + 1, len(chunk_paths), offset)
 
             raw_segments = _transcribe_chunk(chunk_path, model=model)
             parsed = _parse_whisper_segments(raw_segments, offset=float(offset))
             all_segments.append(parsed)
 
     transcript = _assemble_transcript(all_segments, episode_id, duration=duration)
-    logger.info(f"Transcription complete: {len(transcript.segments)} segments")
+    logger.info("Transcription complete: %d segments", len(transcript.segments))
     return transcript
 
 
