@@ -54,7 +54,7 @@ def download(url_or_id: str, output_dir: str) -> None:
 @click.option("--episode-id", help="Episode ID (derived from filename if omitted).")
 def transcribe(video_path: str, output: str | None, force: bool, episode_id: str | None) -> None:
     """Transcribe a video file to structured JSON."""
-    from motd.transcriber import transcribe as do_transcribe
+    from motd.transcriber import TranscriptionError, transcribe as do_transcribe
 
     video = Path(video_path)
     if not video.exists():
@@ -73,7 +73,11 @@ def transcribe(video_path: str, output: str | None, force: bool, episode_id: str
         click.echo(f"Transcript already exists: {out_path} (use --force to overwrite)")
         return
 
-    transcript = do_transcribe(str(video), episode_id)
+    try:
+        transcript = do_transcribe(str(video), episode_id)
+    except TranscriptionError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
 
     out_path.write_text(transcript.model_dump_json(indent=2))
     click.echo(f"Transcript saved: {out_path} ({len(transcript.segments)} segments)")
@@ -85,7 +89,7 @@ def transcribe(video_path: str, output: str | None, force: bool, episode_id: str
 @click.option("--force", is_flag=True, help="Force re-analysis even if cached.")
 def analyse(episode_id: str, output: str | None, force: bool) -> None:
     """Analyse a transcript and produce structured episode analysis."""
-    from motd.analyser import analyse as do_analyse
+    from motd.analyser import AnalysisError, analyse as do_analyse
     from motd.downloader import parse_episode_id
     from motd.fixtures import DEFAULT_FIXTURES_PATH, FileFixtureProvider
     from motd.models import Transcript
@@ -127,7 +131,11 @@ def analyse(episode_id: str, output: str | None, force: bool) -> None:
         click.echo("This may not be a Premier League matchday.")
         sys.exit(1)
 
-    analysis = do_analyse(transcript, fixtures, episode_id, broadcast_date, season)
+    try:
+        analysis = do_analyse(transcript, fixtures, episode_id, broadcast_date, season)
+    except AnalysisError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(analysis.model_dump_json(indent=2))

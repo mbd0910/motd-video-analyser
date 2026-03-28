@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pydantic import ValidationError
 
-from motd.analyser import _build_prompt, _parse_response, analyse
+from motd.analyser import AnalysisError, _build_prompt, _parse_response, analyse
 from motd.models import (
     EpisodeAnalysis,
     Fixture,
@@ -126,7 +126,7 @@ class TestParseResponse:
         assert analysis.matches[0].home_team == "Arsenal"
 
     def test_invalid_json_raises(self) -> None:
-        with pytest.raises(ValueError, match="Failed to parse"):
+        with pytest.raises(AnalysisError, match="Failed to parse"):
             _parse_response(
                 "not valid json at all",
                 "ep1", "2025-11-01", "2025-26",
@@ -134,7 +134,7 @@ class TestParseResponse:
 
     def test_missing_required_fields_raises(self) -> None:
         bad_json = json.dumps({"matches": [{"order": 1}]})
-        with pytest.raises((ValueError, ValidationError)):
+        with pytest.raises((AnalysisError, ValidationError)):
             _parse_response(bad_json, "ep1", "2025-11-01", "2025-26")
 
     def test_response_with_json_fence_parsed(self) -> None:
@@ -189,7 +189,7 @@ class TestAnalyseIntegration:
             1, "claude", stderr="Claude error"
         )
 
-        with pytest.raises(RuntimeError, match="Claude"):
+        with pytest.raises(AnalysisError, match="Claude"):
             analyse(
                 SAMPLE_TRANSCRIPT, SAMPLE_FIXTURES,
                 "motd_2025-26_2025-11-01", "2025-11-01", "2025-26",

@@ -116,7 +116,10 @@ def download(url_or_id: str, output_dir: str = "data/videos") -> DownloadResult:
     except subprocess.CalledProcessError as exc:
         raise DownloadError(f"Failed to fetch metadata: {exc.stderr}") from exc
 
-    metadata = json.loads(meta_result.stdout)
+    try:
+        metadata = json.loads(meta_result.stdout)
+    except json.JSONDecodeError as e:
+        raise DownloadError(f"Failed to parse yt-dlp metadata: {e}") from e
     broadcast_date = _parse_broadcast_date(metadata)
     episode_id = _derive_episode_id(broadcast_date)
     ext = metadata.get("ext", "mp4")

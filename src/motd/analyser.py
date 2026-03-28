@@ -16,6 +16,10 @@ from motd.models import EpisodeAnalysis, Fixture, MatchCoverage, Transcript
 logger = logging.getLogger(__name__)
 
 
+class AnalysisError(Exception):
+    """Raised when analysis fails."""
+
+
 def analyse(
     transcript: Transcript,
     fixtures: list[Fixture],
@@ -36,8 +40,7 @@ def analyse(
         Validated EpisodeAnalysis.
 
     Raises:
-        RuntimeError: If Claude invocation fails.
-        ValueError: If Claude's response cannot be parsed.
+        AnalysisError: If Claude invocation or response parsing fails.
     """
     prompt = _build_prompt(transcript, fixtures, episode_id, broadcast_date, season)
     logger.info(f"Analysing {episode_id} ({len(transcript.segments)} segments, "
@@ -51,7 +54,7 @@ def analyse(
             check=True,
         )
     except subprocess.CalledProcessError as e:
-        raise RuntimeError(
+        raise AnalysisError(
             f"Claude analysis failed for {episode_id}: {e.stderr or e}"
         ) from e
 
@@ -172,7 +175,7 @@ def _parse_response(
         Validated EpisodeAnalysis.
 
     Raises:
-        ValueError: If the response cannot be parsed as valid JSON or
+        AnalysisError: If the response cannot be parsed as valid JSON or
             doesn't match the expected schema.
     """
     # Strip markdown fences if present
@@ -184,7 +187,7 @@ def _parse_response(
     try:
         data = json.loads(cleaned)
     except json.JSONDecodeError as e:
-        raise ValueError(f"Failed to parse Claude response as JSON: {e}") from e
+        raise AnalysisError(f"Failed to parse Claude response as JSON: {e}") from e
 
     # Build EpisodeAnalysis from parsed data
     matches_data = data.get("matches", [])

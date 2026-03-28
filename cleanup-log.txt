@@ -30,3 +30,27 @@ Updated both CLAUDE.md files to remove stale references.
   `__main__.py` and `pipeline.py` — this is a one-liner Pydantic pattern, not worth extracting.
 - Fixtures loading flow differs between CLI (user-facing error messages) and pipeline
   (`PipelineError`) — the divergent error handling justifies the small repetition.
+
+## Category 3: Inconsistent patterns
+
+**Addressed:** Standardised subprocess error handling across all modules.
+
+Each module that shells out to an external process (`ffmpeg`, `ffprobe`, `yt-dlp`, `claude`)
+now follows the same pattern established by `downloader.py`: define a module-specific exception
+class and wrap `CalledProcessError` at the call site.
+
+- **`analyser.py`**: Added `AnalysisError`. Replaced `RuntimeError` and `ValueError` raises
+  with `AnalysisError` for both subprocess failures and JSON parse failures.
+- **`transcriber.py`**: Added `TranscriptionError`. Wrapped the two bare `subprocess.run(check=True)`
+  calls (`ffmpeg` chunking + `ffprobe` duration) that previously let `CalledProcessError` bubble.
+- **`downloader.py`**: Wrapped `json.loads(meta_result.stdout)` in a try/except so malformed
+  yt-dlp output raises `DownloadError` instead of raw `JSONDecodeError`.
+- **`__main__.py`**: CLI `transcribe` and `analyse` commands now catch `TranscriptionError` and
+  `AnalysisError` respectively, matching how `download` already caught `DownloadError`.
+- **Tests**: Updated `test_analyser.py` to assert `AnalysisError` instead of `RuntimeError`/`ValueError`.
+
+**Left alone:**
+- `pipeline.py` doesn't catch module errors — it lets them propagate through `_timed()`.
+  This is intentional; the pipeline is an internal orchestrator, not a user-facing boundary.
+- `publisher.py` uses bare `os.environ[]` KeyError for missing R2 credentials — this is a
+  deployment-time config error, not a runtime boundary worth a custom exception.

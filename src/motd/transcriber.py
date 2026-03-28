@@ -17,6 +17,10 @@ from motd.models import Transcript, TranscriptSegment
 
 logger = logging.getLogger(__name__)
 
+
+class TranscriptionError(Exception):
+    """Raised when transcription fails."""
+
 DEFAULT_CHUNK_DURATION = 1200  # 20 minutes in seconds
 DEFAULT_MODEL = "whisper-1"
 
@@ -92,7 +96,12 @@ def _chunk_audio(
         "-y",
     ]
 
-    subprocess.run(cmd, check=True, capture_output=True, text=True)
+    try:
+        subprocess.run(cmd, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as e:
+        raise TranscriptionError(
+            f"ffmpeg audio chunking failed: {e.stderr or e}"
+        ) from e
 
     chunks = sorted(Path(output_dir).glob("chunk_*.mp3"))
     return [str(c) for c in chunks]
@@ -190,5 +199,10 @@ def _get_audio_duration(file_path: str) -> float:
         "-of", "default=noprint_wrappers=1:nokey=1",
         file_path,
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    except subprocess.CalledProcessError as e:
+        raise TranscriptionError(
+            f"ffprobe duration check failed: {e.stderr or e}"
+        ) from e
     return float(result.stdout.strip())
