@@ -175,7 +175,20 @@ def run(
     force: bool,
 ) -> None:
     """Run the full analysis pipeline."""
-    click.echo("Pipeline not yet implemented — see issue #24")
+    from motd.pipeline import PipelineError
+    from motd.pipeline import run as do_run
+
+    try:
+        do_run(
+            video_path=video_path,
+            url=url,
+            episode_id=episode_id,
+            skip_to=skip_to,
+            force=force,
+        )
+    except PipelineError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
