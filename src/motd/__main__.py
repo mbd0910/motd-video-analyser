@@ -11,8 +11,6 @@ from pathlib import Path
 
 import click
 
-logger = logging.getLogger(__name__)
-
 
 @click.group()
 @click.version_option(version="0.2.0", prog_name="motd-analyser")

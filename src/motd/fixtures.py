@@ -52,7 +52,12 @@ class FileFixtureProvider(FixtureProvider):
         score = None
         raw_score = raw.get("final_score")
         if raw_score:
-            score = Score(home=raw_score["home"], away=raw_score["away"])
+            try:
+                score = Score(home=raw_score["home"], away=raw_score["away"])
+            except (KeyError, TypeError) as e:
+                raise ValueError(
+                    f"Fixture has malformed final_score: {raw_score}"
+                ) from e
         return Fixture(
             match_id=match_id,
             date=date,

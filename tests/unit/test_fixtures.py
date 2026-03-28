@@ -88,6 +88,31 @@ class TestFileFixtureProvider:
         with pytest.raises(ValueError, match=f"missing required field.*{missing_field}"):
             provider.get_all_fixtures()
 
+    @pytest.mark.parametrize("bad_score", [
+        {"home": 2},              # missing "away"
+        {"away": 1},              # missing "home"
+        "not-a-dict",             # wrong type entirely
+    ])
+    def test_fixture_malformed_score_raises(
+        self, tmp_path: Path, bad_score: object
+    ) -> None:
+        data = {
+            "fixtures": [
+                {
+                    "match_id": "x",
+                    "date": "2025-11-01",
+                    "home_team": "A",
+                    "away_team": "B",
+                    "final_score": bad_score,
+                },
+            ],
+        }
+        path = tmp_path / "fixtures.json"
+        path.write_text(json.dumps(data))
+        provider = FileFixtureProvider(path)
+        with pytest.raises(ValueError, match="malformed final_score"):
+            provider.get_all_fixtures()
+
     def test_fixture_without_score(self, tmp_path: Path) -> None:
         data = {
             "fixtures": [

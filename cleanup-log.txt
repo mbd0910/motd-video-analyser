@@ -139,3 +139,24 @@ class and wrap `CalledProcessError` at the call site.
 - **Shallow modules**: All modules provide meaningful abstraction. The `_do_*()` wrappers in
   `pipeline.py` exist to support deferred imports (avoids importing heavyweight deps like
   `openai`/`boto3` at module load time) — this is a legitimate pattern, not needless wrapping.
+
+## Category 1 (continued): Dead code + Category 6 (continued): Missing error handling
+
+**Addressed:**
+
+- **`__main__.py`**: Removed unused `logger = logging.getLogger(__name__)`. The `logging` import
+  itself is still needed for `logging.basicConfig()` in `cli()`, but the module-level logger was
+  never referenced — all error output uses `click.echo()` (appropriate for a CLI boundary).
+- **`fixtures.py`**: `_parse_fixture` wrapped `raw_score["home"]` / `raw_score["away"]` access
+  in try/except for `KeyError` and `TypeError`. The previous error handling pass (Category 6)
+  added validation for the 4 required top-level fields but missed the `final_score` sub-dict.
+  A malformed score (missing keys, or `final_score` set to a non-dict like a string) now raises
+  `ValueError` with context, matching the pattern used for top-level fields.
+- **`test_fixtures.py`**: Added `test_fixture_malformed_score_raises` parametrised over 3 cases:
+  missing "away", missing "home", and wrong type ("not-a-dict"). Covers both `KeyError` and
+  `TypeError` paths.
+
+**Left alone:**
+- `conftest.py` `project_root` fixture — unused but a reasonable shared fixture to keep.
+- `pipeline.py` `_timed()` has `# type: ignore[no-untyped-def]` — properly typing this with
+  generics adds complexity for no runtime benefit; the function is private and small.
