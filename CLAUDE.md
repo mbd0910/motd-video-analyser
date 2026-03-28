@@ -24,7 +24,6 @@
 - `publisher.py` - **Publishing** (Cloudflare R2)
 - `downloader.py` - **Download** (yt-dlp from BBC iPlayer)
 - `pipeline.py` - **Orchestrator** (sequences all stages)
-- `transcription/audio_extractor.py` - **Audio extraction** (ffmpeg)
 
 **Key deps:** Pydantic v2, Click
 

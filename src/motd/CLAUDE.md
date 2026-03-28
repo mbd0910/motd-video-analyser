@@ -10,4 +10,3 @@ Main package for MOTD video analysis pipeline.
 - `publisher.py` - Publish to Cloudflare R2 (stub)
 - `downloader.py` - Download from BBC iPlayer via yt-dlp (stub)
 - `pipeline.py` - Pipeline orchestrator (stub)
-- `transcription/audio_extractor.py` - ffmpeg audio extraction (retained from old pipeline)
