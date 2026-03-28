@@ -23,3 +23,14 @@
   - CLI: `python -m motd publish EPISODE_ID` loads cached analysis and publishes
   - Added boto3 dependency, boto3-stubs for type checking
   - 11 new tests (2 index entry, 4 index update, 5 publish integration), 55 total, clean mypy + ruff
+
+#23 iPlayer downloader: yt-dlp acquisition — DONE
+  - Downloader module: download(url_or_id, output_dir) → DownloadResult(video_path, episode_id)
+  - Accepts iPlayer URL or programme ID (auto-normalised to full URL)
+  - Two-step yt-dlp subprocess: --dump-json for metadata, then download
+  - Episode ID derived from broadcast date (release_date → upload_date fallback)
+  - Season derivation: Aug–Dec → YYYY-(YY+1), Jan–Jul → (YYYY-1)-YY
+  - Skips download if video already exists at target path
+  - DownloadError for clear failure messages
+  - CLI: `python -m motd download URL_OR_ID [--output-dir DIR]`
+  - 19 new tests (3 URL, 3 date parsing, 5 season, 2 episode ID, 6 integration), 74 total, clean mypy + ruff
