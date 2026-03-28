@@ -1,12 +1,19 @@
 """Analyser module — produces structured episode analysis from transcript + fixtures.
 
-Constructs a prompt from Transcript and fixture data, invokes Claude,
-and parses the response into a validated EpisodeAnalysis.
+Constructs a prompt from Transcript and fixture data, invokes Claude
+via `claude -p`, and parses the response into a validated EpisodeAnalysis.
 """
 
 from __future__ import annotations
 
-from motd.models import EpisodeAnalysis, Fixture, Transcript
+import json
+import logging
+import re
+import subprocess
+
+from motd.models import EpisodeAnalysis, Fixture, MatchCoverage, Transcript
+
+logger = logging.getLogger(__name__)
 
 
 def analyse(
@@ -27,5 +34,165 @@ def analyse(
 
     Returns:
         Validated EpisodeAnalysis.
+
+    Raises:
+        RuntimeError: If Claude invocation fails.
+        ValueError: If Claude's response cannot be parsed.
     """
-    raise NotImplementedError("Analyser not yet implemented — see issue #20")
+    prompt = _build_prompt(transcript, fixtures, episode_id, broadcast_date, season)
+    logger.info(f"Analysing {episode_id} ({len(transcript.segments)} segments, "
+                f"{len(fixtures)} fixtures)")
+
+    try:
+        result = subprocess.run(
+            ["claude", "-p", prompt],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(
+            f"Claude analysis failed for {episode_id}: {e.stderr or e}"
+        ) from e
+
+    response_text = result.stdout.strip()
+    logger.debug(f"Claude response length: {len(response_text)} chars")
+
+    analysis = _parse_response(response_text, episode_id, broadcast_date, season)
+    logger.info(f"Analysis complete: {len(analysis.matches)} matches identified")
+    return analysis
+
+
+def _build_prompt(
+    transcript: Transcript,
+    fixtures: list[Fixture],
+    episode_id: str,
+    broadcast_date: str,
+    season: str,
+) -> str:
+    """Build the analysis prompt from transcript and fixture data.
+
+    Args:
+        transcript: Episode transcript.
+        fixtures: Fixtures for the broadcast date.
+        episode_id: Episode identifier.
+        broadcast_date: Broadcast date.
+        season: Season identifier.
+
+    Returns:
+        Complete prompt string for Claude.
+    """
+    # Format transcript with timestamps
+    transcript_lines = []
+    for seg in transcript.segments:
+        mm_start = int(seg.start) // 60
+        ss_start = int(seg.start) % 60
+        transcript_lines.append(f"[{mm_start:02d}:{ss_start:02d}] {seg.text}")
+    transcript_text = "\n".join(transcript_lines)
+
+    # Format fixture data
+    fixture_lines = []
+    for f in fixtures:
+        score_str = f"{f.score.home}-{f.score.away}" if f.score else "TBC"
+        fixture_lines.append(
+            f"- {f.home_team} vs {f.away_team} ({score_str}) at {f.venue}"
+        )
+    fixtures_text = "\n".join(fixture_lines)
+
+    return f"""You are analysing a BBC Match of the Day episode transcript to identify which \
+Premier League matches were covered, in what order, and the timing of each segment.
+
+## Episode Details
+- Episode ID: {episode_id}
+- Broadcast date: {broadcast_date}
+- Season: {season}
+
+## Fixtures played on {broadcast_date}
+{fixtures_text}
+
+## Transcript
+{transcript_text}
+
+## Your Task
+
+Analyse the transcript and identify:
+1. Which matches from the fixture list were covered in this episode
+2. The running order (which match was shown first, second, etc.)
+3. The timestamp boundaries for each segment type
+
+For each match covered, identify these segment types where present:
+- **studio_intro**: When pundits begin discussing the upcoming match, ends at commentator credit
+- **lineups**: After commentator credit, team formations shown
+- **highlights**: Match action with commentary
+- **post_match_interviews**: Pitchside interviews with players/managers
+- **studio_analysis**: Pundits return to discuss the match
+
+## Output Format
+
+Return ONLY valid JSON (no markdown fences, no explanation) in this exact structure:
+
+{{
+  "matches": [
+    {{
+      "order": 1,
+      "home_team": "Team Name",
+      "away_team": "Team Name",
+      "venue": "Stadium Name",
+      "score": {{"home": 0, "away": 0}},
+      "segments": {{
+        "studio_intro": {{"start": "MM:SS", "end": "MM:SS"}},
+        "highlights": {{"start": "MM:SS", "end": "MM:SS"}},
+        "studio_analysis": {{"start": "MM:SS", "end": "MM:SS"}}
+      }},
+      "notes": null
+    }}
+  ]
+}}
+
+Timestamps must be in MM:SS format. Use null for start or end if unclear.
+Only include matches that were actually covered in the episode.
+Order must be sequential starting from 1."""
+
+
+def _parse_response(
+    response_text: str,
+    episode_id: str,
+    broadcast_date: str,
+    season: str,
+) -> EpisodeAnalysis:
+    """Parse Claude's JSON response into a validated EpisodeAnalysis.
+
+    Args:
+        response_text: Raw text response from Claude.
+        episode_id: Episode identifier.
+        broadcast_date: Broadcast date.
+        season: Season identifier.
+
+    Returns:
+        Validated EpisodeAnalysis.
+
+    Raises:
+        ValueError: If the response cannot be parsed as valid JSON or
+            doesn't match the expected schema.
+    """
+    # Strip markdown fences if present
+    cleaned = response_text.strip()
+    fence_match = re.search(r"```(?:json)?\s*\n(.*?)\n```", cleaned, re.DOTALL)
+    if fence_match:
+        cleaned = fence_match.group(1).strip()
+
+    try:
+        data = json.loads(cleaned)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Failed to parse Claude response as JSON: {e}") from e
+
+    # Build EpisodeAnalysis from parsed data
+    matches_data = data.get("matches", [])
+    matches = [MatchCoverage.model_validate(m) for m in matches_data]
+
+    return EpisodeAnalysis(
+        episode_id=episode_id,
+        broadcast_date=broadcast_date,
+        season=season,
+        matches=matches,
+    )

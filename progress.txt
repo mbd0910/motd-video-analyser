@@ -1,0 +1,9 @@
+#19 Codebase reset: delete old pipeline, establish new skeleton — DONE
+  - Deleted old modules (scene_detection, ocr, llm, pipeline, config, utils, validation)
+  - Removed heavy ML deps (EasyOCR, PySceneDetect, OpenCV, torch, etc.)
+  - New Pydantic data contracts: TranscriptSegment, Transcript, Fixture, Score, Segment, MatchCoverage, EpisodeAnalysis
+  - FixtureProvider interface + FileFixtureProvider
+  - Module stubs: transcriber, analyser, publisher, downloader, pipeline
+  - New CLI: download, transcribe, analyse, publish, run
+  - Retained: audio_extractor.py, domain data, domain docs
+  - 22 tests, clean mypy

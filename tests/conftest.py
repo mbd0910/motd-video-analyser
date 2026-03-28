@@ -1,7 +1,8 @@
 """Pytest configuration and shared fixtures for MOTD analyser tests."""
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 
 def pytest_configure(config):
