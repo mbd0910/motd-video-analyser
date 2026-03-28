@@ -125,7 +125,20 @@ def analyse(episode_id: str, output: str | None, force: bool) -> None:
 @click.argument("episode_id")
 def publish(episode_id: str) -> None:
     """Publish analysis JSON to Cloudflare R2."""
-    click.echo("Publish not yet implemented — see issue #21")
+    from motd.models import EpisodeAnalysis
+    from motd.publisher import publish as do_publish
+
+    cache_dir = Path("data/cache") / episode_id
+    analysis_path = cache_dir / "analysis.json"
+
+    if not analysis_path.exists():
+        click.echo(f"Error: analysis not found: {analysis_path}", err=True)
+        click.echo("Run `python -m motd analyse` first.")
+        sys.exit(1)
+
+    analysis = EpisodeAnalysis.model_validate_json(analysis_path.read_text())
+    key = do_publish(analysis)
+    click.echo(f"Published: {key}")
 
 
 @cli.command()

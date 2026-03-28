@@ -7,3 +7,19 @@
   - New CLI: download, transcribe, analyse, publish, run
   - Retained: audio_extractor.py, domain data, domain docs
   - 22 tests, clean mypy
+
+#20 Tracer bullet: local video → analysis JSON on disk — DONE
+  - Transcriber: chunked ffmpeg→MP3 segments, OpenAI Whisper API (verbose_json), timestamp offsets
+  - Analyser: prompt builder (transcript + fixtures), Claude via `claude -p`, JSON parsing with fence stripping
+  - CLI: `transcribe` and `analyse` commands wired up with caching, --force, --episode-id
+  - Added openai dependency
+  - 22 new tests (11 transcriber, 11 analyser), 44 total, clean mypy + ruff
+
+#21 Publish analysis JSON to Cloudflare R2 — DONE
+  - Publisher module: R2Client protocol, CloudflareR2Client (boto3 S3-compatible), publish()
+  - Serialises EpisodeAnalysis to JSON, uploads to episodes/{episode_id}.json
+  - Episode index (episodes/index.json): read-modify-write, upsert (no duplicates)
+  - R2 credentials via env vars (R2_BUCKET, R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY)
+  - CLI: `python -m motd publish EPISODE_ID` loads cached analysis and publishes
+  - Added boto3 dependency, boto3-stubs for type checking
+  - 11 new tests (2 index entry, 4 index update, 5 publish integration), 55 total, clean mypy + ruff
