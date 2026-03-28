@@ -1,0 +1,137 @@
+---
+import Base from '../layouts/Base.astro';
+import { R2_BASE_URL } from '../config';
+---
+
+<Base title="Episodes">
+  <h1>Match of the Day Coverage</h1>
+  <p class="subtitle">Running order and airtime for every episode.</p>
+
+  <div id="episodes">
+    <p class="loading">Loading episodes&hellip;</p>
+  </div>
+</Base>
+
+<script define:vars={{ R2_BASE_URL }}>
+  const container = document.getElementById('episodes');
+
+  async function loadEpisodes() {
+    try {
+      const res = await fetch(`${R2_BASE_URL}/episodes/index.json`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const episodes = data.episodes ?? [];
+
+      if (episodes.length === 0) {
+        container.innerHTML = '<p class="empty">No episodes yet. Check back after the next broadcast.</p>';
+        return;
+      }
+
+      // Sort by broadcast date descending
+      episodes.sort((a, b) => b.broadcast_date.localeCompare(a.broadcast_date));
+
+      const rows = episodes.map((ep) => {
+        const date = new Date(ep.broadcast_date + 'T00:00:00');
+        const formatted = date.toLocaleDateString('en-GB', {
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        });
+        return `
+          <a href="/episode?id=${ep.episode_id}" class="episode-card">
+            <span class="date">${formatted}</span>
+            <span class="meta">${ep.match_count} match${ep.match_count !== 1 ? 'es' : ''}</span>
+            <span class="season">${ep.season}</span>
+          </a>
+        `;
+      }).join('');
+
+      container.innerHTML = `<div class="episode-list">${rows}</div>`;
+    } catch (err) {
+      container.innerHTML = `<p class="error">Failed to load episodes. Please try again later.</p>`;
+      console.error('Failed to load episodes:', err);
+    }
+  }
+
+  loadEpisodes();
+</script>
+
+<style>
+  h1 {
+    font-size: 1.8rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    margin-bottom: 2rem;
+  }
+
+  .loading,
+  .empty,
+  .error {
+    color: var(--muted);
+    padding: 2rem 0;
+  }
+
+  .error {
+    color: #b91c1c;
+  }
+</style>
+
+<style is:global>
+  .episode-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .episode-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--fg);
+    transition: border-color 0.15s;
+  }
+
+  .episode-card:hover {
+    border-color: var(--accent);
+    text-decoration: none;
+  }
+
+  .episode-card .date {
+    font-weight: 600;
+    min-width: 10rem;
+  }
+
+  .episode-card .meta {
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  .episode-card .season {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  @media (max-width: 640px) {
+    .episode-card {
+      flex-wrap: wrap;
+      gap: 0.25rem 0.75rem;
+    }
+
+    .episode-card .date {
+      min-width: auto;
+    }
+
+    .episode-card .season {
+      margin-left: 0;
+    }
+  }
+</style>

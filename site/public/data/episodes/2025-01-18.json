@@ -1,0 +1,79 @@
+{
+  "episode_id": "2025-01-18",
+  "broadcast_date": "2025-01-18",
+  "season": "2024-25",
+  "matches": [
+    {
+      "order": 1,
+      "home_team": "Arsenal",
+      "away_team": "Aston Villa",
+      "venue": "Emirates Stadium",
+      "score": {"home": 2, "away": 1},
+      "segments": {
+        "highlights": {"start": "00:02:30", "end": "00:12:15"},
+        "studio_analysis": {"start": "00:12:15", "end": "00:14:40"}
+      },
+      "notes": null
+    },
+    {
+      "order": 2,
+      "home_team": "Liverpool",
+      "away_team": "Brentford",
+      "venue": "Anfield",
+      "score": {"home": 2, "away": 0},
+      "segments": {
+        "highlights": {"start": "00:16:00", "end": "00:24:30"},
+        "studio_analysis": {"start": "00:24:30", "end": "00:26:10"}
+      },
+      "notes": null
+    },
+    {
+      "order": 3,
+      "home_team": "Brighton",
+      "away_team": "Everton",
+      "venue": "Amex Stadium",
+      "score": {"home": 0, "away": 1},
+      "segments": {
+        "highlights": {"start": "00:27:00", "end": "00:33:45"},
+        "studio_analysis": {"start": "00:33:45", "end": "00:35:00"}
+      },
+      "notes": "Controversial penalty decision"
+    },
+    {
+      "order": 4,
+      "home_team": "Newcastle",
+      "away_team": "Bournemouth",
+      "venue": "St James' Park",
+      "score": {"home": 4, "away": 1},
+      "segments": {
+        "highlights": {"start": "00:36:30", "end": "00:43:00"},
+        "studio_analysis": {"start": "00:43:00", "end": "00:44:15"}
+      },
+      "notes": null
+    },
+    {
+      "order": 5,
+      "home_team": "West Ham",
+      "away_team": "Crystal Palace",
+      "venue": "London Stadium",
+      "score": {"home": 1, "away": 1},
+      "segments": {
+        "highlights": {"start": "00:45:30", "end": "00:50:00"},
+        "studio_analysis": null
+      },
+      "notes": null
+    },
+    {
+      "order": 6,
+      "home_team": "Wolves",
+      "away_team": "Chelsea",
+      "venue": "Molineux",
+      "score": {"home": 2, "away": 3},
+      "segments": {
+        "highlights": {"start": "00:51:00", "end": "00:57:30"},
+        "studio_analysis": {"start": "00:57:30", "end": "00:58:45"}
+      },
+      "notes": null
+    }
+  ]
+}
