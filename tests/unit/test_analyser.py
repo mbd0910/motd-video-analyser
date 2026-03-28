@@ -4,7 +4,6 @@ import json
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pydantic import ValidationError
 
 from motd.analyser import AnalysisError, _build_prompt, _parse_response, analyse
 from motd.models import (
@@ -134,7 +133,12 @@ class TestParseResponse:
 
     def test_missing_required_fields_raises(self) -> None:
         bad_json = json.dumps({"matches": [{"order": 1}]})
-        with pytest.raises((AnalysisError, ValidationError)):
+        with pytest.raises(AnalysisError, match="doesn't match expected schema"):
+            _parse_response(bad_json, "ep1", "2025-11-01", "2025-26")
+
+    def test_matches_not_a_list_raises(self) -> None:
+        bad_json = json.dumps({"matches": "not a list"})
+        with pytest.raises(AnalysisError, match="Expected 'matches' to be a list"):
             _parse_response(bad_json, "ep1", "2025-11-01", "2025-26")
 
     def test_response_with_json_fence_parsed(self) -> None:

@@ -3,10 +3,14 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from motd.models import Transcript, TranscriptSegment
 from motd.transcriber import (
+    TranscriptionError,
     _assemble_transcript,
     _chunk_audio,
+    _get_audio_duration,
     _parse_whisper_segments,
     _transcribe_chunk,
     transcribe,
@@ -109,6 +113,16 @@ class TestChunkAudio:
         assert len(chunks) == 2
 
     @patch("motd.transcriber.subprocess.run")
+    def test_chunk_audio_zero_chunks_raises(self, mock_run: MagicMock, tmp_path: Path) -> None:
+        output_dir = tmp_path / "chunks"
+        output_dir.mkdir()
+        # No chunk files created — simulates ffmpeg producing nothing
+        mock_run.return_value = MagicMock(returncode=0)
+
+        with pytest.raises(TranscriptionError, match="no audio chunks"):
+            _chunk_audio(str(tmp_path / "video.mp4"), str(output_dir))
+
+    @patch("motd.transcriber.subprocess.run")
     def test_chunk_audio_sorted_order(self, mock_run: MagicMock, tmp_path: Path) -> None:
         video = tmp_path / "video.mp4"
         video.touch()
@@ -149,6 +163,21 @@ class TestTranscribeChunk:
         assert len(segments) == 1
         assert segments[0]["start"] == 0.0
         assert segments[0]["text"] == " Hello world."
+
+
+class TestGetAudioDuration:
+    """Test ffprobe duration extraction."""
+
+    @patch("motd.transcriber.subprocess.run")
+    def test_non_numeric_output_raises(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = MagicMock(stdout="N/A\n", stderr="")
+        with pytest.raises(TranscriptionError, match="non-numeric duration"):
+            _get_audio_duration("/fake/video.mp4")
+
+    @patch("motd.transcriber.subprocess.run")
+    def test_valid_duration_returned(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = MagicMock(stdout="5400.123\n", stderr="")
+        assert _get_audio_duration("/fake/video.mp4") == 5400.123
 
 
 class TestTranscribeIntegration:

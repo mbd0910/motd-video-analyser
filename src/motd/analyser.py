@@ -11,6 +11,8 @@ import logging
 import re
 import subprocess
 
+from pydantic import ValidationError
+
 from motd.models import EpisodeAnalysis, Fixture, MatchCoverage, Transcript
 
 logger = logging.getLogger(__name__)
@@ -190,12 +192,21 @@ def _parse_response(
         raise AnalysisError(f"Failed to parse Claude response as JSON: {e}") from e
 
     # Build EpisodeAnalysis from parsed data
-    matches_data = data.get("matches", [])
-    matches = [MatchCoverage.model_validate(m) for m in matches_data]
+    try:
+        matches_data = data.get("matches", [])
+        if not isinstance(matches_data, list):
+            raise AnalysisError(
+                f"Expected 'matches' to be a list, got {type(matches_data).__name__}"
+            )
+        matches = [MatchCoverage.model_validate(m) for m in matches_data]
 
-    return EpisodeAnalysis(
-        episode_id=episode_id,
-        broadcast_date=broadcast_date,
-        season=season,
-        matches=matches,
-    )
+        return EpisodeAnalysis(
+            episode_id=episode_id,
+            broadcast_date=broadcast_date,
+            season=season,
+            matches=matches,
+        )
+    except ValidationError as e:
+        raise AnalysisError(
+            f"Claude response doesn't match expected schema: {e}"
+        ) from e

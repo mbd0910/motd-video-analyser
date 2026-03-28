@@ -186,6 +186,18 @@ class TestPublish:
         ep_data = json.loads(client.objects["episodes/motd_2025-26_2025-11-01.json"])
         assert len(ep_data["matches"]) == 5
 
+    def test_corrupted_index_rebuilds_from_scratch(self) -> None:
+        client = FakeR2Client()
+        # Pre-seed a corrupted index
+        client.objects["episodes/index.json"] = b"not valid json {{"
+
+        analysis = _make_analysis()
+        publish(analysis, client)
+
+        index_data = json.loads(client.objects["episodes/index.json"])
+        assert len(index_data["episodes"]) == 1
+        assert index_data["episodes"][0]["episode_id"] == "motd_2025-26_2025-11-01"
+
     def test_returns_episode_url(self) -> None:
         client = FakeR2Client()
         analysis = _make_analysis()

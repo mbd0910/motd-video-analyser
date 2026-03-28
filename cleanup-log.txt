@@ -54,3 +54,32 @@ class and wrap `CalledProcessError` at the call site.
   This is intentional; the pipeline is an internal orchestrator, not a user-facing boundary.
 - `publisher.py` uses bare `os.environ[]` KeyError for missing R2 credentials — this is a
   deployment-time config error, not a runtime boundary worth a custom exception.
+
+## Category 6: Missing error handling
+
+**Addressed:** Added error handling at system boundaries where external input is untrusted.
+
+- **`transcriber.py`**: `_get_audio_duration` now catches `ValueError` when ffprobe returns
+  non-numeric output (e.g. "N/A") and raises `TranscriptionError` with context. Previously
+  `float()` would raise a bare `ValueError`.
+- **`transcriber.py`**: `_chunk_audio` now raises `TranscriptionError` if ffmpeg produces zero
+  audio chunks. Previously an empty file or invalid input would silently produce an empty
+  transcript with no indication of failure.
+- **`fixtures.py`**: `_parse_fixture` now catches `KeyError` on required fields (match_id, date,
+  home_team, away_team) and raises `ValueError` with the missing field name and raw data.
+  Previously a corrupt fixtures file would raise a bare `KeyError`.
+- **`analyser.py`**: `_parse_response` now catches Pydantic `ValidationError` when Claude's
+  response has valid JSON but doesn't match the expected schema, wrapping it in `AnalysisError`.
+  Also validates that `matches` is actually a list. Previously `ValidationError` leaked through
+  as an internal error.
+- **`publisher.py`**: `publish` now catches `JSONDecodeError`/`TypeError` when reading a
+  corrupted `index.json` from R2, logging a warning and rebuilding the index from scratch.
+  Previously a corrupt index would crash the publish step.
+
+**Left alone:**
+- No subprocess timeouts added. All subprocesses are either fast (ffprobe) or inherently
+  long-running (ffmpeg chunking, yt-dlp download, Claude analysis). Adding arbitrary timeouts
+  would create false failures; the correct solution for hung processes is system-level monitoring.
+- `pipeline.py` reading cached transcript/analysis JSON — a corrupt cache file raising
+  `ValidationError` is a reasonable failure mode since the pipeline can be re-run with `--force`.
+- `publisher.py` `os.environ[]` for R2 credentials — deployment-time config, not runtime input.

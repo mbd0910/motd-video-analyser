@@ -111,8 +111,12 @@ def publish(analysis: EpisodeAnalysis, client: R2Client | None = None) -> str:
     existing_index: list[dict[str, object]] = []
     index_data = client.download(INDEX_KEY)
     if index_data is not None:
-        parsed = json.loads(index_data)
-        existing_index = parsed.get("episodes", [])
+        try:
+            parsed = json.loads(index_data)
+            existing_index = parsed.get("episodes", [])
+        except (json.JSONDecodeError, TypeError):
+            logger.warning("Corrupted index.json in R2 — rebuilding from scratch")
+            existing_index = []
 
     entry = _build_index_entry(analysis)
     updated_index = _update_index(existing_index, entry)

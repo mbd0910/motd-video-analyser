@@ -72,6 +72,23 @@ class TestFileFixtureProvider:
         with pytest.raises(FileNotFoundError):
             provider.get_all_fixtures()
 
+    def test_fixture_missing_required_field_raises(self, tmp_path: Path) -> None:
+        data = {
+            "fixtures": [
+                {
+                    "date": "2025-11-01",
+                    "home_team": "A",
+                    "away_team": "B",
+                    # missing match_id
+                },
+            ],
+        }
+        path = tmp_path / "fixtures.json"
+        path.write_text(json.dumps(data))
+        provider = FileFixtureProvider(path)
+        with pytest.raises(ValueError, match="missing required field.*match_id"):
+            provider.get_all_fixtures()
+
     def test_fixture_without_score(self, tmp_path: Path) -> None:
         data = {
             "fixtures": [

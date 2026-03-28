@@ -40,15 +40,24 @@ class FileFixtureProvider(FixtureProvider):
 
     @staticmethod
     def _parse_fixture(raw: dict) -> Fixture:  # type: ignore[type-arg]
+        try:
+            match_id = raw["match_id"]
+            date = raw["date"]
+            home_team = raw["home_team"]
+            away_team = raw["away_team"]
+        except KeyError as e:
+            raise ValueError(
+                f"Fixture missing required field {e}: {raw}"
+            ) from e
         score = None
         raw_score = raw.get("final_score")
         if raw_score:
             score = Score(home=raw_score["home"], away=raw_score["away"])
         return Fixture(
-            match_id=raw["match_id"],
-            date=raw["date"],
-            home_team=raw["home_team"],
-            away_team=raw["away_team"],
+            match_id=match_id,
+            date=date,
+            home_team=home_team,
+            away_team=away_team,
             venue=raw.get("venue", ""),
             score=score,
         )

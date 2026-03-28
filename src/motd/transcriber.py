@@ -104,6 +104,10 @@ def _chunk_audio(
         ) from e
 
     chunks = sorted(Path(output_dir).glob("chunk_*.mp3"))
+    if not chunks:
+        raise TranscriptionError(
+            "ffmpeg produced no audio chunks — input file may be empty or invalid"
+        )
     return [str(c) for c in chunks]
 
 
@@ -205,4 +209,9 @@ def _get_audio_duration(file_path: str) -> float:
         raise TranscriptionError(
             f"ffprobe duration check failed: {e.stderr or e}"
         ) from e
-    return float(result.stdout.strip())
+    try:
+        return float(result.stdout.strip())
+    except ValueError as e:
+        raise TranscriptionError(
+            f"ffprobe returned non-numeric duration: {result.stdout.strip()!r}"
+        ) from e
