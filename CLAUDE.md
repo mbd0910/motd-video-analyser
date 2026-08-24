@@ -42,7 +42,7 @@
 
 ## Critical Warnings
 
-- Activate virtual environment (`source venv/bin/activate`) before running Python commands
+- Run Python commands through `uv run` (or activate `.venv` first); `uv sync` after any dependency change
 - Check `data/cache/{episode_id}/` before re-running expensive operations (transcription takes 15-20 mins)
 - Never commit files in `data/videos/` or `data/cache/`
 
@@ -73,9 +73,7 @@ See [docs/domain/](docs/domain/) for business context:
 
 ## Common Commands
 
-```bash
-source venv/bin/activate
-```
+Commands below assume `uv run` in front, or an activated `.venv`.
 
 **Full pipeline:**
 - `python -m motd run VIDEO_PATH [--url URL --date YYYY-MM-DD] [--episode-id ID] [--skip-to STAGE] [--force]`
@@ -90,6 +88,6 @@ source venv/bin/activate
 - `python -m motd publish EPISODE_ID`
 
 **Tests:**
-- `pytest`
+- `uv run pytest`
 
 Use `--help` on any command for full options.

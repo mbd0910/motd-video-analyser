@@ -82,7 +82,7 @@ See [docs/tech-tradeoffs.md](docs/tech-tradeoffs.md) for detailed comparisons an
 
 ### Prerequisites
 
-- Python 3.14
+- uv (`brew install uv`)
 - ffmpeg installed (`brew install ffmpeg` on macOS)
 - An OpenAI API key (transcription) and Cloudflare R2 credentials (publishing)
 
@@ -93,13 +93,12 @@ See [docs/tech-tradeoffs.md](docs/tech-tradeoffs.md) for detailed comparisons an
 git clone https://github.com/yourusername/motd-video-analyser.git
 cd motd-video-analyser
 
-# Create virtual environment
-python3.14 -m venv venv
-source venv/bin/activate
-
-# Install dependencies
-pip install -e ".[dev]"
+# Install dependencies (uv creates .venv and fetches Python 3.14 itself)
+uv sync
 ```
+
+Prefix commands with `uv run`, or activate the environment once with
+`source .venv/bin/activate`.
 
 ### Usage
 

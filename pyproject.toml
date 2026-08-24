@@ -27,7 +27,7 @@ dependencies = [
     "pyyaml==6.0.3",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "boto3-stubs>=1.35.0",
     "pytest==8.4.2",
