@@ -27,10 +27,6 @@ class FixtureProvider(ABC):
     def get_all_fixtures(self) -> list[Fixture]:
         """Return all available fixtures."""
 
-    @abstractmethod
-    def get_fixtures_for_gameweek(self, gameweek: int) -> list[Fixture]:
-        """Return fixtures for a given gameweek."""
-
 
 class FileFixtureProvider(FixtureProvider):
     """Loads fixtures from a JSON file on disk."""
@@ -46,9 +42,6 @@ class FileFixtureProvider(FixtureProvider):
 
     def get_fixtures_for_date(self, date: str) -> list[Fixture]:
         return [f for f in self.get_all_fixtures() if f.date == date]
-
-    def get_fixtures_for_gameweek(self, gameweek: int) -> list[Fixture]:
-        return [f for f in self.get_all_fixtures() if f.gameweek == gameweek]
 
     @staticmethod
     def _parse_fixture(raw: dict) -> Fixture:  # type: ignore[type-arg]

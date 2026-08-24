@@ -138,7 +138,7 @@ class TestSeasonPaths:
         assert fixtures_path_for_season("2026-27").name == "premier_league_2026_27.json"
 
 
-class TestGameweeks:
+class TestSyncedFixtureFields:
     @pytest.fixture
     def gameweek_file(self, tmp_path: Path) -> Path:
         data = {
@@ -183,11 +183,9 @@ class TestGameweeks:
         path.write_text(json.dumps(data))
         return path
 
-    def test_gameweek_spans_multiple_dates(self, gameweek_file: Path) -> None:
-        """One MOTD episode covers a gameweek, which straddles Fri-Mon."""
+    def test_gameweek_loads_as_a_plain_field(self, gameweek_file: Path) -> None:
         provider = FileFixtureProvider(gameweek_file)
-        assert len(provider.get_fixtures_for_gameweek(1)) == 2
-        assert len(provider.get_fixtures_for_gameweek(2)) == 1
+        assert provider.get_fixtures_for_date("2026-08-21")[0].gameweek == 1
 
     def test_unplayed_fixture_loads_without_score(self, gameweek_file: Path) -> None:
         provider = FileFixtureProvider(gameweek_file)
