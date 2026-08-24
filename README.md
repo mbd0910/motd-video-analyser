@@ -76,8 +76,6 @@ The LLM identifies these segments from the transcript, using OCR hints to anchor
 | Fuzzy Matching | rapidfuzz | Team name variants, stadium aliases |
 | Type Safety | Pydantic | Runtime validation, clear data contracts |
 
-See [docs/tech-tradeoffs.md](docs/tech-tradeoffs.md) for detailed comparisons and alternatives.
-
 ## Quick Start
 
 ### Prerequisites
@@ -173,7 +171,6 @@ motd-video-analyser/
 - **[analysis_schema.md](docs/domain/analysis_schema.md)** - JSON schema for LLM output
 - **[Domain Glossary](docs/domain/README.md)** - FT graphics, running order, episode structure
 - **[Visual Patterns](docs/domain/visual_patterns.md)** - Episode timing patterns
-- **[Tech Tradeoffs](docs/tech-tradeoffs.md)** - Library comparisons and alternatives
 
 ## Current Results
 

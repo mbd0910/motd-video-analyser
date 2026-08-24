@@ -14,8 +14,6 @@
 
 ## Technology Stack
 
-See [tech-tradeoffs.md](tech-tradeoffs.md) for detailed comparisons.
-
 | Component | Library | Rationale |
 |-----------|---------|-----------|
 | Scene Detection | PySceneDetect | Purpose-built for scene transitions |
