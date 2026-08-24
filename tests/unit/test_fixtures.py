@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from motd.fixtures import FileFixtureProvider
+from motd.fixtures import FileFixtureProvider, fixtures_path_for_season
 from motd.models import Fixture
 
 
@@ -131,3 +131,75 @@ class TestFileFixtureProvider:
         fixtures = provider.get_all_fixtures()
         assert len(fixtures) == 1
         assert fixtures[0].score is None
+
+
+class TestSeasonPaths:
+    def test_season_label_maps_to_fixtures_file(self) -> None:
+        assert fixtures_path_for_season("2026-27").name == "premier_league_2026_27.json"
+
+
+class TestGameweeks:
+    @pytest.fixture
+    def gameweek_file(self, tmp_path: Path) -> Path:
+        data = {
+            "season": "2026-27",
+            "fixtures": [
+                {
+                    "match_id": "2026-08-21-ARS-MUN",
+                    "date": "2026-08-21",
+                    "gameweek": 1,
+                    "kickoff": "20:00",
+                    "home_team": "Arsenal",
+                    "away_team": "Manchester United",
+                    "venue": "Emirates Stadium",
+                    "final_score": {"home": 3, "away": 0},
+                    "played": True,
+                },
+                {
+                    "match_id": "2026-08-22-HUL-COV",
+                    "date": "2026-08-22",
+                    "gameweek": 1,
+                    "kickoff": "12:30",
+                    "home_team": "Hull City",
+                    "away_team": "Coventry City",
+                    "venue": "MKM Stadium",
+                    "final_score": None,
+                    "played": False,
+                },
+                {
+                    "match_id": "2026-08-29-LIV-CHE",
+                    "date": "2026-08-29",
+                    "gameweek": 2,
+                    "kickoff": "15:00",
+                    "home_team": "Liverpool",
+                    "away_team": "Chelsea",
+                    "venue": "Anfield",
+                    "final_score": None,
+                    "played": False,
+                },
+            ],
+        }
+        path = tmp_path / "fixtures.json"
+        path.write_text(json.dumps(data))
+        return path
+
+    def test_gameweek_spans_multiple_dates(self, gameweek_file: Path) -> None:
+        """One MOTD episode covers a gameweek, which straddles Fri-Mon."""
+        provider = FileFixtureProvider(gameweek_file)
+        assert len(provider.get_fixtures_for_gameweek(1)) == 2
+        assert len(provider.get_fixtures_for_gameweek(2)) == 1
+
+    def test_unplayed_fixture_loads_without_score(self, gameweek_file: Path) -> None:
+        provider = FileFixtureProvider(gameweek_file)
+        fixture = provider.get_fixtures_for_date("2026-08-22")[0]
+        assert fixture.score is None
+        assert fixture.played is False
+        assert fixture.kickoff == "12:30"
+
+    def test_legacy_file_without_played_flag_infers_it_from_score(
+        self, fixtures_file: Path
+    ) -> None:
+        provider = FileFixtureProvider(fixtures_file)
+        fixture = provider.get_fixtures_for_date("2025-11-01")[0]
+        assert fixture.played is True
+        assert fixture.gameweek is None

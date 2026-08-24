@@ -2,10 +2,10 @@
 
 # Data paths
 fixtures:
-  path: data/fixtures/premier_league_2025_26.json
+  directory: data/fixtures
 
 teams:
-  path: data/teams/premier_league_2025_26.json
+  path: data/teams/premier_league.json
 
 episodes:
   manifest_path: data/episodes/episode_manifest.json

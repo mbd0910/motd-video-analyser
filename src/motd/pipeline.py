@@ -148,12 +148,16 @@ def _timed(stage_name: str, fn, **kwargs):  # type: ignore[no-untyped-def]
 
 def _load_fixtures(broadcast_date: str) -> list[Fixture]:
     """Load fixtures for a broadcast date."""
-    from motd.fixtures import DEFAULT_FIXTURES_PATH, FileFixtureProvider
+    from motd.episode import season_for_date
+    from motd.fixtures import FileFixtureProvider, fixtures_path_for_season
 
-    if not DEFAULT_FIXTURES_PATH.exists():
-        raise PipelineError(f"Fixtures file not found: {DEFAULT_FIXTURES_PATH}")
+    path = fixtures_path_for_season(season_for_date(broadcast_date))
+    if not path.exists():
+        raise PipelineError(
+            f"Fixtures file not found: {path}. Run `python -m motd fixtures sync`."
+        )
 
-    provider = FileFixtureProvider(DEFAULT_FIXTURES_PATH)
+    provider = FileFixtureProvider(path)
     return provider.get_fixtures_for_date(broadcast_date)
 
 

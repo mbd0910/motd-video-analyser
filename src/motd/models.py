@@ -44,6 +44,9 @@ class Fixture(BaseModel):
     away_team: str
     venue: str
     score: Score | None = None
+    gameweek: int | None = Field(default=None, gt=0)
+    kickoff: str | None = None
+    played: bool = False
 
 
 class Segment(BaseModel):

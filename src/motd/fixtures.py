@@ -8,7 +8,12 @@ from pathlib import Path
 
 from motd.models import Fixture, Score
 
-DEFAULT_FIXTURES_PATH = Path("data/fixtures/premier_league_2025_26.json")
+FIXTURES_DIR = Path("data/fixtures")
+
+
+def fixtures_path_for_season(season: str) -> Path:
+    """Path to a season's fixtures file, from a season label like "2025-26"."""
+    return FIXTURES_DIR / f"premier_league_{season.replace('-', '_')}.json"
 
 
 class FixtureProvider(ABC):
@@ -21,6 +26,10 @@ class FixtureProvider(ABC):
     @abstractmethod
     def get_all_fixtures(self) -> list[Fixture]:
         """Return all available fixtures."""
+
+    @abstractmethod
+    def get_fixtures_for_gameweek(self, gameweek: int) -> list[Fixture]:
+        """Return fixtures for a given gameweek."""
 
 
 class FileFixtureProvider(FixtureProvider):
@@ -37,6 +46,9 @@ class FileFixtureProvider(FixtureProvider):
 
     def get_fixtures_for_date(self, date: str) -> list[Fixture]:
         return [f for f in self.get_all_fixtures() if f.date == date]
+
+    def get_fixtures_for_gameweek(self, gameweek: int) -> list[Fixture]:
+        return [f for f in self.get_all_fixtures() if f.gameweek == gameweek]
 
     @staticmethod
     def _parse_fixture(raw: dict) -> Fixture:  # type: ignore[type-arg]
@@ -65,4 +77,7 @@ class FileFixtureProvider(FixtureProvider):
             away_team=away_team,
             venue=raw.get("venue", ""),
             score=score,
+            gameweek=raw.get("gameweek"),
+            kickoff=raw.get("kickoff"),
+            played=raw.get("played", score is not None),
         )

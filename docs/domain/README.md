@@ -402,7 +402,7 @@ ocr_regions:
 
 ```
 Premier League Season (2025/26)
-    ├── 20 Teams (data/teams/premier_league_2025_26.json)
+    ├── 20 Teams (data/teams/premier_league.json, keyed by club code)
     │   ├── Liverpool
     │   ├── Arsenal
     │   ├── Manchester City

@@ -1,0 +1,557 @@
+{
+  "competition": "Premier League",
+  "clubs": {
+    "ARS": {
+      "full": "Arsenal",
+      "abbrev": "Arsenal",
+      "codes": [
+        "ARS"
+      ],
+      "alternates": [
+        "The Gunners",
+        "Gunners"
+      ],
+      "venue": {
+        "stadium": "Emirates Stadium",
+        "city": "London",
+        "aliases": [
+          "Emirates",
+          "The Emirates",
+          "The Emirates Stadium",
+          "Ashburton Grove"
+        ],
+        "additional_references": [
+          "North Bank",
+          "Clock End"
+        ]
+      }
+    },
+    "AVL": {
+      "full": "Aston Villa",
+      "abbrev": "Aston Villa",
+      "codes": [
+        "AVL",
+        "AST"
+      ],
+      "alternates": [
+        "Villa",
+        "The Villans",
+        "Villans"
+      ],
+      "venue": {
+        "stadium": "Villa Park",
+        "city": "Birmingham",
+        "aliases": [],
+        "additional_references": [
+          "Holte End"
+        ]
+      }
+    },
+    "BHA": {
+      "full": "Brighton & Hove Albion",
+      "abbrev": "Brighton",
+      "codes": [
+        "BHA",
+        "BRI"
+      ],
+      "alternates": [
+        "Brighton",
+        "The Seagulls",
+        "Seagulls",
+        "The Albion",
+        "Albion"
+      ],
+      "venue": {
+        "stadium": "Amex Stadium",
+        "city": "Brighton",
+        "aliases": [
+          "Amex",
+          "The Amex"
+        ],
+        "additional_references": [
+          "Falmer"
+        ]
+      }
+    },
+    "BOU": {
+      "full": "Bournemouth",
+      "abbrev": "Bournemouth",
+      "codes": [
+        "BOU",
+        "BOR"
+      ],
+      "alternates": [
+        "The Cherries",
+        "Cherries",
+        "AFC Bournemouth"
+      ],
+      "venue": {
+        "stadium": "Vitality Stadium",
+        "city": "Bournemouth",
+        "aliases": [
+          "Vitality",
+          "The Vitality",
+          "Dean Court"
+        ],
+        "additional_references": []
+      }
+    },
+    "BRE": {
+      "full": "Brentford",
+      "abbrev": "Brentford",
+      "codes": [
+        "BRE",
+        "BRN"
+      ],
+      "alternates": [
+        "The Bees",
+        "Bees"
+      ],
+      "venue": {
+        "stadium": "Gtech Community Stadium",
+        "city": "London",
+        "aliases": [
+          "Gtech",
+          "The Gtech",
+          "Brentford Community Stadium"
+        ],
+        "additional_references": [
+          "Griffin Park"
+        ]
+      }
+    },
+    "BUR": {
+      "full": "Burnley",
+      "abbrev": "Burnley",
+      "codes": [
+        "BUR"
+      ],
+      "alternates": [
+        "The Clarets",
+        "Clarets"
+      ],
+      "venue": {
+        "stadium": "Turf Moor",
+        "city": "Burnley",
+        "aliases": [],
+        "additional_references": []
+      }
+    },
+    "CHE": {
+      "full": "Chelsea",
+      "abbrev": "Chelsea",
+      "codes": [
+        "CHE",
+        "CHL"
+      ],
+      "alternates": [
+        "The Blues",
+        "Blues"
+      ],
+      "venue": {
+        "stadium": "Stamford Bridge",
+        "city": "London",
+        "aliases": [
+          "The Bridge"
+        ],
+        "additional_references": [
+          "Matthew Harding Stand",
+          "Shed End"
+        ]
+      }
+    },
+    "COV": {
+      "full": "Coventry City",
+      "abbrev": "Coventry",
+      "codes": [
+        "COV"
+      ],
+      "alternates": [
+        "Coventry",
+        "The Sky Blues",
+        "Sky Blues"
+      ],
+      "venue": {
+        "stadium": "Coventry Building Society Arena",
+        "city": "Coventry",
+        "aliases": [
+          "CBS Arena",
+          "The CBS Arena",
+          "Ricoh Arena"
+        ],
+        "additional_references": [
+          "Highfield Road"
+        ]
+      }
+    },
+    "CRY": {
+      "full": "Crystal Palace",
+      "abbrev": "Crystal Palace",
+      "codes": [
+        "CRY",
+        "CPA",
+        "PAL"
+      ],
+      "alternates": [
+        "Palace",
+        "The Eagles",
+        "Eagles",
+        "The Glaziers"
+      ],
+      "venue": {
+        "stadium": "Selhurst Park",
+        "city": "London",
+        "aliases": [
+          "Selhurst"
+        ],
+        "additional_references": [
+          "Sainsburys End",
+          "Holmesdale"
+        ]
+      }
+    },
+    "EVE": {
+      "full": "Everton",
+      "abbrev": "Everton",
+      "codes": [
+        "EVE",
+        "EVR"
+      ],
+      "alternates": [
+        "The Toffees",
+        "Toffees",
+        "The Blues",
+        "Blues"
+      ],
+      "venue": {
+        "stadium": "Hill Dickinson Stadium",
+        "city": "Liverpool",
+        "aliases": [
+          "Bramley-Moore Dock Stadium",
+          "Everton Stadium"
+        ],
+        "additional_references": [
+          "Goodison Park",
+          "Goodison"
+        ]
+      }
+    },
+    "FUL": {
+      "full": "Fulham",
+      "abbrev": "Fulham",
+      "codes": [
+        "FUL"
+      ],
+      "alternates": [
+        "The Cottagers",
+        "Cottagers"
+      ],
+      "venue": {
+        "stadium": "Craven Cottage",
+        "city": "London",
+        "aliases": [
+          "The Cottage"
+        ],
+        "additional_references": [
+          "Hammersmith End",
+          "Putney End",
+          "Riverside Stand",
+          "Johnny Haynes Stand",
+          "The Pavilion"
+        ]
+      }
+    },
+    "HUL": {
+      "full": "Hull City",
+      "abbrev": "Hull",
+      "codes": [
+        "HUL"
+      ],
+      "alternates": [
+        "Hull",
+        "The Tigers",
+        "Tigers"
+      ],
+      "venue": {
+        "stadium": "MKM Stadium",
+        "city": "Hull",
+        "aliases": [
+          "The MKM Stadium",
+          "KCOM Stadium",
+          "KC Stadium"
+        ],
+        "additional_references": [
+          "Boothferry Park"
+        ]
+      }
+    },
+    "IPS": {
+      "full": "Ipswich Town",
+      "abbrev": "Ipswich",
+      "codes": [
+        "IPS"
+      ],
+      "alternates": [
+        "Ipswich",
+        "The Tractor Boys",
+        "Tractor Boys",
+        "The Blues"
+      ],
+      "venue": {
+        "stadium": "Portman Road",
+        "city": "Ipswich",
+        "aliases": [],
+        "additional_references": [
+          "Sir Bobby Robson Stand",
+          "North Stand"
+        ]
+      }
+    },
+    "LEE": {
+      "full": "Leeds United",
+      "abbrev": "Leeds",
+      "codes": [
+        "LEE"
+      ],
+      "alternates": [
+        "Leeds",
+        "The Whites",
+        "Whites",
+        "United",
+        "The Peacocks"
+      ],
+      "venue": {
+        "stadium": "Elland Road",
+        "city": "Leeds",
+        "aliases": [],
+        "additional_references": []
+      }
+    },
+    "LIV": {
+      "full": "Liverpool",
+      "abbrev": "Liverpool",
+      "codes": [
+        "LIV"
+      ],
+      "alternates": [
+        "The Reds",
+        "Reds"
+      ],
+      "venue": {
+        "stadium": "Anfield",
+        "city": "Liverpool",
+        "aliases": [],
+        "additional_references": [
+          "The Kop",
+          "Anfield Road"
+        ]
+      }
+    },
+    "MCI": {
+      "full": "Manchester City",
+      "abbrev": "Man City",
+      "codes": [
+        "MCI",
+        "MNC",
+        "MAC",
+        "MCY"
+      ],
+      "alternates": [
+        "Man City",
+        "City",
+        "The Citizens",
+        "Citizens",
+        "The Sky Blues",
+        "Cityzens"
+      ],
+      "venue": {
+        "stadium": "Etihad Stadium",
+        "city": "Manchester",
+        "aliases": [
+          "The Etihad",
+          "The Etihad Stadium"
+        ],
+        "additional_references": [
+          "Maine Road"
+        ]
+      }
+    },
+    "MUN": {
+      "full": "Manchester United",
+      "abbrev": "Man Utd",
+      "codes": [
+        "MUN",
+        "MNU",
+        "MAN"
+      ],
+      "alternates": [
+        "Man Utd",
+        "Man United",
+        "United",
+        "The Red Devils",
+        "Red Devils"
+      ],
+      "venue": {
+        "stadium": "Old Trafford",
+        "city": "Manchester",
+        "aliases": [
+          "The Theatre of Dreams"
+        ],
+        "additional_references": [
+          "Sir Alex Ferguson",
+          "Sir Bobby Charlton"
+        ]
+      }
+    },
+    "NEW": {
+      "full": "Newcastle United",
+      "abbrev": "Newcastle",
+      "codes": [
+        "NEW",
+        "NCU",
+        "NWC"
+      ],
+      "alternates": [
+        "Newcastle",
+        "The Magpies",
+        "Magpies",
+        "United"
+      ],
+      "venue": {
+        "stadium": "St James' Park",
+        "city": "Newcastle",
+        "aliases": [
+          "Sports Direct Arena"
+        ],
+        "additional_references": [
+          "Gallowgate End"
+        ]
+      }
+    },
+    "NFO": {
+      "full": "Nottingham Forest",
+      "abbrev": "Nott'm Forest",
+      "codes": [
+        "NFO",
+        "FOR",
+        "NOT"
+      ],
+      "alternates": [
+        "Forest",
+        "Nottm Forest",
+        "Notts Forest",
+        "Nott'm Forest",
+        "Nottingham"
+      ],
+      "venue": {
+        "stadium": "City Ground",
+        "city": "Nottingham",
+        "aliases": [],
+        "additional_references": [
+          "Brian Clough Stand",
+          "Trent End"
+        ]
+      }
+    },
+    "SUN": {
+      "full": "Sunderland",
+      "abbrev": "Sunderland",
+      "codes": [
+        "SUN",
+        "SND"
+      ],
+      "alternates": [
+        "The Black Cats",
+        "Black Cats"
+      ],
+      "venue": {
+        "stadium": "Stadium of Light",
+        "city": "Sunderland",
+        "aliases": [
+          "The Stadium of Light"
+        ],
+        "additional_references": [
+          "Roker End"
+        ]
+      }
+    },
+    "TOT": {
+      "full": "Tottenham Hotspur",
+      "abbrev": "Tottenham",
+      "codes": [
+        "TOT"
+      ],
+      "alternates": [
+        "Spurs",
+        "Tottenham",
+        "The Lilywhites",
+        "Hotspur"
+      ],
+      "venue": {
+        "stadium": "Tottenham Hotspur Stadium",
+        "city": "London",
+        "aliases": [
+          "The Lane",
+          "New White Hart Lane"
+        ],
+        "additional_references": [
+          "South Stand"
+        ]
+      }
+    },
+    "WHU": {
+      "full": "West Ham United",
+      "abbrev": "West Ham",
+      "codes": [
+        "WHU",
+        "WHM",
+        "WES"
+      ],
+      "alternates": [
+        "West Ham",
+        "The Hammers",
+        "Hammers",
+        "The Irons",
+        "Irons",
+        "United"
+      ],
+      "venue": {
+        "stadium": "London Stadium",
+        "city": "London",
+        "aliases": [
+          "Olympic Stadium",
+          "the Olympic Stadium"
+        ],
+        "additional_references": [
+          "Boleyn Ground",
+          "Bobby Moore Stand",
+          "Sir Trevor Brooking Stand",
+          "Billy Bonds Stand"
+        ]
+      }
+    },
+    "WOL": {
+      "full": "Wolverhampton Wanderers",
+      "abbrev": "Wolves",
+      "codes": [
+        "WOL"
+      ],
+      "alternates": [
+        "Wolves",
+        "Wanderers",
+        "The Wanderers"
+      ],
+      "venue": {
+        "stadium": "Molineux Stadium",
+        "city": "Wolverhampton",
+        "aliases": [
+          "Molineux"
+        ],
+        "additional_references": [
+          "Sir Jack Hayward Stand",
+          "Steve Bull Stand"
+        ]
+      }
+    }
+  }
+}

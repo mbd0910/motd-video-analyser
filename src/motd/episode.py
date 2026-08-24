@@ -16,6 +16,18 @@ DEFAULT_CACHE_DIR = Path("data/cache")
 _EPISODE_ID_RE = re.compile(r"^motd_(\d{4}-\d{2})_(\d{4}-\d{2}-\d{2})$")
 
 
+def season_for_date(date: str) -> str:
+    """Season label (YYYY-YY) for a date (YYYY-MM-DD).
+
+    Season runs Aug-May: dates Aug-Dec belong to YYYY-(YY+1),
+    dates Jan-Jul belong to (YYYY-1)-YY.
+    """
+    year = int(date[:4])
+    month = int(date[5:7])
+    start_year = year if month >= 8 else year - 1
+    return f"{start_year}-{(start_year + 1) % 100:02d}"
+
+
 @dataclass(frozen=True, slots=True)
 class Episode:
     """Resolved episode identity and cache paths.
@@ -62,16 +74,8 @@ class Episode:
         broadcast_date: str,
         cache_base: Path = DEFAULT_CACHE_DIR,
     ) -> Episode:
-        """Derive episode identity from a broadcast date (YYYY-MM-DD).
-
-        Season runs Aug-May: dates Aug-Dec belong to YYYY-(YY+1),
-        dates Jan-Jul belong to (YYYY-1)-YY.
-        """
-        year = int(broadcast_date[:4])
-        month = int(broadcast_date[5:7])
-        start_year = year if month >= 8 else year - 1
-        end_yy = (start_year + 1) % 100
-        season = f"{start_year}-{end_yy:02d}"
+        """Derive episode identity from a broadcast date (YYYY-MM-DD)."""
+        season = season_for_date(broadcast_date)
         episode_id = f"motd_{season}_{broadcast_date}"
         ep_cache = cache_base / episode_id
         return Episode(

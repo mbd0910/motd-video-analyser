@@ -19,6 +19,8 @@
 **Modules** (`src/motd/`):
 - `models.py` - **Pydantic data contracts** (Transcript, EpisodeAnalysis, Fixture, etc.)
 - `fixtures.py` - **Fixture loading** (FixtureProvider interface + FileFixtureProvider)
+- `fpl.py` - **Fixture sync** (Fantasy Premier League API → season fixtures file)
+- `clubs.py` - **Club directory** (club code → canonical name, nicknames, venue)
 - `transcriber.py` - **Transcription** (OpenAI Whisper API, chunked)
 - `analyser.py` - **Analysis** (Claude via `claude -p`)
 - `publisher.py` - **Publishing** (Cloudflare R2)
@@ -53,6 +55,16 @@ Commit directly to main.
 - **Line length**: 100 characters
 - **Spelling**: British English (analyser, colour, optimise)
 
+## Fixture Data
+
+Fixtures come from the public Fantasy Premier League API, one file per season at
+`data/fixtures/premier_league_{season}.json`. The API only serves the season in
+progress — there is no archive endpoint, so 2025/26 stays hand-maintained.
+
+Club names and venues are not in the FPL payload; `fixtures sync` resolves them
+from `data/teams/premier_league.json`, keyed by three-letter club code. A newly
+promoted club must be added there or the sync fails loudly.
+
 ## Domain Knowledge
 
 See [docs/domain/](docs/domain/) for business context:
@@ -68,6 +80,9 @@ source venv/bin/activate
 
 **Full pipeline:**
 - `python -m motd run VIDEO_PATH [--url URL] [--episode-id ID] [--skip-to STAGE] [--force]`
+
+**Fixture data:**
+- `python -m motd fixtures sync [--dry-run]` — refresh the current season's fixtures from the FPL API
 
 **Individual stages:**
 - `python -m motd download URL_OR_ID`

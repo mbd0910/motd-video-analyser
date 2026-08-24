@@ -100,7 +100,7 @@ def analyse(episode_id: str, output: str | None, force: bool) -> None:
     """Analyse a transcript and produce structured episode analysis."""
     from motd.analyser import AnalysisError
     from motd.analyser import analyse as do_analyse
-    from motd.fixtures import DEFAULT_FIXTURES_PATH, FileFixtureProvider
+    from motd.fixtures import FileFixtureProvider, fixtures_path_for_season
     from motd.models import Transcript
 
     try:
@@ -124,11 +124,13 @@ def analyse(episode_id: str, output: str | None, force: bool) -> None:
     transcript = Transcript.model_validate_json(ep.transcript_path.read_text())
 
     # Load fixtures
-    if not DEFAULT_FIXTURES_PATH.exists():
-        click.echo(f"Error: fixtures file not found: {DEFAULT_FIXTURES_PATH}", err=True)
+    fixtures_path = fixtures_path_for_season(ep.season)
+    if not fixtures_path.exists():
+        click.echo(f"Error: fixtures file not found: {fixtures_path}", err=True)
+        click.echo("Run `python -m motd fixtures sync` first.")
         sys.exit(1)
 
-    provider = FileFixtureProvider(DEFAULT_FIXTURES_PATH)
+    provider = FileFixtureProvider(fixtures_path)
     fixtures = provider.get_fixtures_for_date(ep.broadcast_date)
 
     if not fixtures:
@@ -168,6 +170,47 @@ def publish(episode_id: str) -> None:
     analysis = EpisodeAnalysis.model_validate_json(ep.analysis_path.read_text())
     key = do_publish(analysis)
     click.echo(f"Published: {key}")
+
+
+@cli.group()
+def fixtures() -> None:
+    """Manage season fixture data."""
+
+
+@fixtures.command("sync")
+@click.option("--output", type=click.Path(), help="Output path (derived from season if omitted).")
+@click.option("--dry-run", is_flag=True, help="Report what would change without writing.")
+def fixtures_sync(output: str | None, dry_run: bool) -> None:
+    """Fetch the current season's fixtures from the FPL API."""
+    from motd.clubs import ClubDirectory
+    from motd.fixtures import fixtures_path_for_season
+    from motd.fpl import FplError, fetch_fixtures, write_fixtures
+
+    try:
+        clubs = ClubDirectory.load()
+    except FileNotFoundError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+
+    try:
+        document = fetch_fixtures(clubs)
+    except (FplError, KeyError) as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+
+    season = document["season"]
+    all_fixtures = document["fixtures"]
+    played = sum(1 for f in all_fixtures if f["played"])
+    out_path = Path(output) if output else fixtures_path_for_season(season)
+
+    click.echo(f"Fetched {len(all_fixtures)} fixtures ({season}), {played} played")
+
+    if dry_run:
+        click.echo(f"Dry run — would write {out_path}")
+        return
+
+    write_fixtures(document, out_path)
+    click.echo(f"Wrote {out_path}")
 
 
 @cli.command()
