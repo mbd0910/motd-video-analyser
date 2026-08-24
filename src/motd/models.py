@@ -11,6 +11,11 @@ class TranscriptSegment(BaseModel):
     start: float = Field(ge=0.0, description="Start time in seconds")
     end: float = Field(ge=0.0, description="End time in seconds")
     text: str = Field(min_length=1, description="Transcribed text")
+    speaker: str | None = Field(
+        default=None,
+        description="Speaker marker where the source distinguishes speakers. "
+        "Distinguishes speakers within an episode only — not a stable identity.",
+    )
 
     @model_validator(mode="after")
     def end_after_start(self) -> TranscriptSegment:

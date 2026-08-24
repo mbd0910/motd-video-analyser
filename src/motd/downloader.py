@@ -31,7 +31,7 @@ class DownloadResult:
     episode_id: str
 
 
-def _normalise_url(url_or_id: str) -> str:
+def normalise_url(url_or_id: str) -> str:
     """Convert a programme ID to a full iPlayer URL, or pass URLs through."""
     if url_or_id.startswith(("http://", "https://")):
         return url_or_id
@@ -68,7 +68,7 @@ def download(
     Raises:
         DownloadError: If the date is malformed or the download fails.
     """
-    url = _normalise_url(url_or_id)
+    url = normalise_url(url_or_id)
 
     try:
         ep = Episode.from_broadcast_date(broadcast_date)

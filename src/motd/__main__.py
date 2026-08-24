@@ -53,12 +53,61 @@ def download(url_or_id: str, broadcast_date: str, output_dir: str) -> None:
 
 
 @cli.command()
+@click.argument("url_or_id")
+@click.argument("broadcast_date")
+@click.option("--force", is_flag=True, help="Re-fetch and re-parse even if cached.")
+def subtitles(url_or_id: str, broadcast_date: str, force: bool) -> None:
+    """Fetch iPlayer subtitles and build a transcript from them.
+
+    URL_OR_ID is the iPlayer URL or programme ID; BROADCAST_DATE is the
+    air date as YYYY-MM-DD.
+    """
+    from motd.downloader import normalise_url
+    from motd.subtitles import SubtitleError, download_subtitles, parse_ttml
+
+    try:
+        ep = Episode.from_broadcast_date(broadcast_date)
+    except ValueError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+
+    ep.ensure_cache_dir()
+
+    if ep.transcript_path.exists() and not force:
+        click.echo(
+            f"Transcript already exists: {ep.transcript_path} (use --force to overwrite)"
+        )
+        return
+
+    try:
+        if not ep.subtitles_path.exists() or force:
+            download_subtitles(normalise_url(url_or_id), ep.subtitles_path)
+        else:
+            click.echo(f"Using cached subtitles: {ep.subtitles_path}")
+        transcript = parse_ttml(ep.subtitles_path, ep.episode_id)
+    except SubtitleError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+
+    ep.transcript_path.write_text(transcript.model_dump_json(indent=2))
+
+    speakers = {seg.speaker for seg in transcript.segments if seg.speaker}
+    click.echo(f"Subtitles saved: {ep.subtitles_path}")
+    click.echo(
+        f"Transcript saved: {ep.transcript_path} "
+        f"({len(transcript.segments)} segments, "
+        f"{transcript.duration_seconds / 60:.1f} min, "
+        f"{len(speakers)} speaker markers)"
+    )
+
+
+@cli.command()
 @click.argument("video_path")
 @click.option("--output", type=click.Path(), help="Output path for transcript JSON.")
 @click.option("--force", is_flag=True, help="Force re-transcription even if cached.")
 @click.option("--episode-id", help="Episode ID (derived from filename if omitted).")
 def transcribe(video_path: str, output: str | None, force: bool, episode_id: str | None) -> None:
-    """Transcribe a video file to structured JSON."""
+    """Transcribe a video file to structured JSON via the Whisper API."""
     from motd.transcriber import TranscriptionError
     from motd.transcriber import transcribe as do_transcribe
 

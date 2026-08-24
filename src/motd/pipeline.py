@@ -77,17 +77,29 @@ def run(
         raise PipelineError(str(exc)) from exc
     ep.ensure_cache_dir()
 
+    # --- Subtitles ---
+    # iPlayer only serves subtitles inside an episode's availability window,
+    # so they are fetched alongside the video rather than at transcribe time.
+    if url and (not ep.subtitles_path.exists() or force):
+        _timed(
+            "subtitles", _do_fetch_subtitles,
+            url=url, destination=ep.subtitles_path,
+        )
+
     # --- Transcribe ---
     transcript: Transcript | None = None
 
     if "transcribe" in active_stages:
-        if not video_path and (not ep.transcript_path.exists() or force):
-            raise PipelineError("Transcription requires a video path")
+        if not ep.subtitles_path.exists() and (not ep.transcript_path.exists() or force):
+            raise PipelineError(
+                f"No subtitles found for {episode_id} at {ep.subtitles_path}. "
+                f"Run `python -m motd subtitles URL_OR_ID {ep.broadcast_date}` first."
+            )
         transcript, was_computed = get_or_compute(
             ep.transcript_path, Transcript,
             lambda: _timed(
                 "transcribe", _do_transcribe,
-                video_path=video_path, episode_id=episode_id,
+                subtitles_path=ep.subtitles_path, episode_id=episode_id,
             ),
             force=force,
         )
@@ -175,11 +187,24 @@ def _do_download(url: str, broadcast_date: str) -> tuple[str, str]:
     return result.video_path, result.episode_id
 
 
-def _do_transcribe(video_path: str, episode_id: str) -> Transcript:
-    """Transcribe a video file."""
-    from motd.transcriber import transcribe
+def _do_fetch_subtitles(url: str, destination: Path) -> Path:
+    """Fetch an episode's subtitles from iPlayer."""
+    from motd.subtitles import SubtitleError, download_subtitles
 
-    return transcribe(video_path, episode_id)
+    try:
+        return download_subtitles(url, destination)
+    except SubtitleError as exc:
+        raise PipelineError(str(exc)) from exc
+
+
+def _do_transcribe(subtitles_path: Path, episode_id: str) -> Transcript:
+    """Build a transcript from an episode's subtitles."""
+    from motd.subtitles import SubtitleError, parse_ttml
+
+    try:
+        return parse_ttml(subtitles_path, episode_id)
+    except SubtitleError as exc:
+        raise PipelineError(str(exc)) from exc
 
 
 def _do_analyse(

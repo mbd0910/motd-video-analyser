@@ -57,6 +57,24 @@ SAMPLE_ANALYSIS = EpisodeAnalysis(
 )
 
 
+MINIMAL_TTML = """<?xml version="1.0" encoding="UTF-8"?>
+<tt xmlns="http://www.w3.org/ns/ttml" xmlns:tts="http://www.w3.org/ns/ttml#styling">
+  <head><styling><style xml:id="S1" tts:color="#FFFFFF"/></styling></head>
+  <body><div>
+    <p begin="00:00:00.000" end="00:00:10.000"><span style="S1">Welcome.</span></p>
+  </div></body>
+</tt>"""
+
+
+def _seed_subtitles(cache_dir: Path, episode_id: str = EPISODE_ID) -> Path:
+    """Place subtitles in the episode cache, as a download would."""
+    ep_cache = cache_dir / episode_id
+    ep_cache.mkdir(parents=True, exist_ok=True)
+    path = ep_cache / "subtitles.ttml"
+    path.write_text(MINIMAL_TTML)
+    return path
+
+
 class TestPipelineFromVideoPath:
     """Pipeline run with a local video path (no download)."""
 
@@ -74,6 +92,8 @@ class TestPipelineFromVideoPath:
         mock_fixtures.return_value = SAMPLE_FIXTURES
         mock_analyse.return_value = SAMPLE_ANALYSIS
         mock_publish.return_value = f"episodes/{EPISODE_ID}.json"
+
+        _seed_subtitles(tmp_path / "cache")
 
         run(video_path=str(video), cache_dir=str(tmp_path / "cache"))
 
@@ -96,6 +116,8 @@ class TestPipelineFromVideoPath:
         mock_analyse.return_value = SAMPLE_ANALYSIS
         mock_publish.return_value = f"episodes/{EPISODE_ID}.json"
 
+        _seed_subtitles(tmp_path / "cache")
+
         run(video_path=str(video), cache_dir=str(tmp_path / "cache"))
 
         # Transcribe should receive the episode_id derived from the filename
@@ -116,6 +138,8 @@ class TestPipelineFromVideoPath:
         mock_fixtures.return_value = SAMPLE_FIXTURES
         mock_analyse.return_value = SAMPLE_ANALYSIS
         mock_publish.return_value = f"episodes/{EPISODE_ID}.json"
+
+        _seed_subtitles(tmp_path / "cache")
 
         run(video_path=str(video), episode_id=EPISODE_ID,
             cache_dir=str(tmp_path / "cache"))
@@ -145,6 +169,8 @@ class TestPipelineFromUrl:
         mock_analyse.return_value = SAMPLE_ANALYSIS
         mock_publish.return_value = f"episodes/{EPISODE_ID}.json"
 
+        _seed_subtitles(tmp_path / "cache")
+
         run(url="https://www.bbc.co.uk/iplayer/episode/m00test",
             broadcast_date=BROADCAST_DATE,
             cache_dir=str(tmp_path / "cache"))
@@ -153,6 +179,61 @@ class TestPipelineFromUrl:
         mock_transcribe.assert_called_once()
         mock_analyse.assert_called_once()
         mock_publish.assert_called_once()
+
+    @patch("motd.pipeline._do_publish")
+    @patch("motd.pipeline._do_analyse")
+    @patch("motd.pipeline._load_fixtures")
+    @patch("motd.pipeline._do_transcribe")
+    @patch("motd.pipeline._do_fetch_subtitles")
+    @patch("motd.pipeline._do_download")
+    def test_download_fetches_subtitles(
+        self, mock_download: MagicMock, mock_subtitles: MagicMock,
+        mock_transcribe: MagicMock, mock_fixtures: MagicMock,
+        mock_analyse: MagicMock, mock_publish: MagicMock, tmp_path: Path,
+    ) -> None:
+        video = tmp_path / f"{EPISODE_ID}.mp4"
+        video.touch()
+        cache_dir = tmp_path / "cache"
+        mock_download.return_value = (str(video), EPISODE_ID)
+        mock_subtitles.side_effect = lambda url, destination: _seed_subtitles(cache_dir)
+        mock_transcribe.return_value = SAMPLE_TRANSCRIPT
+        mock_fixtures.return_value = SAMPLE_FIXTURES
+        mock_analyse.return_value = SAMPLE_ANALYSIS
+        mock_publish.return_value = f"episodes/{EPISODE_ID}.json"
+
+        run(url="https://www.bbc.co.uk/iplayer/episode/m00test",
+            broadcast_date=BROADCAST_DATE,
+            cache_dir=str(cache_dir))
+
+        mock_subtitles.assert_called_once()
+        assert mock_subtitles.call_args[1]["destination"].name == "subtitles.ttml"
+
+    @patch("motd.pipeline._do_publish")
+    @patch("motd.pipeline._do_analyse")
+    @patch("motd.pipeline._load_fixtures")
+    @patch("motd.pipeline._do_transcribe")
+    @patch("motd.pipeline._do_fetch_subtitles")
+    @patch("motd.pipeline._do_download")
+    def test_cached_subtitles_not_refetched(
+        self, mock_download: MagicMock, mock_subtitles: MagicMock,
+        mock_transcribe: MagicMock, mock_fixtures: MagicMock,
+        mock_analyse: MagicMock, mock_publish: MagicMock, tmp_path: Path,
+    ) -> None:
+        video = tmp_path / f"{EPISODE_ID}.mp4"
+        video.touch()
+        cache_dir = tmp_path / "cache"
+        _seed_subtitles(cache_dir)
+        mock_download.return_value = (str(video), EPISODE_ID)
+        mock_transcribe.return_value = SAMPLE_TRANSCRIPT
+        mock_fixtures.return_value = SAMPLE_FIXTURES
+        mock_analyse.return_value = SAMPLE_ANALYSIS
+        mock_publish.return_value = f"episodes/{EPISODE_ID}.json"
+
+        run(url="https://www.bbc.co.uk/iplayer/episode/m00test",
+            broadcast_date=BROADCAST_DATE,
+            cache_dir=str(cache_dir))
+
+        mock_subtitles.assert_not_called()
 
 
 class TestPipelineValidation:
@@ -245,6 +326,7 @@ class TestPipelineErrorHandling:
         mock_analyse.side_effect = RuntimeError("Claude failed")
 
         cache_dir = tmp_path / "cache"
+        _seed_subtitles(cache_dir)
 
         with pytest.raises(RuntimeError, match="Claude failed"):
             run(video_path=str(video), cache_dir=str(cache_dir))
@@ -269,6 +351,7 @@ class TestPipelineErrorHandling:
         mock_publish.side_effect = RuntimeError("R2 upload failed")
 
         cache_dir = tmp_path / "cache"
+        _seed_subtitles(cache_dir)
 
         with pytest.raises(RuntimeError, match="R2 upload failed"):
             run(video_path=str(video), cache_dir=str(cache_dir))
@@ -333,6 +416,8 @@ class TestPipelineCaching:
         mock_analyse.return_value = SAMPLE_ANALYSIS
         mock_publish.return_value = f"episodes/{EPISODE_ID}.json"
 
+        _seed_subtitles(cache_dir)
+
         run(video_path=str(video), cache_dir=str(cache_dir), force=True)
 
         mock_transcribe.assert_called_once()
@@ -351,6 +436,25 @@ class TestPipelineNoFixtures:
         video.touch()
         mock_transcribe.return_value = SAMPLE_TRANSCRIPT
         mock_fixtures.return_value = []
+        _seed_subtitles(tmp_path / "cache")
 
         with pytest.raises(PipelineError, match="[Nn]o.*fixtures"):
+            run(video_path=str(video), cache_dir=str(tmp_path / "cache"))
+
+
+class TestPipelineMissingSubtitles:
+    """Transcription without subtitles fails with a directed message."""
+
+    def test_missing_subtitles_raises(self, tmp_path: Path) -> None:
+        video = tmp_path / f"{EPISODE_ID}.mp4"
+        video.touch()
+
+        with pytest.raises(PipelineError, match="No subtitles found"):
+            run(video_path=str(video), cache_dir=str(tmp_path / "cache"))
+
+    def test_missing_subtitles_message_names_the_command(self, tmp_path: Path) -> None:
+        video = tmp_path / f"{EPISODE_ID}.mp4"
+        video.touch()
+
+        with pytest.raises(PipelineError, match=f"motd subtitles URL_OR_ID {BROADCAST_DATE}"):
             run(video_path=str(video), cache_dir=str(tmp_path / "cache"))

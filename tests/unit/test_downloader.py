@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from motd.downloader import DownloadError, _normalise_url, download
+from motd.downloader import DownloadError, download, normalise_url
 from motd.episode import Episode
 
 
@@ -17,15 +17,15 @@ class TestNormaliseUrl:
 
     def test_full_url_passes_through(self) -> None:
         url = "https://www.bbc.co.uk/iplayer/episode/m0025t4g/match-of-the-day-2025-26-01112025"
-        assert _normalise_url(url) == url
+        assert normalise_url(url) == url
 
     def test_programme_id_becomes_url(self) -> None:
-        result = _normalise_url("m0025t4g")
+        result = normalise_url("m0025t4g")
         assert result == "https://www.bbc.co.uk/iplayer/episode/m0025t4g"
 
     def test_http_url_passes_through(self) -> None:
         url = "http://www.bbc.co.uk/iplayer/episode/m0025t4g"
-        assert _normalise_url(url) == url
+        assert normalise_url(url) == url
 
 
 class TestEpisodeDerivation:

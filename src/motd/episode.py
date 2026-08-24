@@ -55,6 +55,7 @@ class Episode:
     cache_dir: Path
     transcript_path: Path
     analysis_path: Path
+    subtitles_path: Path
 
     @staticmethod
     def from_id(
@@ -81,6 +82,7 @@ class Episode:
             cache_dir=ep_cache,
             transcript_path=ep_cache / "transcript.json",
             analysis_path=ep_cache / "analysis.json",
+            subtitles_path=ep_cache / "subtitles.ttml",
         )
 
     @staticmethod
@@ -104,6 +106,7 @@ class Episode:
             cache_dir=ep_cache,
             transcript_path=ep_cache / "transcript.json",
             analysis_path=ep_cache / "analysis.json",
+            subtitles_path=ep_cache / "subtitles.ttml",
         )
 
     def ensure_cache_dir(self) -> None:
