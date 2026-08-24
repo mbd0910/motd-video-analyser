@@ -146,6 +146,7 @@ class TestPipelineFromUrl:
         mock_publish.return_value = f"episodes/{EPISODE_ID}.json"
 
         run(url="https://www.bbc.co.uk/iplayer/episode/m00test",
+            broadcast_date=BROADCAST_DATE,
             cache_dir=str(tmp_path / "cache"))
 
         mock_download.assert_called_once()
@@ -164,6 +165,10 @@ class TestPipelineValidation:
     def test_skip_to_without_episode_id_raises(self) -> None:
         with pytest.raises(PipelineError, match="episode.id"):
             run(skip_to="analyse")
+
+    def test_url_without_date_raises(self) -> None:
+        with pytest.raises(PipelineError, match="--date"):
+            run(url="https://www.bbc.co.uk/iplayer/episode/m00test")
 
 
 class TestPipelineSkipTo:

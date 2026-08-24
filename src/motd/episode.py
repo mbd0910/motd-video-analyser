@@ -9,11 +9,25 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import date as _date
 from pathlib import Path
 
 DEFAULT_CACHE_DIR = Path("data/cache")
 
 _EPISODE_ID_RE = re.compile(r"^motd_(\d{4}-\d{2})_(\d{4}-\d{2}-\d{2})$")
+_BROADCAST_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _validate_broadcast_date(broadcast_date: str) -> None:
+    """Reject anything date.fromisoformat would accept but slicing would misread."""
+    if not _BROADCAST_DATE_RE.match(broadcast_date):
+        raise ValueError(
+            f"Invalid broadcast date: {broadcast_date!r}. Expected format: YYYY-MM-DD"
+        )
+    try:
+        _date.fromisoformat(broadcast_date)
+    except ValueError as exc:
+        raise ValueError(f"Invalid broadcast date: {broadcast_date!r} ({exc})") from exc
 
 
 def season_for_date(date: str) -> str:
@@ -74,7 +88,12 @@ class Episode:
         broadcast_date: str,
         cache_base: Path = DEFAULT_CACHE_DIR,
     ) -> Episode:
-        """Derive episode identity from a broadcast date (YYYY-MM-DD)."""
+        """Derive episode identity from a broadcast date (YYYY-MM-DD).
+
+        Raises:
+            ValueError: If broadcast_date is not a valid YYYY-MM-DD date.
+        """
+        _validate_broadcast_date(broadcast_date)
         season = season_for_date(broadcast_date)
         episode_id = f"motd_{season}_{broadcast_date}"
         ep_cache = cache_base / episode_id

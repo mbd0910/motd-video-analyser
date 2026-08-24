@@ -1,12 +1,11 @@
 """Downloader module — fetches MOTD episodes from BBC iPlayer via yt-dlp.
 
-Accepts a programme URL or ID, downloads the video, and extracts
-episode metadata to derive the episode_id.
+Takes a programme URL or ID plus the broadcast date, and saves the video
+under the episode_id the rest of the pipeline keys off.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 import subprocess
 from dataclasses import dataclass
@@ -15,6 +14,9 @@ from pathlib import Path
 from motd.episode import Episode
 
 logger = logging.getLogger(__name__)
+
+# yt-dlp writes these alongside an in-progress download; they are not the video.
+_SIDECAR_SUFFIXES = frozenset({".part", ".ytdl", ".temp"})
 
 
 class DownloadError(Exception):
@@ -36,75 +38,73 @@ def _normalise_url(url_or_id: str) -> str:
     return f"https://www.bbc.co.uk/iplayer/episode/{url_or_id}"
 
 
-def _parse_broadcast_date(metadata: dict[str, object]) -> str:
-    """Extract broadcast date (YYYY-MM-DD) from yt-dlp metadata.
-
-    Prefers release_date, falls back to upload_date.
-    """
-    raw = metadata.get("release_date") or metadata.get("upload_date")
-    if not raw or not isinstance(raw, str) or len(raw) != 8:
-        raise DownloadError("Could not determine broadcast date from metadata")
-    return f"{raw[:4]}-{raw[4:6]}-{raw[6:8]}"
+def _find_video(out_dir: Path, episode_id: str) -> Path | None:
+    """Locate an already-downloaded video, ignoring yt-dlp's in-progress files."""
+    for path in sorted(out_dir.glob(f"{episode_id}.*")):
+        if path.suffix.lower() not in _SIDECAR_SUFFIXES:
+            return path
+    return None
 
 
-def download(url_or_id: str, output_dir: str = "data/videos") -> DownloadResult:
+def download(
+    url_or_id: str,
+    broadcast_date: str,
+    output_dir: str = "data/videos",
+) -> DownloadResult:
     """Download an MOTD episode from BBC iPlayer.
+
+    The broadcast date is supplied by the caller rather than read from
+    yt-dlp metadata: BBC iPlayer omits release_date and upload_date
+    entirely, leaving the date available only in the display title.
 
     Args:
         url_or_id: BBC iPlayer URL or programme ID.
+        broadcast_date: Air date as YYYY-MM-DD.
         output_dir: Directory to save the downloaded video.
 
     Returns:
         DownloadResult with local video path and derived episode_id.
 
     Raises:
-        DownloadError: If metadata fetch or download fails.
+        DownloadError: If the date is malformed or the download fails.
     """
     url = _normalise_url(url_or_id)
+
+    try:
+        ep = Episode.from_broadcast_date(broadcast_date)
+    except ValueError as exc:
+        raise DownloadError(str(exc)) from exc
+
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Step 1: Fetch metadata
-    logger.info("Fetching metadata: %s", url)
-    try:
-        meta_result = subprocess.run(
-            ["yt-dlp", "--dump-json", "--no-download", url],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-    except subprocess.CalledProcessError as exc:
-        raise DownloadError(f"Failed to fetch metadata: {exc.stderr}") from exc
-
-    try:
-        metadata = json.loads(meta_result.stdout)
-    except json.JSONDecodeError as e:
-        raise DownloadError(f"Failed to parse yt-dlp metadata: {e}") from e
-    broadcast_date = _parse_broadcast_date(metadata)
-    ep = Episode.from_broadcast_date(broadcast_date)
-    ext = metadata.get("ext", "mp4")
-    video_path = out_dir / f"{ep.episode_id}.{ext}"
-
     logger.info("Episode: %s (broadcast %s)", ep.episode_id, broadcast_date)
 
-    # Step 2: Download (skip if already exists)
-    if video_path.exists():
-        logger.info("Video already exists: %s", video_path)
-        return DownloadResult(video_path=str(video_path), episode_id=ep.episode_id)
+    existing = _find_video(out_dir, ep.episode_id)
+    if existing:
+        logger.info("Video already exists: %s", existing)
+        return DownloadResult(video_path=str(existing), episode_id=ep.episode_id)
 
-    logger.info("Downloading to %s", video_path)
+    # yt-dlp fills in the container extension, so no metadata round-trip is needed.
+    out_template = str(out_dir / f"{ep.episode_id}.%(ext)s")
+    logger.info("Downloading %s to %s", url, out_template)
+
     # Output is left attached to the terminal so a multi-GB download shows
     # yt-dlp's progress bar; the trade-off is that stderr is unavailable here.
     try:
-        subprocess.run(
-            ["yt-dlp", "-o", str(video_path), url],
-            check=True,
-        )
+        subprocess.run(["yt-dlp", "-o", out_template, url], check=True)
     except subprocess.CalledProcessError as exc:
         raise DownloadError(
             f"Failed to download video: yt-dlp exited with status {exc.returncode} "
             "(see output above)"
         ) from exc
+
+    video_path = _find_video(out_dir, ep.episode_id)
+    if not video_path:
+        raise DownloadError(
+            f"yt-dlp reported success but no video was found for {ep.episode_id} "
+            f"in {out_dir}"
+        )
 
     logger.info("Download complete: %s", video_path)
     return DownloadResult(video_path=str(video_path), episode_id=ep.episode_id)

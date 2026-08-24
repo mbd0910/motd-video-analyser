@@ -26,19 +26,24 @@ def cli() -> None:
 
 @cli.command()
 @click.argument("url_or_id")
+@click.argument("broadcast_date")
 @click.option(
     "--output-dir",
     default="data/videos",
     type=click.Path(),
     help="Directory to save downloaded video.",
 )
-def download(url_or_id: str, output_dir: str) -> None:
-    """Download an MOTD episode from BBC iPlayer."""
+def download(url_or_id: str, broadcast_date: str, output_dir: str) -> None:
+    """Download an MOTD episode from BBC iPlayer.
+
+    URL_OR_ID is the iPlayer URL or programme ID; BROADCAST_DATE is the
+    air date as YYYY-MM-DD.
+    """
     from motd.downloader import DownloadError
     from motd.downloader import download as do_download
 
     try:
-        result = do_download(url_or_id, output_dir=output_dir)
+        result = do_download(url_or_id, broadcast_date, output_dir=output_dir)
     except DownloadError as exc:
         click.echo(f"Error: {exc}", err=True)
         sys.exit(1)
@@ -216,6 +221,7 @@ def fixtures_sync(output: str | None, dry_run: bool) -> None:
 @cli.command()
 @click.argument("video_path", required=False)
 @click.option("--url", help="BBC iPlayer URL to download and process.")
+@click.option("--date", "broadcast_date", help="Broadcast date (YYYY-MM-DD); required with --url.")
 @click.option("--episode-id", help="Episode ID for re-running specific stages.")
 @click.option(
     "--skip-to",
@@ -226,6 +232,7 @@ def fixtures_sync(output: str | None, dry_run: bool) -> None:
 def run(
     video_path: str | None,
     url: str | None,
+    broadcast_date: str | None,
     episode_id: str | None,
     skip_to: str | None,
     force: bool,
@@ -238,6 +245,7 @@ def run(
         do_run(
             video_path=video_path,
             url=url,
+            broadcast_date=broadcast_date,
             episode_id=episode_id,
             skip_to=skip_to,
             force=force,

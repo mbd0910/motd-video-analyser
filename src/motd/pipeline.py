@@ -25,6 +25,7 @@ class PipelineError(Exception):
 def run(
     video_path: str | None = None,
     url: str | None = None,
+    broadcast_date: str | None = None,
     episode_id: str | None = None,
     skip_to: str | None = None,
     force: bool = False,
@@ -35,6 +36,7 @@ def run(
     Args:
         video_path: Path to a local video file (skip download).
         url: BBC iPlayer URL (triggers download first).
+        broadcast_date: Air date (YYYY-MM-DD); required alongside url.
         episode_id: Episode ID for re-running specific stages.
         skip_to: Stage to skip to (e.g. "analyse").
         force: Force re-processing even if cached.
@@ -48,6 +50,8 @@ def run(
         raise PipelineError("--skip-to requires --episode-id")
     if not video_path and not url and not skip_to:
         raise PipelineError("Provide video_path or url (or --skip-to with --episode-id)")
+    if url and not broadcast_date:
+        raise PipelineError("--url requires --date (YYYY-MM-DD)")
 
     # Determine which stages to run
     start_stage = skip_to or ("download" if url else "transcribe")
@@ -55,7 +59,9 @@ def run(
 
     # --- Download ---
     if "download" in active_stages and url:
-        video_path, episode_id = _timed("download", _do_download, url=url)
+        video_path, episode_id = _timed(
+            "download", _do_download, url=url, broadcast_date=broadcast_date
+        )
 
     # Derive episode_id from video filename if not set
     if not episode_id and video_path:
@@ -161,11 +167,11 @@ def _load_fixtures(broadcast_date: str) -> list[Fixture]:
     return provider.get_fixtures_for_date(broadcast_date)
 
 
-def _do_download(url: str) -> tuple[str, str]:
+def _do_download(url: str, broadcast_date: str) -> tuple[str, str]:
     """Download an episode and return (video_path, episode_id)."""
     from motd.downloader import download
 
-    result = download(url)
+    result = download(url, broadcast_date)
     return result.video_path, result.episode_id
 
 

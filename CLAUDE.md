@@ -79,13 +79,13 @@ source venv/bin/activate
 ```
 
 **Full pipeline:**
-- `python -m motd run VIDEO_PATH [--url URL] [--episode-id ID] [--skip-to STAGE] [--force]`
+- `python -m motd run VIDEO_PATH [--url URL --date YYYY-MM-DD] [--episode-id ID] [--skip-to STAGE] [--force]`
 
 **Fixture data:**
 - `python -m motd fixtures sync [--dry-run]` — refresh the current season's fixtures from the FPL API
 
 **Individual stages:**
-- `python -m motd download URL_OR_ID`
+- `python -m motd download URL_OR_ID BROADCAST_DATE` (date as YYYY-MM-DD — iPlayer metadata has no date fields)
 - `python -m motd transcribe VIDEO_PATH [--output PATH] [--force]`
 - `python -m motd analyse EPISODE_ID [--output PATH] [--force]`
 - `python -m motd publish EPISODE_ID`
