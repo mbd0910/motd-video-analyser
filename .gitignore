@@ -225,3 +225,6 @@ logs/
 
 # macOS system files
 .DS_Store
+
+# Ralph loop scratch state
+progress.txt
