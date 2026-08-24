@@ -93,15 +93,18 @@ def download(url_or_id: str, output_dir: str = "data/videos") -> DownloadResult:
         return DownloadResult(video_path=str(video_path), episode_id=ep.episode_id)
 
     logger.info("Downloading to %s", video_path)
+    # Output is left attached to the terminal so a multi-GB download shows
+    # yt-dlp's progress bar; the trade-off is that stderr is unavailable here.
     try:
         subprocess.run(
             ["yt-dlp", "-o", str(video_path), url],
-            capture_output=True,
-            text=True,
             check=True,
         )
     except subprocess.CalledProcessError as exc:
-        raise DownloadError(f"Failed to download video: {exc.stderr}") from exc
+        raise DownloadError(
+            f"Failed to download video: yt-dlp exited with status {exc.returncode} "
+            "(see output above)"
+        ) from exc
 
     logger.info("Download complete: %s", video_path)
     return DownloadResult(video_path=str(video_path), episode_id=ep.episode_id)
