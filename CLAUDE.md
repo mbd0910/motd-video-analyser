@@ -4,13 +4,16 @@
 
 **MOTD Analyser** - Video analysis pipeline to objectively measure coverage bias in BBC's Match of the Day. Uses LLM-based analysis to identify running order, segment boundaries, and airtime distribution from MOTD episodes (2026/27 season).
 
-**Workflow:** Run automated pipeline → Generate LLM prompt → Claude analysis → Save structured JSON
+**Workflow:** Download → subtitles → transcript → Claude analysis → publish
 
 **User goal**: Settle football fan debates ("we're never on first!", "there's an agenda against my team") with data, not perception.
 
 ## How Analysis Works
 
-**The analysis is LLM-based, not rule-based.** Transcription (OpenAI Whisper API) produces a timestamped transcript. Claude analyses the transcript against fixture data to identify running order, segment boundaries, and durations.
+**The analysis is LLM-based, not rule-based.** Transcripts are parsed from the EBU-TT/TTML
+subtitles iPlayer publishes alongside an episode; `claude -p` then analyses the transcript
+against the day's fixtures to identify running order, segment boundaries, and durations.
+`transcriber.py` keeps a speech-to-text path for video without usable subtitles.
 
 ## Architecture Overview
 
@@ -21,7 +24,8 @@
 - `fixtures.py` - **Fixture loading** (FixtureProvider interface + FileFixtureProvider)
 - `fpl.py` - **Fixture sync** (Fantasy Premier League API → season fixtures file)
 - `clubs.py` - **Club directory** (club code → canonical name, nicknames, venue)
-- `transcriber.py` - **Transcription** (OpenAI Whisper API, chunked)
+- `subtitles.py` - **Subtitles** (yt-dlp fetch + EBU-TT/TTML parse → Transcript)
+- `transcriber.py` - **Speech-to-text** (OpenAI Whisper API, chunked; standalone path)
 - `analyser.py` - **Analysis** (Claude via `claude -p`)
 - `publisher.py` - **Publishing** (Cloudflare R2)
 - `downloader.py` - **Download** (yt-dlp from BBC iPlayer)
@@ -35,9 +39,7 @@
 ## Project Structure
 
 - `src/motd/` - Main package
-- `config/` - Configuration files (config.yaml)
 - `data/` - Videos, cache, analysis outputs (gitignored) — see `data/CLAUDE.md`
-- `docs/` - Documentation and domain knowledge
 - `tests/` - Test suite
 
 ## Critical Warnings
@@ -65,11 +67,15 @@ Club names and venues are not in the FPL payload; `fixtures sync` resolves them
 from `data/teams/premier_league.json`, keyed by three-letter club code. A newly
 promoted club must be added there or the sync fails loudly.
 
-## Domain Knowledge
+## Domain Facts
 
-See [docs/domain/](docs/domain/) for business context:
-- [Glossary](docs/domain/README.md) - FT Graphics, Running Order, Segment Types
-- [Visual Patterns](docs/domain/visual_patterns.md) - Episode structure, timings
+- **Running order is editorial, not chronological.** Which match leads the show is the
+  central research question; kickoff times tell you nothing about it.
+- **MOTD covers roughly 7 of the 10 Saturday fixtures.** Sky, TNT and Amazon hold rights to
+  the rest, so the analyser is handed every fixture for the broadcast date and works out
+  from the transcript which ones actually appeared.
+- **Segment keys are `studio_intro`, `highlights`, `studio_analysis`**, defined by the
+  prompt in `analyser.py`. Post-match interviews fall inside the highlights run.
 
 ## Common Commands
 

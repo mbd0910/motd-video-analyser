@@ -1,8 +1,6 @@
 # MOTD Analyser
 
-> **Last reviewed:** 2025-12-18
-
-> **Automated video analysis pipeline to objectively measure coverage bias in BBC's Match of the Day**
+> **Automated analysis pipeline to objectively measure coverage bias in BBC's Match of the Day**
 
 [![Python 3.14](https://img.shields.io/badge/python-3.14-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -19,36 +17,31 @@ But is it perception or reality? This project settles the debate with **data, no
 
 ## What This Does
 
-The MOTD Analyser automatically processes Match of the Day episodes (2026/27 season) to extract:
+The MOTD Analyser processes Match of the Day episodes to extract:
 
 1. **Running Order** - Which teams are shown first, second, third, etc.
-2. **Match Boundaries** - When each match segment starts and ends (studio intro → highlights → post-match analysis)
+2. **Segment Boundaries** - Where studio intro, highlights and post-match analysis begin and end
 3. **Airtime Distribution** - How much coverage each team receives
-4. **Segment Classification** - Studio analysis vs highlights vs interviews
-
-**Current Status**: ✅ Running order detection (100% accuracy), ✅ Match boundary detection (100% accuracy), 🔄 Segment classification in progress
 
 ## How It Works
 
-### The Workflow
+Four cached stages, orchestrated by `motd run`:
 
-The analyser uses an **LLM-based workflow** for segment detection:
+| Stage | What it does |
+|-------|--------------|
+| **Download** | Pulls the episode from BBC iPlayer via yt-dlp (optional — skip it with a local file) |
+| **Transcribe** | Parses the broadcast subtitles iPlayer publishes as EBU-TT/TTML into a timestamped `Transcript` |
+| **Analyse** | Sends transcript + fixtures to Claude, parses the reply into a validated `EpisodeAnalysis` |
+| **Publish** | Uploads the analysis JSON to Cloudflare R2 |
 
-1. **Run automated pipeline** - Extract scenes, detect teams via OCR, transcribe audio
-2. **Generate LLM prompt** - Combines transcript + advisory hints (OCR detections, fixtures)
-3. **Claude analysis** - Paste prompt into Claude web UI, receive structured JSON
-4. **Save results** - Store analysis.json in source control
+The transcript comes from iPlayer's own subtitles rather than speech-to-text: they carry
+millisecond timings and colour-coded speaker changes for free, without the 15-20 minute
+Whisper pass. iPlayer only serves them inside an episode's availability window, so they are
+fetched alongside the video rather than at transcribe time.
 
-The LLM approach is preferred over the rule-based detection we tried first, which struggled with nuanced segment boundaries.
-
-### What the Pipeline Produces
-
-The automated stages provide **advisory hints** to improve LLM accuracy:
-
-- **Scene Detection** - Frame extraction (~2,600 frames per episode)
-- **OCR** - FT graphics and scoreboard timestamps (anchor segment boundaries)
-- **Transcription** - Word-level timestamps for the full episode
-- **Fixtures** - Expected matches for the broadcast date
+Segment detection is **LLM-based, not rule-based**. Claude reads the transcript against the
+day's fixtures and identifies boundaries; rule-based detection was tried first and struggled
+with nuanced transitions.
 
 ### Episode Structure
 
@@ -63,32 +56,22 @@ graph LR
     E --> F[League Table Review]
 ```
 
-The LLM identifies these segments from the transcript, using OCR hints to anchor timestamps.
-
-## Technology Stack
-
-| Component | Library | Why This One? |
-|-----------|---------|---------------|
-| Scene Detection | PySceneDetect | Content-based detection, reliable for sports broadcasts |
-| OCR | EasyOCR | GPU-accelerated, 90-95% accuracy on sports graphics |
-| Transcription | faster-whisper | 4x faster than openai-whisper (3-4 mins vs 12-15 mins per video) |
-| Video Processing | ffmpeg + opencv-python | Industry standard, robust |
-| Fuzzy Matching | rapidfuzz | Team name variants, stadium aliases |
-| Type Safety | Pydantic | Runtime validation, clear data contracts |
-
 ## Quick Start
 
 ### Prerequisites
 
 - uv (`brew install uv`)
-- ffmpeg installed (`brew install ffmpeg` on macOS)
-- An OpenAI API key (transcription) and Cloudflare R2 credentials (publishing)
+- yt-dlp (`brew install yt-dlp`) — download and subtitle fetching
+- The `claude` CLI on `PATH` — the analysis backend
+- Cloudflare R2 credentials for publishing: `R2_BUCKET`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`
+
+The standalone speech-to-text path additionally needs ffmpeg and `OPENAI_API_KEY`.
 
 ### Installation
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/motd-video-analyser.git
+git clone https://github.com/mbd0910/motd-video-analyser.git
 cd motd-video-analyser
 
 # Install dependencies (uv creates .venv and fetches Python 3.14 itself)
@@ -100,88 +83,71 @@ Prefix commands with `uv run`, or activate the environment once with
 
 ### Usage
 
-1. **Run automated pipeline** - Extracts scenes, runs OCR, transcribes audio
-   ```bash
-   python -m motd run data/videos/motd_2026-27_YYYY-MM-DD.mp4
-   ```
-   Options: `--force` (ignore cache and re-run all stages)
+Run the whole pipeline from an iPlayer URL:
 
-2. **Generate LLM prompt** - Combines transcript + OCR hints into Claude-ready prompt
-   ```bash
-   python -m motd generate-llm-prompt motd_2026-27_YYYY-MM-DD
-   ```
-   Options: `--no-hints` (omit OCR hints), `--force` (overwrite existing)
+```bash
+python -m motd run --url https://www.bbc.co.uk/iplayer/episode/... --date 2026-08-22
+```
 
-3. **Claude analysis** - Copy prompt to Claude, save JSON response
-   ```bash
-   cat data/cache/motd_2026-27_YYYY-MM-DD/transcript_for_llm.txt | pbcopy
-   # → Paste into Claude → Save to data/analysis/{episode_id}/analysis.json
-   ```
+Or from a video you already have:
 
-**Individual stages** (for debugging):
-- `python -m motd detect-scenes VIDEO` - Scene detection only
-- `python -m motd extract-teams --scenes PATH --episode-id ID` - OCR only
-- `python -m motd transcribe VIDEO` - Transcription only
+```bash
+python -m motd run data/videos/motd_2026-27_2026-08-22.mp4
+```
+
+Options: `--episode-id ID`, `--skip-to {transcribe,analyse,publish}` (requires `--episode-id`),
+`--force` (ignore cache and re-run).
+
+**Individual stages:**
+- `python -m motd download URL_OR_ID BROADCAST_DATE` - fetch the video
+- `python -m motd subtitles URL_OR_ID BROADCAST_DATE` - fetch subtitles only
+- `python -m motd transcribe VIDEO_PATH` - speech-to-text via the OpenAI Whisper API
+- `python -m motd analyse EPISODE_ID` - run the LLM analysis
+- `python -m motd publish EPISODE_ID` - upload to R2
+- `python -m motd fixtures sync` - refresh the season's fixtures from the FPL API
+
+Use `--help` on any command for full options.
 
 ### Example Output
 
 ```json
 {
   "episode_id": "motd_2026-27_2026-08-22",
-  "running_order": [
+  "broadcast_date": "2026-08-22",
+  "season": "2026-27",
+  "matches": [
     {
-      "position": 1,
+      "order": 1,
       "home_team": "Liverpool",
       "away_team": "Aston Villa",
-      "match_start": 125.4,
-      "highlights_start": 186.8,
-      "highlights_end": 523.2,
-      "confidence": 1.0,
-      "validation_status": "validated"
+      "venue": "Anfield",
+      "score": {"home": 2, "away": 1},
+      "segments": {
+        "studio_intro": {"start": "02:05", "end": "03:07"},
+        "highlights": {"start": "03:07", "end": "08:43"},
+        "studio_analysis": {"start": "08:43", "end": "12:20"}
+      },
+      "notes": null
     }
   ]
 }
 ```
 
+The Pydantic models in `src/motd/models.py` are the authoritative contract.
+
 ## Project Structure
 
 ```
 motd-video-analyser/
-├── src/motd/                    # Main package
-│   ├── scene_detection/         # PySceneDetect integration
-│   ├── ocr/                     # EasyOCR + team matching
-│   ├── transcription/           # faster-whisper integration
-│   ├── llm/                     # LLM prompt generation
-│   └── pipeline/                # Pydantic models
+├── src/motd/                    # Main package (see CLAUDE.md for the module map)
 ├── data/
 │   ├── teams/                   # Premier League club directory
-│   ├── fixtures/                # Match schedules
-│   ├── episodes/                # Episode manifests
-│   ├── analysis/                # LLM analysis results (committed)
+│   ├── fixtures/                # Season fixtures from the FPL API
+│   ├── analysis/                # Analysis results
+│   ├── videos/                  # Downloaded episodes (gitignored)
 │   └── cache/                   # Pipeline cache (gitignored)
-├── docs/
-│   ├── domain/                  # Glossary + visual patterns
-│   └── architecture.md          # Technical reference
 └── tests/                       # pytest test suite
 ```
-
-## Documentation
-
-- **[architecture.md](docs/architecture.md)** - Technical reference (config, caching, performance)
-- **[analysis_schema.md](docs/domain/analysis_schema.md)** - JSON schema for LLM output
-- **[Domain Glossary](docs/domain/README.md)** - FT graphics, running order, episode structure
-- **[Visual Patterns](docs/domain/visual_patterns.md)** - Episode timing patterns
-
-## Current Results
-
-**Test Episode**: motd_2026-27_2026-08-22
-
-| Metric | Result |
-|--------|--------|
-| OCR Accuracy (FT Graphics) | 90-95% |
-| Transcription Time (CPU) | ~15-20 minutes |
-| LLM Prompt Generation | ~22k tokens |
-| Tests Passing | 46/46 ✅ |
 
 ## Development Workflow
 
@@ -190,18 +156,7 @@ This project uses **GitHub Issues** for tracking work:
 1. Check [GitHub Issues](https://github.com/mbd0910/motd-video-analyser/issues) for current work
 2. Use feature branches: `feature/issue-{number}-{slug}`
 
-## Progress
-
-### Completed ✅
-- **Phase 0**: Project Setup (Tasks 001-005)
-- **Phase 1**: Scene Detection (Tasks 006-008)
-- **Phase 2**: OCR & Team Detection (Task 009)
-- **Phase 3**: Audio Transcription (Task 010)
-- **Phase 4**: Running Order Detection (Task 011)
-- **Phase 4.5**: Match Boundary Detection (Task 012)
-
-### In Progress 🔄
-See [GitHub Issues](https://github.com/mbd0910/motd-video-analyser/issues) for current work items.
+Run the tests with `uv run pytest`.
 
 ## Contributing
 
@@ -210,19 +165,10 @@ This is a personal project, but suggestions and improvements are welcome! Please
 1. Check existing issues before creating new ones
 2. Follow the British English convention (analyser, not analyzer)
 3. Include tests for new features
-4. Follow [Python Style Guidelines](.claude/commands/references/python_guidelines.md)
 
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details
-
-## Acknowledgements
-
-Built with:
-- [PySceneDetect](https://github.com/Breakthrough/PySceneDetect) for scene detection
-- [EasyOCR](https://github.com/JaidedAI/EasyOCR) for optical character recognition
-- [faster-whisper](https://github.com/SYSTRAN/faster-whisper) for audio transcription
-- [rapidfuzz](https://github.com/maxbachmann/RapidFuzz) for fuzzy string matching
 
 ---
 
