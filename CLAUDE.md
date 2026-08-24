@@ -11,9 +11,18 @@
 ## How Analysis Works
 
 **The analysis is LLM-based, not rule-based.** Transcripts are parsed from the EBU-TT/TTML
-subtitles iPlayer publishes alongside an episode; `claude -p` then analyses the transcript
-against the day's fixtures to identify running order, segment boundaries, and durations.
+subtitles iPlayer publishes alongside an episode; the Claude API then reads the transcript
+against the gameweek's fixtures to identify running order and segment boundaries.
 `transcriber.py` keeps a speech-to-text path for video without usable subtitles.
+
+**The model never emits an identifier.** It is handed the candidate fixtures as an enumerated
+list and constrained by a JSON schema (`analyser._build_schema`) to echo back one of those
+exact labels, which `_resolve_matches` maps to a fixture in code. Everything else — team
+names, venue, score — joins in from the fixture row rather than being restated by the model.
+
+**The candidate window is the gameweek, not the broadcast date** (`fixtures.candidates_for_broadcast`).
+An episode shows more than that day's matches: a Friday game held over to Saturday's show, or
+a round-up of Saturday action on Sunday. Deliberately wider than any one episode needs.
 
 ## Architecture Overview
 
@@ -21,12 +30,12 @@ against the day's fixtures to identify running order, segment boundaries, and du
 
 **Modules** (`src/motd/`):
 - `models.py` - **Pydantic data contracts** (Transcript, EpisodeAnalysis, Fixture, etc.)
-- `fixtures.py` - **Fixture loading** (FixtureProvider interface + FileFixtureProvider)
+- `fixtures.py` - **Fixture loading** (FixtureProvider interface + FileFixtureProvider + candidate window)
 - `fpl.py` - **Fixture sync** (Fantasy Premier League API → season fixtures file)
 - `clubs.py` - **Club directory** (club code → canonical name, nicknames, venue)
 - `subtitles.py` - **Subtitles** (yt-dlp fetch + EBU-TT/TTML parse → Transcript)
 - `transcriber.py` - **Speech-to-text** (OpenAI Whisper API, chunked; standalone path)
-- `analyser.py` - **Analysis** (Claude via `claude -p`)
+- `analyser.py` - **Analysis** (Claude API, schema-constrained to the candidate fixtures)
 - `publisher.py` - **Publishing** (Cloudflare R2)
 - `downloader.py` - **Download** (yt-dlp from BBC iPlayer)
 - `pipeline.py` - **Orchestrator** (sequences all stages)
@@ -34,7 +43,10 @@ against the day's fixtures to identify running order, segment boundaries, and du
 - `cache.py` - **Cache** (get_or_compute / load for pipeline artefacts)
 - `__main__.py` - **CLI entry point** (`python -m motd`)
 
-**Key deps:** Pydantic v2, Click
+**Key deps:** Pydantic v2, Click, anthropic
+
+**Credentials:** copy `.env.template` to `.env`. `analyse` needs `ANTHROPIC_API_KEY`; nothing
+loads the file automatically (`set -a; source .env; set +a`).
 
 ## Project Structure
 
@@ -67,6 +79,12 @@ Club names and venues are not in the FPL payload; `fixtures sync` resolves them
 from `data/teams/premier_league.json`, keyed by three-letter club code. A newly
 promoted club must be added there or the sync fails loudly.
 
+**Join on `fpl_code`, not `match_id`.** match_id embeds the date, so a postponed fixture
+silently becomes a different id; FPL's `code` follows the fixture through rescheduling.
+Clubs carry an `fpl_code` too — FPL's stable club id, unlike the `id` in the same payload,
+which is a 1-20 alphabetical rank that reshuffles on every promotion. `fixtures sync` fails
+before writing if the directory and the live payload disagree.
+
 ## Domain Facts
 
 - **Running order is editorial, not chronological.** Which match leads the show is the
@@ -76,6 +94,11 @@ promoted club must be added there or the sync fails loudly.
   from the transcript which ones actually appeared.
 - **Segment keys are `studio_intro`, `highlights`, `studio_analysis`**, defined by the
   prompt in `analyser.py`. Post-match interviews fall inside the highlights run.
+- **A match can appear in two episodes.** MOTD2 round-ups revisit Saturday games covered the
+  night before. Both are recorded the same way; full package versus brief second look is
+  derived later from duration and earlier episodes, not stored.
+- **This stage produces running order and timings only.** No interpretation, no airtime
+  aggregation, no bias measurement — those come later, off the stored data.
 
 ## Common Commands
 

@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from motd.models import EpisodeAnalysis, MatchCoverage, Score, Segment
+from motd.models import EpisodeAnalysis, MatchCoverage, Segment
 from motd.publisher import (
     _build_index_entry,
     _update_index,
@@ -22,11 +22,8 @@ def _make_analysis(
 ) -> EpisodeAnalysis:
     matches = [
         MatchCoverage(
+            fpl_code=2645195 + i,
             order=i + 1,
-            home_team=f"Home {i}",
-            away_team=f"Away {i}",
-            venue=f"Stadium {i}",
-            score=Score(home=1, away=0),
             segments={"highlights": Segment(start="00:00", end="05:00")},
         )
         for i in range(num_matches)

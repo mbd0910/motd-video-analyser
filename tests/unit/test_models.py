@@ -4,6 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from motd.models import (
+    AnalysisProvenance,
     EpisodeAnalysis,
     Fixture,
     MatchCoverage,
@@ -55,10 +56,13 @@ class TestTranscript:
 class TestFixture:
     def test_valid_fixture(self) -> None:
         f = Fixture(
-            match_id="2025-11-01-brighton-leeds",
+            fpl_code=2645196,
+            match_id="2025-11-01-BHA-LEE",
             date="2025-11-01",
             home_team="Brighton & Hove Albion",
             away_team="Leeds United",
+            home_code="BHA",
+            away_code="LEE",
             venue="Amex Stadium",
             score=Score(home=2, away=1),
         )
@@ -67,13 +71,28 @@ class TestFixture:
 
     def test_fixture_without_score(self) -> None:
         f = Fixture(
-            match_id="2025-11-01-brighton-leeds",
+            fpl_code=2645196,
+            match_id="2025-11-01-BHA-LEE",
             date="2025-11-01",
             home_team="Brighton",
             away_team="Leeds",
+            home_code="BHA",
+            away_code="LEE",
             venue="Amex",
         )
         assert f.score is None
+
+    def test_fixture_requires_a_stable_id(self) -> None:
+        with pytest.raises(ValidationError):
+            Fixture(
+                match_id="2025-11-01-BHA-LEE",
+                date="2025-11-01",
+                home_team="Brighton",
+                away_team="Leeds",
+                home_code="BHA",
+                away_code="LEE",
+                venue="Amex",
+            )
 
 
 class TestScore:
@@ -106,11 +125,8 @@ class TestSegment:
 class TestMatchCoverage:
     def test_valid_match(self) -> None:
         m = MatchCoverage(
+            fpl_code=2645195,
             order=1,
-            home_team="Arsenal",
-            away_team="Chelsea",
-            venue="Emirates Stadium",
-            score=Score(home=3, away=1),
             segments={
                 "highlights": Segment(start="12:30", end="20:00"),
             },
@@ -120,14 +136,7 @@ class TestMatchCoverage:
 
     def test_order_must_be_positive(self) -> None:
         with pytest.raises(ValidationError):
-            MatchCoverage(
-                order=0,
-                home_team="A",
-                away_team="B",
-                venue="V",
-                score=Score(home=0, away=0),
-                segments={},
-            )
+            MatchCoverage(fpl_code=2645195, order=0, segments={})
 
 
 class TestEpisodeAnalysis:
@@ -138,11 +147,8 @@ class TestEpisodeAnalysis:
             season="2025-26",
             matches=[
                 MatchCoverage(
+                    fpl_code=2645195,
                     order=1,
-                    home_team="Arsenal",
-                    away_team="Chelsea",
-                    venue="Emirates",
-                    score=Score(home=2, away=0),
                     segments={
                         "highlights": Segment(start="05:00", end="15:00"),
                     },
@@ -152,21 +158,52 @@ class TestEpisodeAnalysis:
         assert analysis.episode_id == "motd_2025-26_2025-11-01"
         assert len(analysis.matches) == 1
 
+    def test_duplicate_fixtures_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="Duplicate fixtures"):
+            EpisodeAnalysis(
+                episode_id="motd_2025-26_2025-11-01",
+                broadcast_date="2025-11-01",
+                season="2025-26",
+                matches=[
+                    MatchCoverage(fpl_code=2645195, order=1),
+                    MatchCoverage(fpl_code=2645195, order=2),
+                ],
+            )
+
+    def test_running_order_with_a_gap_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="Running order must be"):
+            EpisodeAnalysis(
+                episode_id="motd_2025-26_2025-11-01",
+                broadcast_date="2025-11-01",
+                season="2025-26",
+                matches=[
+                    MatchCoverage(fpl_code=2645195, order=1),
+                    MatchCoverage(fpl_code=2645196, order=3),
+                ],
+            )
+
+    def test_no_matches_is_valid(self) -> None:
+        analysis = EpisodeAnalysis(
+            episode_id="motd_2025-26_2025-11-01",
+            broadcast_date="2025-11-01",
+            season="2025-26",
+        )
+        assert analysis.matches == []
+
     def test_serialise_roundtrip(self) -> None:
         analysis = EpisodeAnalysis(
             episode_id="motd_2025-26_2025-11-01",
             broadcast_date="2025-11-01",
             season="2025-26",
             matches=[
-                MatchCoverage(
-                    order=1,
-                    home_team="Liverpool",
-                    away_team="Everton",
-                    venue="Anfield",
-                    score=Score(home=2, away=0),
-                    segments={},
-                ),
+                MatchCoverage(fpl_code=2645195, order=1, segments={}),
             ],
+            provenance=AnalysisProvenance(
+                model="claude-opus-5",
+                prompt_version="2",
+                analysed_at="2026-08-24T21:00:00Z",
+                candidate_fpl_codes=[2645195, 2645196],
+            ),
         )
         json_str = analysis.model_dump_json()
         roundtripped = EpisodeAnalysis.model_validate_json(json_str)

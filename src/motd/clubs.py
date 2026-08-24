@@ -24,11 +24,17 @@ class Venue(BaseModel):
 
 
 class Club(BaseModel):
-    """A club's canonical name, the codes and nicknames it appears under, and its ground."""
+    """A club's canonical name, the codes and nicknames it appears under, and its ground.
+
+    `fpl_code` is FPL's own club id, stable across seasons — unlike the `id` in
+    the same payload, which is a 1-20 alphabetical rank that reshuffles on every
+    promotion. Relegated clubs kept for history have none.
+    """
 
     full: str
     abbrev: str
     codes: list[str]
+    fpl_code: int | None = None
     alternates: list[str] = []
     venue: Venue
 

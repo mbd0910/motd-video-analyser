@@ -31,12 +31,16 @@ SAMPLE_TRANSCRIPT = Transcript(
 
 SAMPLE_FIXTURES = [
     Fixture(
-        match_id="2025-11-01-arsenal-chelsea",
+        fpl_code=2645195,
+        match_id="2025-11-01-ARS-CHE",
         date="2025-11-01",
         home_team="Arsenal",
         away_team="Chelsea",
+        home_code="ARS",
+        away_code="CHE",
         venue="Emirates Stadium",
         score=Score(home=3, away=1),
+        gameweek=10,
     ),
 ]
 
@@ -46,11 +50,8 @@ SAMPLE_ANALYSIS = EpisodeAnalysis(
     season=SEASON,
     matches=[
         MatchCoverage(
+            fpl_code=2645195,
             order=1,
-            home_team="Arsenal",
-            away_team="Chelsea",
-            venue="Emirates Stadium",
-            score=Score(home=3, away=1),
             segments={"highlights": Segment(start="00:10", end="10:00")},
         ),
     ],
@@ -80,7 +81,7 @@ class TestPipelineFromVideoPath:
 
     @patch("motd.pipeline._do_publish")
     @patch("motd.pipeline._do_analyse")
-    @patch("motd.pipeline._load_fixtures")
+    @patch("motd.pipeline._load_candidates")
     @patch("motd.pipeline._do_transcribe")
     def test_runs_all_stages(
         self, mock_transcribe: MagicMock, mock_fixtures: MagicMock,
@@ -103,7 +104,7 @@ class TestPipelineFromVideoPath:
 
     @patch("motd.pipeline._do_publish")
     @patch("motd.pipeline._do_analyse")
-    @patch("motd.pipeline._load_fixtures")
+    @patch("motd.pipeline._load_candidates")
     @patch("motd.pipeline._do_transcribe")
     def test_derives_episode_id_from_filename(
         self, mock_transcribe: MagicMock, mock_fixtures: MagicMock,
@@ -126,7 +127,7 @@ class TestPipelineFromVideoPath:
 
     @patch("motd.pipeline._do_publish")
     @patch("motd.pipeline._do_analyse")
-    @patch("motd.pipeline._load_fixtures")
+    @patch("motd.pipeline._load_candidates")
     @patch("motd.pipeline._do_transcribe")
     def test_explicit_episode_id_overrides_filename(
         self, mock_transcribe: MagicMock, mock_fixtures: MagicMock,
@@ -153,7 +154,7 @@ class TestPipelineFromUrl:
 
     @patch("motd.pipeline._do_publish")
     @patch("motd.pipeline._do_analyse")
-    @patch("motd.pipeline._load_fixtures")
+    @patch("motd.pipeline._load_candidates")
     @patch("motd.pipeline._do_transcribe")
     @patch("motd.pipeline._do_download")
     def test_download_then_full_pipeline(
@@ -182,7 +183,7 @@ class TestPipelineFromUrl:
 
     @patch("motd.pipeline._do_publish")
     @patch("motd.pipeline._do_analyse")
-    @patch("motd.pipeline._load_fixtures")
+    @patch("motd.pipeline._load_candidates")
     @patch("motd.pipeline._do_transcribe")
     @patch("motd.pipeline._do_fetch_subtitles")
     @patch("motd.pipeline._do_download")
@@ -210,7 +211,7 @@ class TestPipelineFromUrl:
 
     @patch("motd.pipeline._do_publish")
     @patch("motd.pipeline._do_analyse")
-    @patch("motd.pipeline._load_fixtures")
+    @patch("motd.pipeline._load_candidates")
     @patch("motd.pipeline._do_transcribe")
     @patch("motd.pipeline._do_fetch_subtitles")
     @patch("motd.pipeline._do_download")
@@ -257,7 +258,7 @@ class TestPipelineSkipTo:
 
     @patch("motd.pipeline._do_publish")
     @patch("motd.pipeline._do_analyse")
-    @patch("motd.pipeline._load_fixtures")
+    @patch("motd.pipeline._load_candidates")
     @patch("motd.pipeline._do_transcribe")
     def test_skip_to_analyse_skips_transcribe(
         self, mock_transcribe: MagicMock, mock_fixtures: MagicMock,
@@ -313,7 +314,7 @@ class TestPipelineErrorHandling:
     """Error handling preserves completed stage outputs."""
 
     @patch("motd.pipeline._do_analyse")
-    @patch("motd.pipeline._load_fixtures")
+    @patch("motd.pipeline._load_candidates")
     @patch("motd.pipeline._do_transcribe")
     def test_analysis_failure_preserves_transcript(
         self, mock_transcribe: MagicMock, mock_fixtures: MagicMock,
@@ -337,7 +338,7 @@ class TestPipelineErrorHandling:
 
     @patch("motd.pipeline._do_publish")
     @patch("motd.pipeline._do_analyse")
-    @patch("motd.pipeline._load_fixtures")
+    @patch("motd.pipeline._load_candidates")
     @patch("motd.pipeline._do_transcribe")
     def test_publish_failure_preserves_analysis(
         self, mock_transcribe: MagicMock, mock_fixtures: MagicMock,
@@ -366,7 +367,7 @@ class TestPipelineCaching:
 
     @patch("motd.pipeline._do_publish")
     @patch("motd.pipeline._do_analyse")
-    @patch("motd.pipeline._load_fixtures")
+    @patch("motd.pipeline._load_candidates")
     @patch("motd.pipeline._do_transcribe")
     def test_cached_transcript_skips_transcription(
         self, mock_transcribe: MagicMock, mock_fixtures: MagicMock,
@@ -394,7 +395,7 @@ class TestPipelineCaching:
 
     @patch("motd.pipeline._do_publish")
     @patch("motd.pipeline._do_analyse")
-    @patch("motd.pipeline._load_fixtures")
+    @patch("motd.pipeline._load_candidates")
     @patch("motd.pipeline._do_transcribe")
     def test_force_ignores_cache(
         self, mock_transcribe: MagicMock, mock_fixtures: MagicMock,
@@ -426,7 +427,7 @@ class TestPipelineCaching:
 class TestPipelineNoFixtures:
     """Non-PL episode (no matching fixtures) should fail clearly."""
 
-    @patch("motd.pipeline._load_fixtures")
+    @patch("motd.pipeline._load_candidates")
     @patch("motd.pipeline._do_transcribe")
     def test_no_fixtures_raises(
         self, mock_transcribe: MagicMock, mock_fixtures: MagicMock,

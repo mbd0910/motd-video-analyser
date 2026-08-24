@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from motd.clubs import ClubDirectory
+from motd.clubs import DEFAULT_CLUBS_PATH, ClubDirectory
 from motd.episode import season_for_date
 
 FIXTURES_URL = "https://fantasy.premierleague.com/api/fixtures/"
@@ -51,6 +51,22 @@ def _team_codes(bootstrap: dict[str, Any]) -> dict[int, str]:
         raise FplError(f"Unexpected bootstrap-static shape: {exc}") from exc
 
 
+def _verify_club_codes(bootstrap: dict[str, Any], clubs: ClubDirectory) -> None:
+    """Fail before writing if the directory's club ids disagree with the live payload."""
+    for team in bootstrap["teams"]:
+        club = clubs.by_code(team["short_name"])
+        if club.fpl_code is None:
+            raise FplError(
+                f"{club.full} has no fpl_code. Add \"fpl_code\": {team['code']} "
+                f"to its entry in {DEFAULT_CLUBS_PATH}."
+            )
+        if club.fpl_code != team["code"]:
+            raise FplError(
+                f"{club.full} has fpl_code {club.fpl_code} but FPL reports "
+                f"{team['code']}. Reconcile {DEFAULT_CLUBS_PATH} before syncing."
+            )
+
+
 def _build_fixture(
     raw: dict[str, Any],
     team_codes: dict[int, str],
@@ -60,6 +76,7 @@ def _build_fixture(
         home_code = team_codes[raw["team_h"]]
         away_code = team_codes[raw["team_a"]]
         kickoff_utc = raw["kickoff_time"]
+        fpl_code = raw["code"]
     except KeyError as exc:
         raise FplError(f"Fixture missing required field {exc}: {raw}") from exc
 
@@ -78,13 +95,15 @@ def _build_fixture(
         score = {"home": raw["team_h_score"], "away": raw["team_a_score"]}
 
     return {
+        "fpl_code": fpl_code,
         "match_id": f"{date}-{home_code}-{away_code}",
-        "fpl_code": raw.get("code"),
         "gameweek": raw.get("event"),
         "date": date,
         "kickoff": local.strftime("%H:%M"),
         "home_team": home.full,
         "away_team": away.full,
+        "home_code": home_code,
+        "away_code": away_code,
         "venue": home.venue.stadium,
         "final_score": score,
         "played": played,
@@ -98,6 +117,7 @@ def fetch_fixtures(clubs: ClubDirectory) -> dict[str, Any]:
     if not raw_fixtures:
         raise FplError("FPL API returned no fixtures")
 
+    _verify_club_codes(bootstrap, clubs)
     team_codes = _team_codes(bootstrap)
     fixtures = [
         _build_fixture(raw, team_codes, clubs)

@@ -5,7 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from motd.fixtures import FileFixtureProvider, fixtures_path_for_season
+from motd.fixtures import (
+    FileFixtureProvider,
+    candidates_for_broadcast,
+    fixtures_path_for_season,
+)
 from motd.models import Fixture
 
 
@@ -16,28 +20,37 @@ def fixtures_file(tmp_path: Path) -> Path:
         "competition": "Premier League",
         "fixtures": [
             {
-                "match_id": "2025-11-01-brighton-leeds",
+                "fpl_code": 2645196,
+                "match_id": "2025-11-01-BHA-LEE",
                 "date": "2025-11-01",
                 "home_team": "Brighton & Hove Albion",
                 "away_team": "Leeds United",
+                "home_code": "BHA",
+                "away_code": "LEE",
                 "kickoff": "15:00",
                 "final_score": {"home": 2, "away": 1},
                 "venue": "Amex Stadium",
             },
             {
-                "match_id": "2025-11-01-arsenal-chelsea",
+                "fpl_code": 2645195,
+                "match_id": "2025-11-01-ARS-CHE",
                 "date": "2025-11-01",
                 "home_team": "Arsenal",
                 "away_team": "Chelsea",
+                "home_code": "ARS",
+                "away_code": "CHE",
                 "kickoff": "17:30",
                 "final_score": {"home": 3, "away": 0},
                 "venue": "Emirates Stadium",
             },
             {
-                "match_id": "2025-11-08-tottenham-manutd",
+                "fpl_code": 2645210,
+                "match_id": "2025-11-08-TOT-MUN",
                 "date": "2025-11-08",
                 "home_team": "Tottenham Hotspur",
                 "away_team": "Manchester United",
+                "home_code": "TOT",
+                "away_code": "MUN",
                 "kickoff": "12:30",
                 "final_score": {"home": 1, "away": 1},
                 "venue": "Tottenham Hotspur Stadium",
@@ -73,10 +86,18 @@ class TestFileFixtureProvider:
             provider.get_all_fixtures()
 
     @pytest.mark.parametrize("missing_field,remaining", [
-        ("match_id", {"date": "2025-11-01", "home_team": "A", "away_team": "B"}),
-        ("date", {"match_id": "x", "home_team": "A", "away_team": "B"}),
-        ("home_team", {"match_id": "x", "date": "2025-11-01", "away_team": "B"}),
-        ("away_team", {"match_id": "x", "date": "2025-11-01", "home_team": "A"}),
+        ("fpl_code", {"match_id": "x", "date": "2025-11-01", "home_team": "A",
+                      "away_team": "B", "home_code": "A", "away_code": "B"}),
+        ("match_id", {"fpl_code": 1, "date": "2025-11-01", "home_team": "A",
+                      "away_team": "B", "home_code": "A", "away_code": "B"}),
+        ("date", {"fpl_code": 1, "match_id": "x", "home_team": "A",
+                  "away_team": "B", "home_code": "A", "away_code": "B"}),
+        ("home_team", {"fpl_code": 1, "match_id": "x", "date": "2025-11-01",
+                       "away_team": "B", "home_code": "A", "away_code": "B"}),
+        ("away_team", {"fpl_code": 1, "match_id": "x", "date": "2025-11-01",
+                       "home_team": "A", "home_code": "A", "away_code": "B"}),
+        ("home_code", {"fpl_code": 1, "match_id": "x", "date": "2025-11-01",
+                       "home_team": "A", "away_team": "B", "away_code": "B"}),
     ])
     def test_fixture_missing_required_field_raises(
         self, tmp_path: Path, missing_field: str, remaining: dict
@@ -99,10 +120,13 @@ class TestFileFixtureProvider:
         data = {
             "fixtures": [
                 {
+                    "fpl_code": 1,
                     "match_id": "x",
                     "date": "2025-11-01",
                     "home_team": "A",
                     "away_team": "B",
+                    "home_code": "A",
+                    "away_code": "B",
                     "final_score": bad_score,
                 },
             ],
@@ -117,10 +141,13 @@ class TestFileFixtureProvider:
         data = {
             "fixtures": [
                 {
+                    "fpl_code": 1,
                     "match_id": "2025-11-01-a-b",
                     "date": "2025-11-01",
                     "home_team": "A",
                     "away_team": "B",
+                    "home_code": "A",
+                    "away_code": "B",
                     "venue": "V",
                 },
             ],
@@ -138,51 +165,76 @@ class TestSeasonPaths:
         assert fixtures_path_for_season("2026-27").name == "premier_league_2026_27.json"
 
 
-class TestSyncedFixtureFields:
-    @pytest.fixture
-    def gameweek_file(self, tmp_path: Path) -> Path:
-        data = {
-            "season": "2026-27",
-            "fixtures": [
-                {
-                    "match_id": "2026-08-21-ARS-MUN",
-                    "date": "2026-08-21",
-                    "gameweek": 1,
-                    "kickoff": "20:00",
-                    "home_team": "Arsenal",
-                    "away_team": "Manchester United",
-                    "venue": "Emirates Stadium",
-                    "final_score": {"home": 3, "away": 0},
-                    "played": True,
-                },
-                {
-                    "match_id": "2026-08-22-HUL-COV",
-                    "date": "2026-08-22",
-                    "gameweek": 1,
-                    "kickoff": "12:30",
-                    "home_team": "Hull City",
-                    "away_team": "Coventry City",
-                    "venue": "MKM Stadium",
-                    "final_score": None,
-                    "played": False,
-                },
-                {
-                    "match_id": "2026-08-29-LIV-CHE",
-                    "date": "2026-08-29",
-                    "gameweek": 2,
-                    "kickoff": "15:00",
-                    "home_team": "Liverpool",
-                    "away_team": "Chelsea",
-                    "venue": "Anfield",
-                    "final_score": None,
-                    "played": False,
-                },
-            ],
-        }
-        path = tmp_path / "fixtures.json"
-        path.write_text(json.dumps(data))
-        return path
+@pytest.fixture
+def gameweek_file(tmp_path: Path) -> Path:
+    data = {
+        "season": "2026-27",
+        "fixtures": [
+            {
+                "fpl_code": 2645195,
+                "match_id": "2026-08-21-ARS-MUN",
+                "date": "2026-08-21",
+                "gameweek": 1,
+                "kickoff": "20:00",
+                "home_team": "Arsenal",
+                "away_team": "Manchester United",
+                "home_code": "ARS",
+                "away_code": "MUN",
+                "venue": "Emirates Stadium",
+                "final_score": {"home": 3, "away": 0},
+                "played": True,
+            },
+            {
+                "fpl_code": 2645196,
+                "match_id": "2026-08-22-HUL-COV",
+                "date": "2026-08-22",
+                "gameweek": 1,
+                "kickoff": "12:30",
+                "home_team": "Hull City",
+                "away_team": "Coventry City",
+                "home_code": "HUL",
+                "away_code": "COV",
+                "venue": "MKM Stadium",
+                "final_score": None,
+                "played": False,
+            },
+            {
+                "fpl_code": 2645197,
+                "match_id": "2026-08-23-BHA-AVL",
+                "date": "2026-08-23",
+                "gameweek": 1,
+                "kickoff": "14:00",
+                "home_team": "Brighton & Hove Albion",
+                "away_team": "Aston Villa",
+                "home_code": "BHA",
+                "away_code": "AVL",
+                "venue": "Amex Stadium",
+                "final_score": None,
+                "played": False,
+            },
+            {
+                "fpl_code": 2645210,
+                "match_id": "2026-08-29-LIV-CHE",
+                "date": "2026-08-29",
+                "gameweek": 2,
+                "kickoff": "15:00",
+                "home_team": "Liverpool",
+                "away_team": "Chelsea",
+                "home_code": "LIV",
+                "away_code": "CHE",
+                "venue": "Anfield",
+                "final_score": None,
+                "played": False,
+            },
+        ],
+    }
+    path = tmp_path / "fixtures.json"
+    path.write_text(json.dumps(data))
+    return path
 
+
+
+class TestSyncedFixtureFields:
     def test_gameweek_loads_as_a_plain_field(self, gameweek_file: Path) -> None:
         provider = FileFixtureProvider(gameweek_file)
         assert provider.get_fixtures_for_date("2026-08-21")[0].gameweek == 1
@@ -201,3 +253,51 @@ class TestSyncedFixtureFields:
         fixture = provider.get_fixtures_for_date("2025-11-01")[0]
         assert fixture.played is True
         assert fixture.gameweek is None
+
+
+class TestCandidateWindow:
+    """The window is the gameweek, not the day — see FixtureProvider.get_candidates."""
+
+    def test_saturday_picks_up_fridays_game(self, gameweek_file: Path) -> None:
+        provider = FileFixtureProvider(gameweek_file)
+        labels = [f.match_id for f in provider.get_candidates("2026-08-22")]
+        assert labels == ["2026-08-21-ARS-MUN", "2026-08-22-HUL-COV"]
+
+    def test_sunday_keeps_saturdays_games_as_candidates_for_the_round_up(
+        self, gameweek_file: Path
+    ) -> None:
+        provider = FileFixtureProvider(gameweek_file)
+        labels = [f.match_id for f in provider.get_candidates("2026-08-23")]
+        assert labels == [
+            "2026-08-21-ARS-MUN",
+            "2026-08-22-HUL-COV",
+            "2026-08-23-BHA-AVL",
+        ]
+
+    def test_later_gameweeks_are_excluded(self, gameweek_file: Path) -> None:
+        provider = FileFixtureProvider(gameweek_file)
+        codes = {f.gameweek for f in provider.get_candidates("2026-08-23")}
+        assert codes == {1}
+
+    def test_candidates_are_ordered_by_kickoff(self, gameweek_file: Path) -> None:
+        provider = FileFixtureProvider(gameweek_file)
+        candidates = provider.get_candidates("2026-08-23")
+        assert candidates == sorted(candidates, key=lambda f: (f.date, f.kickoff or ""))
+
+    def test_a_date_with_no_fixtures_has_no_candidates(self, gameweek_file: Path) -> None:
+        provider = FileFixtureProvider(gameweek_file)
+        assert provider.get_candidates("2026-12-25") == []
+
+    def test_file_without_gameweeks_falls_back_to_the_day(
+        self, fixtures_file: Path
+    ) -> None:
+        provider = FileFixtureProvider(fixtures_file)
+        candidates = provider.get_candidates("2025-11-01")
+        assert [f.match_id for f in candidates] == [
+            "2025-11-01-BHA-LEE",
+            "2025-11-01-ARS-CHE",
+        ]
+
+    def test_candidates_for_broadcast_is_pure(self, gameweek_file: Path) -> None:
+        fixtures = FileFixtureProvider(gameweek_file).get_all_fixtures()
+        assert len(candidates_for_broadcast(fixtures, "2026-08-22")) == 2

@@ -31,7 +31,7 @@ Four cached stages, orchestrated by `motd run`:
 |-------|--------------|
 | **Download** | Pulls the episode from BBC iPlayer via yt-dlp (optional — skip it with a local file) |
 | **Transcribe** | Parses the broadcast subtitles iPlayer publishes as EBU-TT/TTML into a timestamped `Transcript` |
-| **Analyse** | Sends transcript + fixtures to Claude, parses the reply into a validated `EpisodeAnalysis` |
+| **Analyse** | Sends transcript + the gameweek's fixtures to the Claude API, resolves the reply into a validated `EpisodeAnalysis` |
 | **Publish** | Uploads the analysis JSON to Cloudflare R2 |
 
 The transcript comes from iPlayer's own subtitles rather than speech-to-text: they carry
@@ -39,9 +39,16 @@ millisecond timings and colour-coded speaker changes for free, without the 15-20
 Whisper pass. iPlayer only serves them inside an episode's availability window, so they are
 fetched alongside the video rather than at transcribe time.
 
-Segment detection is **LLM-based, not rule-based**. Claude reads the transcript against the
-day's fixtures and identifies boundaries; rule-based detection was tried first and struggled
-with nuanced transitions.
+Segment detection is **LLM-based, not rule-based**; rule-based detection was tried first and
+struggled with nuanced transitions. Claude never invents an identifier, though: it is handed
+the gameweek's fixtures as an enumerated candidate list and constrained by a JSON schema to
+echo back one of those exact labels, which the analyser resolves to a fixture in code. Its
+only judgements are which candidates got screen time, in what order, and when.
+
+The candidate window is the gameweek rather than the broadcast date, because an episode shows
+more than that day's matches — a Friday game held over to Saturday's show, or a round-up of
+Saturday action on Sunday. Whether a match got a full package or a brief second look is
+derived later from its duration and earlier episodes, not recorded here.
 
 ### Episode Structure
 
@@ -62,8 +69,11 @@ graph LR
 
 - uv (`brew install uv`)
 - yt-dlp (`brew install yt-dlp`) — download and subtitle fetching
-- The `claude` CLI on `PATH` — the analysis backend
+- An `ANTHROPIC_API_KEY` — the analysis backend
 - Cloudflare R2 credentials for publishing: `R2_BUCKET`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`
+
+Copy `.env.template` to `.env` and fill it in. Nothing loads that file automatically —
+export it with `set -a; source .env; set +a`, or use direnv.
 
 The standalone speech-to-text path additionally needs ffmpeg and `OPENAI_API_KEY`.
 
@@ -115,13 +125,11 @@ Use `--help` on any command for full options.
   "episode_id": "motd_2026-27_2026-08-22",
   "broadcast_date": "2026-08-22",
   "season": "2026-27",
+  "gameweek": 1,
   "matches": [
     {
+      "fpl_code": 2645198,
       "order": 1,
-      "home_team": "Liverpool",
-      "away_team": "Aston Villa",
-      "venue": "Anfield",
-      "score": {"home": 2, "away": 1},
       "segments": {
         "studio_intro": {"start": "02:05", "end": "03:07"},
         "highlights": {"start": "03:07", "end": "08:43"},
@@ -129,9 +137,21 @@ Use `--help` on any command for full options.
       },
       "notes": null
     }
-  ]
+  ],
+  "provenance": {
+    "model": "claude-opus-5",
+    "prompt_version": "2",
+    "analysed_at": "2026-08-24T21:14:03Z",
+    "candidate_fpl_codes": [2645195, 2645198, 2645197, 2645199, 2645200, 2645196],
+    "input_tokens": 31204,
+    "output_tokens": 812
+  }
 }
 ```
+
+Team names, venue and score are not repeated here — `fpl_code` joins to the fixture that
+holds them. `candidate_fpl_codes` records what the model was allowed to choose from, which
+is the one input that cannot be reconstructed later once fixtures are re-synced.
 
 The Pydantic models in `src/motd/models.py` are the authoritative contract.
 

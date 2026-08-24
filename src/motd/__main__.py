@@ -185,22 +185,25 @@ def analyse(episode_id: str, output: str | None, force: bool) -> None:
         sys.exit(1)
 
     provider = FileFixtureProvider(fixtures_path)
-    fixtures = provider.get_fixtures_for_date(ep.broadcast_date)
+    candidates = provider.get_candidates(ep.broadcast_date)
 
-    if not fixtures:
+    if not candidates:
         click.echo(f"Error: no fixtures found for {ep.broadcast_date}", err=True)
         click.echo("This may not be a Premier League matchday.")
         sys.exit(1)
 
     try:
-        analysis = do_analyse(transcript, fixtures, episode_id)
+        analysis = do_analyse(transcript, candidates, episode_id)
     except AnalysisError as exc:
         click.echo(f"Error: {exc}", err=True)
         sys.exit(1)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(analysis.model_dump_json(indent=2))
-    click.echo(f"Analysis saved: {out_path} ({len(analysis.matches)} matches)")
+    click.echo(
+        f"Analysis saved: {out_path} "
+        f"({len(analysis.matches)} of {len(candidates)} candidates covered)"
+    )
 
 
 @cli.command()

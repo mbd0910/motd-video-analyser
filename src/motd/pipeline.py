@@ -122,8 +122,8 @@ def run(
                 f"No transcript found for {episode_id}. Run transcription first."
             )
 
-        fixtures = _load_fixtures(ep.broadcast_date)
-        if not fixtures:
+        candidates = _load_candidates(ep.broadcast_date)
+        if not candidates:
             raise PipelineError(
                 f"No fixtures found for {ep.broadcast_date}. "
                 "This may not be a Premier League matchday."
@@ -131,7 +131,7 @@ def run(
 
         analysis = _timed(
             "analyse", _do_analyse,
-            transcript=transcript, fixtures=fixtures, episode_id=episode_id,
+            transcript=transcript, candidates=candidates, episode_id=episode_id,
         )
         ep.analysis_path.write_text(analysis.model_dump_json(indent=2))
         logger.info(
@@ -164,8 +164,8 @@ def _timed(stage_name: str, fn, **kwargs):  # type: ignore[no-untyped-def]
     return result
 
 
-def _load_fixtures(broadcast_date: str) -> list[Fixture]:
-    """Load fixtures for a broadcast date."""
+def _load_candidates(broadcast_date: str) -> list[Fixture]:
+    """Load the fixtures an episode broadcast on this date could have shown."""
     from motd.episode import season_for_date
     from motd.fixtures import FileFixtureProvider, fixtures_path_for_season
 
@@ -176,7 +176,7 @@ def _load_fixtures(broadcast_date: str) -> list[Fixture]:
         )
 
     provider = FileFixtureProvider(path)
-    return provider.get_fixtures_for_date(broadcast_date)
+    return provider.get_candidates(broadcast_date)
 
 
 def _do_download(url: str, broadcast_date: str) -> tuple[str, str]:
@@ -209,13 +209,13 @@ def _do_transcribe(subtitles_path: Path, episode_id: str) -> Transcript:
 
 def _do_analyse(
     transcript: Transcript,
-    fixtures: list[Fixture],
+    candidates: list[Fixture],
     episode_id: str,
 ) -> EpisodeAnalysis:
-    """Analyse a transcript against fixtures."""
+    """Extract running order and timings from a transcript."""
     from motd.analyser import analyse
 
-    return analyse(transcript, fixtures, episode_id)
+    return analyse(transcript, candidates, episode_id)
 
 
 def _do_publish(analysis: EpisodeAnalysis) -> str:

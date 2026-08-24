@@ -7,6 +7,7 @@
       "codes": [
         "ARS"
       ],
+      "fpl_code": 3,
       "alternates": [
         "The Gunners",
         "Gunners"
@@ -33,6 +34,7 @@
         "AVL",
         "AST"
       ],
+      "fpl_code": 7,
       "alternates": [
         "Villa",
         "The Villans",
@@ -54,6 +56,7 @@
         "BHA",
         "BRI"
       ],
+      "fpl_code": 36,
       "alternates": [
         "Brighton",
         "The Seagulls",
@@ -80,6 +83,7 @@
         "BOU",
         "BOR"
       ],
+      "fpl_code": 91,
       "alternates": [
         "The Cherries",
         "Cherries",
@@ -103,6 +107,7 @@
         "BRE",
         "BRN"
       ],
+      "fpl_code": 94,
       "alternates": [
         "The Bees",
         "Bees"
@@ -144,6 +149,7 @@
         "CHE",
         "CHL"
       ],
+      "fpl_code": 8,
       "alternates": [
         "The Blues",
         "Blues"
@@ -166,6 +172,7 @@
       "codes": [
         "COV"
       ],
+      "fpl_code": 9,
       "alternates": [
         "Coventry",
         "The Sky Blues",
@@ -192,6 +199,7 @@
         "CPA",
         "PAL"
       ],
+      "fpl_code": 31,
       "alternates": [
         "Palace",
         "The Eagles",
@@ -217,6 +225,7 @@
         "EVE",
         "EVR"
       ],
+      "fpl_code": 11,
       "alternates": [
         "The Toffees",
         "Toffees",
@@ -242,6 +251,7 @@
       "codes": [
         "FUL"
       ],
+      "fpl_code": 54,
       "alternates": [
         "The Cottagers",
         "Cottagers"
@@ -267,6 +277,7 @@
       "codes": [
         "HUL"
       ],
+      "fpl_code": 88,
       "alternates": [
         "Hull",
         "The Tigers",
@@ -291,6 +302,7 @@
       "codes": [
         "IPS"
       ],
+      "fpl_code": 40,
       "alternates": [
         "Ipswich",
         "The Tractor Boys",
@@ -313,6 +325,7 @@
       "codes": [
         "LEE"
       ],
+      "fpl_code": 2,
       "alternates": [
         "Leeds",
         "The Whites",
@@ -333,6 +346,7 @@
       "codes": [
         "LIV"
       ],
+      "fpl_code": 14,
       "alternates": [
         "The Reds",
         "Reds"
@@ -356,6 +370,7 @@
         "MAC",
         "MCY"
       ],
+      "fpl_code": 43,
       "alternates": [
         "Man City",
         "City",
@@ -384,6 +399,7 @@
         "MNU",
         "MAN"
       ],
+      "fpl_code": 1,
       "alternates": [
         "Man Utd",
         "Man United",
@@ -411,6 +427,7 @@
         "NCU",
         "NWC"
       ],
+      "fpl_code": 4,
       "alternates": [
         "Newcastle",
         "The Magpies",
@@ -436,6 +453,7 @@
         "FOR",
         "NOT"
       ],
+      "fpl_code": 17,
       "alternates": [
         "Forest",
         "Nottm Forest",
@@ -460,6 +478,7 @@
         "SUN",
         "SND"
       ],
+      "fpl_code": 56,
       "alternates": [
         "The Black Cats",
         "Black Cats"
@@ -481,6 +500,7 @@
       "codes": [
         "TOT"
       ],
+      "fpl_code": 6,
       "alternates": [
         "Spurs",
         "Tottenham",

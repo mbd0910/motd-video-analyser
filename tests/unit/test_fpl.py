@@ -6,13 +6,13 @@ from pathlib import Path
 import pytest
 
 from motd.clubs import ClubDirectory
-from motd.fpl import FplError, _build_fixture, _team_codes
+from motd.fpl import FplError, _build_fixture, _team_codes, _verify_club_codes
 
 BOOTSTRAP = {
     "teams": [
-        {"id": 1, "short_name": "ARS", "name": "Arsenal"},
-        {"id": 7, "short_name": "MUN", "name": "Man Utd"},
-        {"id": 12, "short_name": "COV", "name": "Coventry City"},
+        {"id": 1, "code": 3, "short_name": "ARS", "name": "Arsenal"},
+        {"id": 7, "code": 1, "short_name": "MUN", "name": "Man Utd"},
+        {"id": 12, "code": 9, "short_name": "COV", "name": "Coventry City"},
     ]
 }
 
@@ -46,6 +46,8 @@ class TestBuildFixture:
         assert f["venue"] == "Emirates Stadium"
         assert f["gameweek"] == 1
         assert f["fpl_code"] == 2645195
+        assert f["home_code"] == "ARS"
+        assert f["away_code"] == "MUN"
         assert f["final_score"] == {"home": 3, "away": 0}
 
     def test_converts_utc_kickoff_to_uk_local_time(self, clubs: ClubDirectory) -> None:
@@ -103,6 +105,24 @@ class TestTeamCodes:
             _team_codes({"teams": [{"id": 1}]})
 
 
+class TestVerifyClubCodes:
+    """The directory's club ids must agree with the live payload before a sync writes."""
+
+    def test_matching_codes_pass(self, clubs: ClubDirectory) -> None:
+        _verify_club_codes(BOOTSTRAP, clubs)
+
+    def test_disagreeing_code_is_rejected(self, clubs: ClubDirectory) -> None:
+        drifted = {"teams": [{"id": 1, "code": 999, "short_name": "ARS", "name": "Arsenal"}]}
+        with pytest.raises(FplError, match="Arsenal has fpl_code 3 but FPL reports 999"):
+            _verify_club_codes(drifted, clubs)
+
+    def test_club_without_a_code_names_the_value_to_add(self, clubs: ClubDirectory) -> None:
+        """Burnley is kept for history and has no code — a promotion looks the same."""
+        promoted = {"teams": [{"id": 1, "code": 90, "short_name": "BUR", "name": "Burnley"}]}
+        with pytest.raises(FplError, match='Add "fpl_code": 90'):
+            _verify_club_codes(promoted, clubs)
+
+
 class TestClubDirectory:
     def test_resolves_every_alternate_code(self, clubs: ClubDirectory) -> None:
         assert clubs.by_code("MUN").full == "Manchester United"
@@ -124,4 +144,5 @@ class TestClubDirectory:
         assert teams, "expected synced fixtures"
         for fixture in teams:
             assert fixture["venue"], fixture["match_id"]
+            assert directory.by_code(fixture["home_code"]).fpl_code
         assert {"COV", "HUL", "IPS"} <= directory.codes()
