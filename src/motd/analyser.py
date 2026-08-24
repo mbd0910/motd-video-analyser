@@ -208,7 +208,8 @@ def analyse(
         result.model, result.output_tokens, result.input_tokens,
         result.cache_written, result.cache_read,
     )
-    matches = _resolve_matches(result.text, by_label)
+    data = _parse_response(result.text)
+    matches = _resolve_matches(data, by_label)
 
     gameweeks = {f.gameweek for f in candidates if f.gameweek is not None}
     try:
@@ -225,6 +226,7 @@ def analyse(
                 candidate_fpl_codes=[f.fpl_code for f in candidates],
                 input_tokens=result.input_tokens,
                 output_tokens=result.output_tokens,
+                walkthrough=data.get("walkthrough"),
             ),
         )
     except ValidationError as exc:
@@ -371,13 +373,19 @@ segment, a match shown in two parts. Leave it null when there is nothing to flag
     return Prompt(context=context, task=task)
 
 
-def _resolve_matches(response_text: str, by_label: dict[str, Fixture]) -> list[MatchCoverage]:
-    """Map the model's label picks onto fixtures, rejecting anything unresolvable."""
+def _parse_response(response_text: str) -> dict[str, Any]:
+    """The model's reply as a dict, with a schema violation surfaced as AnalysisError."""
     try:
         data = json.loads(response_text)
     except json.JSONDecodeError as exc:
         raise AnalysisError(f"Failed to parse LLM response as JSON: {exc}") from exc
+    if not isinstance(data, dict):
+        raise AnalysisError(f"Expected a JSON object, got {type(data).__name__}")
+    return data
 
+
+def _resolve_matches(data: dict[str, Any], by_label: dict[str, Fixture]) -> list[MatchCoverage]:
+    """Map the model's label picks onto fixtures, rejecting anything unresolvable."""
     picks = data.get("running_order")
     if not isinstance(picks, list):
         raise AnalysisError(f"Expected 'running_order' to be a list, got {type(picks).__name__}")

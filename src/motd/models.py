@@ -98,6 +98,9 @@ class AnalysisProvenance(BaseModel):
     candidate_fpl_codes: list[int] = Field(default_factory=list)
     input_tokens: int | None = None
     output_tokens: int | None = None
+    # The model's sweep of the transcript, kept so a run's coverage can be audited
+    # after the fact — it names the trails and breaks that leave gaps between matches.
+    walkthrough: str | None = None
 
 
 class EpisodeAnalysis(BaseModel):

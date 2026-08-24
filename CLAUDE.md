@@ -20,6 +20,14 @@ list and constrained by a JSON schema (`analyser._build_schema`) to echo back on
 exact labels, which `_resolve_matches` maps to a fixture in code. Everything else — team
 names, venue, score — joins in from the fixture row rather than being restated by the model.
 
+**The answer commits to the sweep before it writes it.** `_build_schema` puts a required
+`walkthrough` string ahead of `running_order`, because property order is generation order:
+the model writes out its pass over the transcript first, then fills an array it is already
+answerable to. Without it the analyser returned one or two matches out of six at every
+effort level — reasoning does not constrain the answer block, and `minItems` above 1 is
+rejected by structured outputs. The walkthrough is kept in provenance for auditing coverage,
+but it is model prose, not an index: it can contain overlaps the array resolves.
+
 **The candidate window is the gameweek, not the broadcast date** (`fixtures.candidates_for_broadcast`).
 An episode shows more than that day's matches: a Friday game held over to Saturday's show, or
 a round-up of Saturday action on Sunday. Deliberately wider than any one episode needs.

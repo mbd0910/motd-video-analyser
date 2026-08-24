@@ -140,11 +140,12 @@ Use `--help` on any command for full options.
   ],
   "provenance": {
     "model": "claude-opus-5",
-    "prompt_version": "2",
+    "prompt_version": "3",
     "analysed_at": "2026-08-24T21:14:03Z",
     "candidate_fpl_codes": [2645195, 2645198, 2645197, 2645199, 2645200, 2645196],
     "input_tokens": 31204,
-    "output_tokens": 812
+    "output_tokens": 812,
+    "walkthrough": "00:21-01:14 studio set-up for Hull City v Manchester United..."
   }
 }
 ```

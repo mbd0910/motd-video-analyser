@@ -12,6 +12,7 @@ from motd.analyser import (
     _build_prompt,
     _build_schema,
     _content_blocks,
+    _parse_response,
     _resolve_matches,
     analyse,
     fixture_label,
@@ -202,14 +203,14 @@ class TestResolveMatches:
         return {fixture_label(f): f for f in SAMPLE_CANDIDATES}
 
     def test_labels_resolve_to_fixture_ids(self) -> None:
-        matches = _resolve_matches(VALID_RESPONSE, self._by_label())
+        matches = _resolve_matches(json.loads(VALID_RESPONSE), self._by_label())
         assert [m.fpl_code for m in matches] == [
             ARSENAL_CHELSEA.fpl_code, BRIGHTON_LEEDS.fpl_code,
         ]
         assert [m.order for m in matches] == [1, 2]
 
     def test_empty_segments_are_dropped(self) -> None:
-        matches = _resolve_matches(VALID_RESPONSE, self._by_label())
+        matches = _resolve_matches(json.loads(VALID_RESPONSE), self._by_label())
         assert set(matches[0].segments) == {"studio_intro", "highlights"}
         assert set(matches[1].segments) == {"highlights"}
 
@@ -223,31 +224,35 @@ class TestResolveMatches:
             }]
         })
         with pytest.raises(AnalysisError, match="not a candidate"):
-            _resolve_matches(response, self._by_label())
+            _resolve_matches(json.loads(response), self._by_label())
 
     def test_the_walkthrough_is_working_out_and_does_not_reach_the_analysis(self) -> None:
         response = json.loads(VALID_RESPONSE)
         response["walkthrough"] = "00:00-10:00 Arsenal v Chelsea, then Brighton v Leeds."
-        matches = _resolve_matches(json.dumps(response), self._by_label())
+        matches = _resolve_matches(response, self._by_label())
         assert [m.fpl_code for m in matches] == [
             ARSENAL_CHELSEA.fpl_code, BRIGHTON_LEEDS.fpl_code,
         ]
 
-    def test_invalid_json_raises(self) -> None:
-        with pytest.raises(AnalysisError, match="Failed to parse"):
-            _resolve_matches("not valid json at all", self._by_label())
-
     def test_running_order_not_a_list_raises(self) -> None:
-        bad = json.dumps({"running_order": "not a list"})
+        bad = {"running_order": "not a list"}
         with pytest.raises(AnalysisError, match="Expected 'running_order' to be a list"):
             _resolve_matches(bad, self._by_label())
 
     def test_malformed_entry_raises(self) -> None:
-        bad = json.dumps({
-            "running_order": [{"match": fixture_label(ARSENAL_CHELSEA), "order": 0}]
-        })
+        bad = {"running_order": [{"match": fixture_label(ARSENAL_CHELSEA), "order": 0}]}
         with pytest.raises(AnalysisError, match="Malformed running order entry"):
             _resolve_matches(bad, self._by_label())
+
+
+class TestParseResponse:
+    def test_invalid_json_raises(self) -> None:
+        with pytest.raises(AnalysisError, match="Failed to parse"):
+            _parse_response("not valid json at all")
+
+    def test_a_non_object_reply_raises(self) -> None:
+        with pytest.raises(AnalysisError, match="Expected a JSON object"):
+            _parse_response("[1, 2, 3]")
 
 
 class TestAnalyseWithFakeBackend:
@@ -356,6 +361,16 @@ class TestAnalyseWithFakeBackend:
             backend=fake_backend(json.dumps({"running_order": []})),
         )
         assert analysis.matches == []
+
+    def test_the_walkthrough_is_kept_in_provenance(self) -> None:
+        response = json.loads(VALID_RESPONSE)
+        response["walkthrough"] = "00:00-10:00 Arsenal v Chelsea, then Brighton v Leeds."
+        analysis = analyse(
+            SAMPLE_TRANSCRIPT, SAMPLE_CANDIDATES, "motd_2025-26_2025-11-01",
+            backend=fake_backend(json.dumps(response)),
+        )
+        assert analysis.provenance is not None
+        assert analysis.provenance.walkthrough == response["walkthrough"]
 
     def test_backend_satisfies_protocol(self) -> None:
         assert isinstance(fake_backend(VALID_RESPONSE), LlmBackend)
