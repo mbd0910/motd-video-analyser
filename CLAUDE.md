@@ -125,6 +125,11 @@ Commands below assume `uv run` in front, or an activated `.venv`.
   — `--dry-run` writes the prompt's two halves to the cache dir and makes no API call
 - `python -m motd publish EPISODE_ID`
 
+**Judging a prompt or schema change:**
+- `uv run python scripts/probe_analysis.py EPISODE_ID [EFFORT ...]` — runs the live prompt and
+  prints what `analyse` discards: thinking, token counts, emitted key order, the walkthrough.
+  Billed, one call per effort level.
+
 **Tests:**
 - `uv run pytest`
 
