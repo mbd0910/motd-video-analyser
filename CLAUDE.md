@@ -24,12 +24,15 @@
 - `publisher.py` - **Publishing** (Cloudflare R2)
 - `downloader.py` - **Download** (yt-dlp from BBC iPlayer)
 - `pipeline.py` - **Orchestrator** (sequences all stages)
+- `episode.py` - **Episode identity** (episode_id format, season derivation, cache paths)
+- `cache.py` - **Cache** (get_or_compute / load for pipeline artefacts)
+- `__main__.py` - **CLI entry point** (`python -m motd`)
 
 **Key deps:** Pydantic v2, Click
 
 ## Project Structure
 
-- `src/motd/` - Main package — see `src/motd/CLAUDE.md`
+- `src/motd/` - Main package
 - `config/` - Configuration files (config.yaml)
 - `data/` - Videos, cache, analysis outputs (gitignored) — see `data/CLAUDE.md`
 - `docs/` - Documentation and domain knowledge
@@ -40,6 +43,10 @@
 - Activate virtual environment (`source venv/bin/activate`) before running Python commands
 - Check `data/cache/{episode_id}/` before re-running expensive operations (transcription takes 15-20 mins)
 - Never commit files in `data/videos/` or `data/cache/`
+
+## Committing
+
+Commit directly to main.
 
 ## Code Style
 
