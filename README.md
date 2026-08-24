@@ -195,8 +195,6 @@ This project uses **GitHub Issues** for tracking work:
 1. Check [GitHub Issues](https://github.com/mbd0910/motd-video-analyser/issues) for current work
 2. Use feature branches: `feature/issue-{number}-{slug}`
 
-Historical tasks (001-012) are archived in [docs/tasks/completed/](docs/tasks/completed/).
-
 ## Progress
 
 ### Completed ✅
