@@ -4,7 +4,7 @@
 
 > **Automated video analysis pipeline to objectively measure coverage bias in BBC's Match of the Day**
 
-[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.14](https://img.shields.io/badge/python-3.14-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Status: Active Development](https://img.shields.io/badge/status-active%20development-green.svg)]()
 
@@ -82,9 +82,9 @@ See [docs/tech-tradeoffs.md](docs/tech-tradeoffs.md) for detailed comparisons an
 
 ### Prerequisites
 
-- Python 3.12.7
+- Python 3.14
 - ffmpeg installed (`brew install ffmpeg` on macOS)
-- GPU recommended (but not required) for faster OCR/transcription
+- An OpenAI API key (transcription) and Cloudflare R2 credentials (publishing)
 
 ### Installation
 
@@ -94,11 +94,11 @@ git clone https://github.com/yourusername/motd-video-analyser.git
 cd motd-video-analyser
 
 # Create virtual environment
-python3.12 -m venv venv
+python3.14 -m venv venv
 source venv/bin/activate
 
 # Install dependencies
-pip install -r requirements.txt
+pip install -e ".[dev]"
 ```
 
 ### Usage

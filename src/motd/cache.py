@@ -9,16 +9,13 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from pathlib import Path
-from typing import TypeVar
 
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar("T", bound=BaseModel)
 
-
-def get_or_compute(
+def get_or_compute[T: BaseModel](
     path: Path,
     model_type: type[T],
     compute: Callable[[], T],
@@ -48,7 +45,7 @@ def get_or_compute(
     return result, True
 
 
-def load(path: Path, model_type: type[T]) -> T | None:  # noqa: UP047
+def load[T: BaseModel](path: Path, model_type: type[T]) -> T | None:
     """Load from cache without computing. Returns None on miss."""
     if not path.exists():
         return None
