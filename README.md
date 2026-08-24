@@ -72,8 +72,8 @@ graph LR
 - An `ANTHROPIC_API_KEY` — the analysis backend
 - Cloudflare R2 credentials for publishing: `R2_BUCKET`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`
 
-Copy `.env.template` to `.env` and fill it in. Nothing loads that file automatically —
-export it with `set -a; source .env; set +a`, or use direnv.
+Copy `.env.template` to `.env` and fill it in — `motd` loads it from the working
+directory on start-up, and anything already set in the environment takes precedence.
 
 The standalone speech-to-text path additionally needs ffmpeg and `OPENAI_API_KEY`.
 

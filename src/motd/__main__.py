@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import cast
 
 import click
+from dotenv import find_dotenv, load_dotenv
 
 from motd.episode import Episode
 
@@ -19,6 +20,9 @@ from motd.episode import Episode
 @click.version_option(version="0.2.0", prog_name="motd-analyser")
 def cli() -> None:
     """MOTD Analyser — measure coverage bias in Match of the Day."""
+    # usecwd: the bare call resolves against this file, which finds the repo's own
+    # .env even when run from elsewhere. Data paths are cwd-relative, so .env is too.
+    load_dotenv(find_dotenv(usecwd=True))
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",

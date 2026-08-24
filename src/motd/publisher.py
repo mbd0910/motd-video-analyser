@@ -28,6 +28,14 @@ class R2Client(Protocol):
     def download(self, key: str) -> bytes | None: ...
 
 
+def _required_env(name: str) -> str:
+    """A key left blank in .env is loaded as an empty string, so presence is not enough."""
+    value = os.environ.get(name)
+    if not value:
+        raise KeyError(f"{name} is not set (check .env)")
+    return value
+
+
 class CloudflareR2Client:
     """Cloudflare R2 client using boto3 S3-compatible API."""
 
@@ -38,10 +46,10 @@ class CloudflareR2Client:
         access_key_id: str | None = None,
         secret_access_key: str | None = None,
     ) -> None:
-        self.bucket = bucket or os.environ["R2_BUCKET"]
-        account_id = account_id or os.environ["R2_ACCOUNT_ID"]
-        access_key_id = access_key_id or os.environ["R2_ACCESS_KEY_ID"]
-        secret_access_key = secret_access_key or os.environ["R2_SECRET_ACCESS_KEY"]
+        self.bucket = bucket or _required_env("R2_BUCKET")
+        account_id = account_id or _required_env("R2_ACCOUNT_ID")
+        access_key_id = access_key_id or _required_env("R2_ACCESS_KEY_ID")
+        secret_access_key = secret_access_key or _required_env("R2_SECRET_ACCESS_KEY")
 
         self._s3 = boto3.client(
             "s3",

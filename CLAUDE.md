@@ -53,8 +53,8 @@ a round-up of Saturday action on Sunday. Deliberately wider than any one episode
 
 **Key deps:** Pydantic v2, Click, anthropic
 
-**Credentials:** copy `.env.template` to `.env`. `analyse` needs `ANTHROPIC_API_KEY`; nothing
-loads the file automatically (`set -a; source .env; set +a`).
+**Credentials:** copy `.env.template` to `.env`. `analyse` needs `ANTHROPIC_API_KEY`. The CLI
+calls `load_dotenv()` from the working directory; real environment variables win over the file.
 
 ## Project Structure
 

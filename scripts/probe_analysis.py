@@ -14,6 +14,7 @@ import sys
 
 import anthropic
 from anthropic.types import OutputConfigParam
+from dotenv import find_dotenv, load_dotenv
 
 from motd.analyser import MAX_TOKENS, _build_prompt, _build_schema, _content_blocks, fixture_label
 from motd.episode import Episode
@@ -22,6 +23,7 @@ from motd.models import Transcript
 
 
 def main(episode_id: str, efforts: list[str]) -> int:
+    load_dotenv(find_dotenv(usecwd=True))
     ep = Episode.from_id(episode_id)
     if not ep.transcript_path.exists():
         print(f"No transcript at {ep.transcript_path}", file=sys.stderr)
