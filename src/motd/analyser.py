@@ -40,7 +40,7 @@ DEFAULT_EFFORT: Effort = "xhigh"
 # Writing a 5m cache costs 1.25x input against 2x for 1h, so it is the cheap default
 # for a pipeline that calls once per episode. Use 1h when iterating on one episode.
 DEFAULT_CACHE_TTL: CacheTtl = "5m"
-PROMPT_VERSION = "2"
+PROMPT_VERSION = "3"
 MAX_TOKENS = 16000
 
 # Post-match interviews fall inside the highlights run rather than standing alone.
@@ -247,7 +247,11 @@ def _build_schema(labels: list[str]) -> dict[str, Any]:
     }
     return {
         "type": "object",
+        # Property order is generation order: the walkthrough is emitted before the
+        # array, so the array is written against a commitment already in the stream.
+        # Reasoning cannot do this job — thinking does not constrain the answer block.
         "properties": {
+            "walkthrough": {"type": "string"},
             "running_order": {
                 "type": "array",
                 "items": {
@@ -270,7 +274,7 @@ def _build_schema(labels: list[str]) -> dict[str, Any]:
                 },
             },
         },
-        "required": ["running_order"],
+        "required": ["walkthrough", "running_order"],
         "additionalProperties": False,
     }
 
@@ -334,11 +338,16 @@ screen time, in what order, and when.
 ## Your task
 
 Return the matches that got screen time in this episode, in the order they appeared.
-
 An episode runs matches back to back for most of its {runtime}, so expect several — a
-Saturday show typically carries five to seven. Read to the end of the transcript and
-account for the whole running time; stopping after the first match is the failure mode
-to avoid.
+Saturday show typically carries five to seven. Fill the two fields in the order below.
+
+**`walkthrough` first.** Sweep the transcript from 00:00 to {runtime} and write one line
+per match: the two clubs, the minute the studio hands over, the minute the highlights end.
+Reach the end of the running time before you stop. This field is working-out rather than
+data — it is read to check the sweep was complete, then discarded.
+
+**`running_order` second.** The same matches, in the same order, one entry each, timed as
+below. Every match named in the walkthrough gets an entry.
 
 - Include a match only if the episode shows footage of it. Naming a club in transfer
   talk, league-table discussion or a player's history is not coverage.

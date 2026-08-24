@@ -123,6 +123,13 @@ class TestBuildSchema:
             "2025-11-01 Brighton & Hove Albion v Leeds United",
         ]
 
+    def test_walkthrough_is_required_and_generated_before_the_array(self) -> None:
+        # Property order is generation order, which is the whole mechanism: the model
+        # commits to the full sweep before it starts the array it has to fill.
+        schema = _build_schema(["a"])
+        assert list(schema["properties"]) == ["walkthrough", "running_order"]
+        assert schema["required"] == ["walkthrough", "running_order"]
+
     def test_schema_is_closed(self) -> None:
         schema = _build_schema(["a", "b"])
         item = schema["properties"]["running_order"]["items"]
@@ -217,6 +224,14 @@ class TestResolveMatches:
         })
         with pytest.raises(AnalysisError, match="not a candidate"):
             _resolve_matches(response, self._by_label())
+
+    def test_the_walkthrough_is_working_out_and_does_not_reach_the_analysis(self) -> None:
+        response = json.loads(VALID_RESPONSE)
+        response["walkthrough"] = "00:00-10:00 Arsenal v Chelsea, then Brighton v Leeds."
+        matches = _resolve_matches(json.dumps(response), self._by_label())
+        assert [m.fpl_code for m in matches] == [
+            ARSENAL_CHELSEA.fpl_code, BRIGHTON_LEEDS.fpl_code,
+        ]
 
     def test_invalid_json_raises(self) -> None:
         with pytest.raises(AnalysisError, match="Failed to parse"):
