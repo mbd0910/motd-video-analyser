@@ -8,8 +8,10 @@ from motd.analyser import (
     AnalysisError,
     LlmBackend,
     LlmResult,
+    Prompt,
     _build_prompt,
     _build_schema,
+    _content_blocks,
     _resolve_matches,
     analyse,
     fixture_label,
@@ -101,7 +103,7 @@ VALID_RESPONSE = json.dumps({
 
 def fake_backend(response: str) -> LlmBackend:
     """A backend that returns a canned response and ignores the schema."""
-    def backend(prompt: str, schema: dict) -> LlmResult:
+    def backend(prompt: Prompt, schema: dict) -> LlmResult:
         return LlmResult(text=response, model="fake-model", input_tokens=10, output_tokens=5)
     return backend
 
@@ -134,34 +136,59 @@ class TestBuildSchema:
 
 
 class TestBuildPrompt:
-    def _prompt(self, candidates: list[Fixture] = SAMPLE_CANDIDATES) -> str:
+    def _prompt(self, candidates: list[Fixture] = SAMPLE_CANDIDATES) -> Prompt:
         return _build_prompt(
             SAMPLE_TRANSCRIPT, candidates,
             "motd_2025-26_2025-11-01", "2025-11-01", "2025-26",
         )
 
-    def test_prompt_includes_transcript_text(self) -> None:
+    def test_everything_episode_specific_sits_before_the_cache_breakpoint(self) -> None:
         prompt = self._prompt()
-        assert "Welcome to Match of the Day." in prompt
-        assert "Arsenal versus Chelsea" in prompt
+        assert "Welcome to Match of the Day." in prompt.context
+        assert "Welcome to Match of the Day." not in prompt.task
+        assert "## Your task" in prompt.task
+        assert "## Your task" not in prompt.context
+
+    def test_joined_carries_both_halves_in_order(self) -> None:
+        prompt = self._prompt()
+        joined = prompt.joined()
+        assert joined.index(prompt.context) < joined.index(prompt.task)
+
+    def test_prompt_includes_transcript_text(self) -> None:
+        context = self._prompt().context
+        assert "Welcome to Match of the Day." in context
+        assert "Arsenal versus Chelsea" in context
 
     def test_prompt_lists_candidates_by_their_exact_label(self) -> None:
-        prompt = self._prompt()
-        assert f'"{fixture_label(ARSENAL_CHELSEA)}"' in prompt
-        assert f'"{fixture_label(BRIGHTON_LEEDS)}"' in prompt
-        assert "Emirates Stadium" in prompt
+        context = self._prompt().context
+        assert f'"{fixture_label(ARSENAL_CHELSEA)}"' in context
+        assert f'"{fixture_label(BRIGHTON_LEEDS)}"' in context
+        assert "Emirates Stadium" in context
 
     def test_prompt_flags_a_candidate_played_on_an_earlier_date(self) -> None:
-        prompt = self._prompt([FRIDAY_GAME, ARSENAL_CHELSEA])
-        assert "played 2025-10-31" in prompt
-        assert "played this day" in prompt
+        context = self._prompt([FRIDAY_GAME, ARSENAL_CHELSEA]).context
+        assert "played 2025-10-31" in context
+        assert "played this day" in context
 
     def test_prompt_formats_timestamps_as_mmss(self) -> None:
-        prompt = self._prompt()
-        assert "[00:00]" in prompt
-        assert "[00:10]" in prompt
-        assert "[01:00]" in prompt
+        context = self._prompt().context
+        assert "[00:00]" in context
+        assert "[00:10]" in context
+        assert "[01:00]" in context
 
+
+class TestContentBlocks:
+    def _blocks(self, ttl: str | None) -> list[dict]:
+        return _content_blocks(Prompt(context="episode", task="instructions"), ttl)
+
+    def test_the_breakpoint_lands_after_the_context_half(self) -> None:
+        blocks = self._blocks("1h")
+        assert [b["text"] for b in blocks] == ["episode", "instructions"]
+        assert blocks[0]["cache_control"] == {"type": "ephemeral", "ttl": "1h"}
+        assert "cache_control" not in blocks[1]
+
+    def test_no_breakpoint_when_caching_is_off(self) -> None:
+        assert all("cache_control" not in b for b in self._blocks(None))
 
 class TestResolveMatches:
     def _by_label(self) -> dict[str, Fixture]:
@@ -242,7 +269,7 @@ class TestAnalyseWithFakeBackend:
     def test_schema_reaches_the_backend_with_the_candidate_enum(self) -> None:
         captured: dict[str, dict] = {}
 
-        def capturing(prompt: str, schema: dict) -> LlmResult:
+        def capturing(prompt: Prompt, schema: dict) -> LlmResult:
             captured["schema"] = schema
             return LlmResult(text=VALID_RESPONSE, model="fake-model")
 
@@ -284,7 +311,7 @@ class TestAnalyseWithFakeBackend:
             )
 
     def test_analyse_raises_on_backend_failure(self) -> None:
-        def failing(prompt: str, schema: dict) -> LlmResult:
+        def failing(prompt: Prompt, schema: dict) -> LlmResult:
             raise AnalysisError("LLM unavailable")
 
         with pytest.raises(AnalysisError, match="LLM unavailable"):

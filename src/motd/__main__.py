@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
+from typing import cast
 
 import click
 
@@ -150,9 +151,33 @@ def transcribe(video_path: str, output: str | None, force: bool, episode_id: str
 @click.argument("episode_id")
 @click.option("--output", type=click.Path(), help="Output path for analysis JSON.")
 @click.option("--force", is_flag=True, help="Force re-analysis even if cached.")
-def analyse(episode_id: str, output: str | None, force: bool) -> None:
+@click.option("--model", help="Claude model to analyse with (defaults to Opus 5).")
+@click.option(
+    "--effort", type=click.Choice(["low", "medium", "high", "xhigh", "max"]),
+    help="Reasoning effort (defaults to xhigh).",
+)
+@click.option(
+    "--cache-ttl", type=click.Choice(["5m", "1h", "off"]), default="5m", show_default=True,
+    help="Prompt cache lifetime for the transcript half. Use 1h when iterating on one episode.",
+)
+@click.option(
+    "--dry-run", is_flag=True,
+    help="Write the prompt that would be sent to PATH and stop, without calling the API.",
+)
+def analyse(
+    episode_id: str, output: str | None, force: bool, model: str | None,
+    effort: str | None, cache_ttl: str, dry_run: bool,
+) -> None:
     """Analyse a transcript and produce structured episode analysis."""
-    from motd.analyser import AnalysisError
+    from motd.analyser import (
+        DEFAULT_EFFORT,
+        DEFAULT_MODEL,
+        AnalysisError,
+        CacheTtl,
+        Effort,
+        _build_prompt,
+        anthropic_backend,
+    )
     from motd.analyser import analyse as do_analyse
     from motd.fixtures import FileFixtureProvider, fixtures_path_for_season
     from motd.models import Transcript
@@ -170,7 +195,7 @@ def analyse(episode_id: str, output: str | None, force: bool) -> None:
 
     out_path = Path(output) if output else ep.analysis_path
 
-    if out_path.exists() and not force:
+    if out_path.exists() and not force and not dry_run:
         click.echo(f"Analysis already exists: {out_path} (use --force to overwrite)")
         return
 
@@ -192,8 +217,29 @@ def analyse(episode_id: str, output: str | None, force: bool) -> None:
         click.echo("This may not be a Premier League matchday.")
         sys.exit(1)
 
+    if dry_run:
+        prompt = _build_prompt(
+            transcript, candidates, episode_id, ep.broadcast_date, ep.season
+        )
+        # Two files rather than one: the halves land either side of the cache
+        # breakpoint, and iteration diffs the task half on its own.
+        ep.cache_dir.mkdir(parents=True, exist_ok=True)
+        for half, text in (("context", prompt.context), ("task", prompt.task)):
+            half_path = ep.cache_dir / f"prompt.{half}.txt"
+            half_path.write_text(text)
+            click.echo(f"Prompt {half}: {half_path} ({len(text):,} chars)")
+        click.echo(f"Candidates: {len(candidates)} — no API call made")
+        return
+
     try:
-        analysis = do_analyse(transcript, candidates, episode_id)
+        analysis = do_analyse(
+            transcript, candidates, episode_id,
+            backend=anthropic_backend(
+                model or DEFAULT_MODEL,
+                cast(Effort, effort) if effort else DEFAULT_EFFORT,
+                None if cache_ttl == "off" else cast(CacheTtl, cache_ttl),
+            ),
+        )
     except AnalysisError as exc:
         click.echo(f"Error: {exc}", err=True)
         sys.exit(1)

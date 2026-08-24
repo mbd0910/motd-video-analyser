@@ -12,7 +12,7 @@ import json
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
 
 from pydantic import ValidationError
 
@@ -25,9 +25,21 @@ from motd.models import (
     Transcript,
 )
 
+if TYPE_CHECKING:
+    from anthropic.types import OutputConfigParam, TextBlockParam
+
 logger = logging.getLogger(__name__)
 
-MODEL = "claude-opus-5"
+Effort = Literal["low", "medium", "high", "xhigh", "max"]
+CacheTtl = Literal["5m", "1h"]
+
+DEFAULT_MODEL = "claude-opus-5"
+# Reading 80 minutes of transcript for boundaries is the kind of long analysis
+# where effort matters more than model choice; `high` stopped a third of the way in.
+DEFAULT_EFFORT: Effort = "xhigh"
+# Writing a 5m cache costs 1.25x input against 2x for 1h, so it is the cheap default
+# for a pipeline that calls once per episode. Use 1h when iterating on one episode.
+DEFAULT_CACHE_TTL: CacheTtl = "5m"
 PROMPT_VERSION = "2"
 MAX_TOKENS = 16000
 
@@ -40,6 +52,23 @@ class AnalysisError(Exception):
 
 
 @dataclass(frozen=True, slots=True)
+class Prompt:
+    """A prompt split at its cache boundary.
+
+    `context` is everything about one episode and `task` is the instructions. The
+    split is that way round because iteration holds the episode fixed and rewrites
+    the instructions — so the transcript is the reusable half, even though across a
+    season it is the half that always changes.
+    """
+
+    context: str
+    task: str
+
+    def joined(self) -> str:
+        return f"{self.context}\n\n{self.task}"
+
+
+@dataclass(frozen=True, slots=True)
 class LlmResult:
     """A backend's response, plus what it cost and which model produced it."""
 
@@ -47,32 +76,60 @@ class LlmResult:
     model: str
     input_tokens: int | None = None
     output_tokens: int | None = None
+    cache_written: int | None = None
+    cache_read: int | None = None
 
 
 @runtime_checkable
 class LlmBackend(Protocol):
     """Protocol for schema-constrained LLM backends."""
 
-    def __call__(self, prompt: str, schema: dict[str, Any]) -> LlmResult:
+    def __call__(self, prompt: Prompt, schema: dict[str, Any]) -> LlmResult:
         """Send a prompt and return a response conforming to the JSON schema."""
         ...
 
 
-def _anthropic_backend(prompt: str, schema: dict[str, Any]) -> LlmResult:
-    """Default backend — the Claude API with the response shape pinned to `schema`."""
+def anthropic_backend(
+    model: str = DEFAULT_MODEL,
+    effort: Effort = DEFAULT_EFFORT,
+    cache_ttl: CacheTtl | None = DEFAULT_CACHE_TTL,
+) -> LlmBackend:
+    """Backend factory — the Claude API with the response shape pinned to `schema`."""
+
+    def backend(prompt: Prompt, schema: dict[str, Any]) -> LlmResult:
+        return _call_claude(prompt, schema, model, effort, cache_ttl)
+
+    return backend
+
+
+def _content_blocks(prompt: Prompt, cache_ttl: CacheTtl | None) -> list[TextBlockParam]:
+    context: TextBlockParam = {"type": "text", "text": prompt.context}
+    if cache_ttl:
+        context["cache_control"] = {"type": "ephemeral", "ttl": cache_ttl}
+    return [context, {"type": "text", "text": prompt.task}]
+
+
+def _call_claude(
+    prompt: Prompt,
+    schema: dict[str, Any],
+    model: str,
+    effort: Effort,
+    cache_ttl: CacheTtl | None,
+) -> LlmResult:
     import anthropic
 
+    output_config: OutputConfigParam = {
+        "effort": effort,
+        "format": {"type": "json_schema", "schema": schema},
+    }
     client = anthropic.Anthropic()
     try:
         with client.messages.stream(
-            model=MODEL,
+            model=model,
             max_tokens=MAX_TOKENS,
             thinking={"type": "adaptive"},
-            output_config={
-                "effort": "high",
-                "format": {"type": "json_schema", "schema": schema},
-            },
-            messages=[{"role": "user", "content": prompt}],
+            output_config=output_config,
+            messages=[{"role": "user", "content": _content_blocks(prompt, cache_ttl)}],
         ) as stream:
             response = stream.get_final_message()
     except anthropic.APIError as exc:
@@ -90,6 +147,8 @@ def _anthropic_backend(prompt: str, schema: dict[str, Any]) -> LlmResult:
         model=response.model,
         input_tokens=response.usage.input_tokens,
         output_tokens=response.usage.output_tokens,
+        cache_written=response.usage.cache_creation_input_tokens,
+        cache_read=response.usage.cache_read_input_tokens,
     )
 
 
@@ -122,7 +181,7 @@ def analyse(
             resolution fails.
     """
     if backend is None:
-        backend = _anthropic_backend
+        backend = anthropic_backend()
 
     if not candidates:
         raise AnalysisError(f"No candidate fixtures for {episode_id}")
@@ -144,6 +203,11 @@ def analyse(
     )
 
     result = backend(prompt, schema)
+    logger.info(
+        "%s returned %s output tokens for %s input (cache: %s written, %s read)",
+        result.model, result.output_tokens, result.input_tokens,
+        result.cache_written, result.cache_read,
+    )
     matches = _resolve_matches(result.text, by_label)
 
     gameweeks = {f.gameweek for f in candidates if f.gameweek is not None}
@@ -190,7 +254,9 @@ def _build_schema(labels: list[str]) -> dict[str, Any]:
                     "type": "object",
                     "properties": {
                         "match": {"type": "string", "enum": labels},
-                        "order": {"type": "integer", "minimum": 1},
+                        # Structured outputs reject `minimum`; MatchCoverage and the
+                        # contiguity check on EpisodeAnalysis enforce the range instead.
+                        "order": {"type": "integer"},
                         "segments": {
                             "type": "object",
                             "properties": dict.fromkeys(SEGMENT_KEYS, segment_span),
@@ -215,13 +281,20 @@ def _build_prompt(
     episode_id: str,
     broadcast_date: str,
     season: str,
-) -> str:
+) -> Prompt:
     """Build the analysis prompt from transcript and candidate fixtures."""
     transcript_lines = []
+    previous_speaker = None
     for seg in transcript.segments:
         mm_start = int(seg.start) // 60
         ss_start = int(seg.start) % 60
-        transcript_lines.append(f"[{mm_start:02d}:{ss_start:02d}] {seg.text}")
+        # Only the change carries information; repeating the marker every line
+        # would trade a tenth of the prompt for nothing.
+        marker = ""
+        if seg.speaker and seg.speaker != previous_speaker:
+            marker = f"<speaker {seg.speaker}> "
+        previous_speaker = seg.speaker
+        transcript_lines.append(f"[{mm_start:02d}:{ss_start:02d}] {marker}{seg.text}")
     transcript_text = "\n".join(transcript_lines)
 
     candidate_lines = []
@@ -231,13 +304,14 @@ def _build_prompt(
         candidate_lines.append(f'- "{fixture_label(f)}" ({score}) at {f.venue} — {played}')
     candidates_text = "\n".join(candidate_lines)
 
-    return f"""You are reading a BBC Match of the Day transcript to record which matches got \
-screen time, in what order, and when.
+    total_seconds = int(transcript.duration_seconds)
+    runtime = f"{total_seconds // 60:02d}:{total_seconds % 60:02d}"
 
-## Episode
+    context = f"""## Episode
 - Episode ID: {episode_id}
 - Broadcast date: {broadcast_date}
 - Season: {season}
+- Running time: {runtime}
 
 ## Candidate matches
 These are every fixture in the gameweek that had been played by the broadcast date.
@@ -248,11 +322,23 @@ of action an earlier episode already covered — record both the same way.
 {candidates_text}
 
 ## Transcript
-{transcript_text}
+`<speaker ...>` marks a change of speaker, taken from the colour the broadcaster gave
+the subtitle. The colours carry no meaning across episodes, but within this one a change
+marks a different voice — the handover from studio to commentary is usually one of them.
+
+{transcript_text}"""
+
+    task = f"""You are reading a BBC Match of the Day transcript to record which matches got \
+screen time, in what order, and when.
 
 ## Your task
 
 Return the matches that got screen time in this episode, in the order they appeared.
+
+An episode runs matches back to back for most of its {runtime}, so expect several — a
+Saturday show typically carries five to seven. Read to the end of the transcript and
+account for the whole running time; stopping after the first match is the failure mode
+to avoid.
 
 - Include a match only if the episode shows footage of it. Naming a club in transfer
   talk, league-table discussion or a player's history is not coverage.
@@ -263,12 +349,17 @@ Return the matches that got screen time in this episode, in the order they appea
   cannot place, and null for both ends of a segment that is absent.
 
 Segments to time where present:
-- `studio_intro`: pundits setting up the match, ending at the commentator credit
+- `studio_intro`: pundits in the studio setting up the match, ending where the programme
+  hands over to the match itself. The handover takes no fixed form — it may credit the
+  commentator, or simply point at the ground ("let's go to the Emirates") — so judge it by
+  the shift from studio talk to match commentary, not by any particular phrase.
 - `highlights`: match action with commentary, including any pitchside interviews
-- `studio_analysis`: pundits discussing the match afterwards
+- `studio_analysis`: pundits discussing the match afterwards, until they move on
 
 Use `notes` only for something that would otherwise be misread — an interrupted
 segment, a match shown in two parts. Leave it null when there is nothing to flag."""
+
+    return Prompt(context=context, task=task)
 
 
 def _resolve_matches(response_text: str, by_label: dict[str, Fixture]) -> list[MatchCoverage]:

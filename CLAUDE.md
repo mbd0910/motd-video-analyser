@@ -113,7 +113,8 @@ Commands below assume `uv run` in front, or an activated `.venv`.
 **Individual stages:**
 - `python -m motd download URL_OR_ID BROADCAST_DATE` (date as YYYY-MM-DD — iPlayer metadata has no date fields)
 - `python -m motd transcribe VIDEO_PATH [--output PATH] [--force]`
-- `python -m motd analyse EPISODE_ID [--output PATH] [--force]`
+- `python -m motd analyse EPISODE_ID [--output PATH] [--force] [--model ID] [--effort LEVEL] [--cache-ttl 5m|1h|off] [--dry-run]`
+  — `--dry-run` writes the prompt's two halves to the cache dir and makes no API call
 - `python -m motd publish EPISODE_ID`
 
 **Tests:**
