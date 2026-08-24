@@ -14,7 +14,6 @@
 
 **Related Documentation:**
 - [Analysis Schema](analysis_schema.md) - LLM output JSON structure
-- [Business Rules](business_rules.md) - Validation rules for OCR hints
 - [Visual Patterns](visual_patterns.md) - MOTD episode structure and visual elements
 
 ---
@@ -105,7 +104,7 @@
 
 **Format:** `motd_YYYY-YY_YYYY-MM-DD`
 
-**Example:** `motd_2025-26_2025-11-01` (2025/26 season, broadcast on 1 November 2025)
+**Example:** `motd_2026-27_2026-08-22` (2026/27 season, broadcast on 22 August 2026)
 
 **Key Properties:**
 - Broadcast date (Saturday evening, typically 22:30 GMT)
@@ -129,9 +128,9 @@
 **Example Structure:**
 ```json
 {
-  "episode_id": "motd_2025-26_2025-11-01",
+  "episode_id": "motd_2026-27_2026-08-22",
   "broadcast_date": "2025-11-01",
-  "season": "2025-26",
+  "season": "2026-27",
   "expected_matches": [
     "2025-11-01-liverpool-astonvilla",
     "2025-11-01-burnley-arsenal",
@@ -145,8 +144,6 @@
 ```
 
 **How It's Created:** Manually, by reviewing BBC's broadcast schedule or watching the episode to identify which matches appear.
-
-**Critical Use Case:** Fixture validation during OCR (see [Business Rules](business_rules.md#rule-2-episode-manifest-constraint)).
 
 #### Expected Matches
 **Definition:** List of fixture IDs that appear in a specific MOTD episode.
@@ -165,8 +162,6 @@ If `expected_matches` contains `liverpool-astonvilla`, OCR can confidently match
 - "Liverpool" or "Aston Villa" as valid detections
 - Reject "Manchester United" (not playing this gameweek)
 
-**See Also:** [Business Rule #2](business_rules.md#rule-2-episode-manifest-constraint)
-
 #### Fixture
 **Definition:** A single Premier League match between two teams on a specific date.
 
@@ -181,7 +176,7 @@ If `expected_matches` contains `liverpool-astonvilla`, OCR can confidently match
 - Final score (added post-match)
 - Kickoff time
 
-**Data File:** `data/fixtures/premier_league_2025_26.json`
+**Data File:** `data/fixtures/premier_league_2026_27.json`
 
 **Relationship to Episodes:** Each episode shows a subset of fixtures from a gameweek. Not all fixtures appear (broadcast rights restrictions).
 
@@ -208,7 +203,7 @@ Kickoff Order (chronological):  Running Order (editorial):
 7. Fulham vs Brentford          7. Fulham vs Brentford (least interesting)
 ```
 
-**Critical Requirement:** 100% running order accuracy needed before downstream analysis (see [Business Rule #4](business_rules.md#rule-4-100-running-order-accuracy-requirement)).
+**Critical Requirement:** 100% running order accuracy needed before downstream analysis.
 
 #### Ground Truth
 **Definition:** Manually verified data obtained by watching the full episode, used as validation reference.
@@ -401,20 +396,20 @@ ocr_regions:
 ### Overall Structure
 
 ```
-Premier League Season (2025/26)
+Premier League Season (2026/27)
     ├── 20 Teams (data/teams/premier_league.json, keyed by club code)
     │   ├── Liverpool
     │   ├── Arsenal
     │   ├── Manchester City
     │   └── ... (17 more)
     │
-    ├── 380 Fixtures across season (data/fixtures/premier_league_2025_26.json)
+    ├── 380 Fixtures across season (data/fixtures/premier_league_2026_27.json)
     │   ├── Gameweek 1 (10 matches)
     │   ├── Gameweek 2 (10 matches)
     │   └── ... (36 more gameweeks)
     │
     └── MOTD Episodes (~38 episodes, one per Saturday)
-        └── Episode: motd_2025-26_2025-11-01
+        └── Episode: motd_2026-27_2026-08-22
             ├── Broadcast Date: 2025-11-01
             ├── Expected Matches: 7 fixture IDs (subset of Saturday's 10 matches)
             │   ├── liverpool-astonvilla
@@ -439,7 +434,7 @@ Premier League Season (2025/26)
 
 **Step 1: Identify Episode**
 ```
-Episode ID: motd_2025-26_2025-11-01
+Episode ID: motd_2026-27_2026-08-22
 Data file: data/episodes/episode_manifest.json
 ```
 
@@ -463,7 +458,7 @@ NOT included (broadcast elsewhere):
 **Step 3: Load Fixture Details**
 ```
 Fixture ID: liverpool-astonvilla
-Data file: data/fixtures/premier_league_2025_26.json
+Data file: data/fixtures/premier_league_2026_27.json
 
 Details:
 - Home team: Liverpool
@@ -592,14 +587,6 @@ See [analysis_schema.md](analysis_schema.md) for the complete JSON schema.
 ---
 
 ## Related Documentation
-
-### Business Rules
-See [business_rules.md](business_rules.md) for detailed processing rules:
-- FT Graphic Validation
-- Episode Manifest Constraint
-- Opponent Inference Logic
-- Running Order Accuracy Requirements
-- Segment Classification Hierarchy
 
 ### Visual Patterns
 See [visual_patterns.md](visual_patterns.md) for:

@@ -19,7 +19,7 @@ But is it perception or reality? This project settles the debate with **data, no
 
 ## What This Does
 
-The MOTD Analyser automatically processes Match of the Day episodes (2025/26 season) to extract:
+The MOTD Analyser automatically processes Match of the Day episodes (2026/27 season) to extract:
 
 1. **Running Order** - Which teams are shown first, second, third, etc.
 2. **Match Boundaries** - When each match segment starts and ends (studio intro → highlights → post-match analysis)
@@ -105,19 +105,19 @@ pip install -e ".[dev]"
 
 1. **Run automated pipeline** - Extracts scenes, runs OCR, transcribes audio
    ```bash
-   python -m motd run data/videos/motd_2025-26_YYYY-MM-DD.mp4
+   python -m motd run data/videos/motd_2026-27_YYYY-MM-DD.mp4
    ```
    Options: `--force` (ignore cache and re-run all stages)
 
 2. **Generate LLM prompt** - Combines transcript + OCR hints into Claude-ready prompt
    ```bash
-   python -m motd generate-llm-prompt motd_2025-26_YYYY-MM-DD
+   python -m motd generate-llm-prompt motd_2026-27_YYYY-MM-DD
    ```
    Options: `--no-hints` (omit OCR hints), `--force` (overwrite existing)
 
 3. **Claude analysis** - Copy prompt to Claude, save JSON response
    ```bash
-   cat data/cache/motd_2025-26_YYYY-MM-DD/transcript_for_llm.txt | pbcopy
+   cat data/cache/motd_2026-27_YYYY-MM-DD/transcript_for_llm.txt | pbcopy
    # → Paste into Claude → Save to data/analysis/{episode_id}/analysis.json
    ```
 
@@ -130,7 +130,7 @@ pip install -e ".[dev]"
 
 ```json
 {
-  "episode_id": "motd_2025-26_2025-11-01",
+  "episode_id": "motd_2026-27_2026-08-22",
   "running_order": [
     {
       "position": 1,
@@ -157,13 +157,13 @@ motd-video-analyser/
 │   ├── llm/                     # LLM prompt generation
 │   └── pipeline/                # Pydantic models
 ├── data/
-│   ├── teams/                   # Premier League teams 2025/26
+│   ├── teams/                   # Premier League club directory
 │   ├── fixtures/                # Match schedules
 │   ├── episodes/                # Episode manifests
 │   ├── analysis/                # LLM analysis results (committed)
 │   └── cache/                   # Pipeline cache (gitignored)
 ├── docs/
-│   ├── domain/                  # Business rules + visual patterns
+│   ├── domain/                  # Glossary + visual patterns
 │   └── architecture.md          # Technical reference
 └── tests/                       # pytest test suite
 ```
@@ -173,13 +173,12 @@ motd-video-analyser/
 - **[architecture.md](docs/architecture.md)** - Technical reference (config, caching, performance)
 - **[analysis_schema.md](docs/domain/analysis_schema.md)** - JSON schema for LLM output
 - **[Domain Glossary](docs/domain/README.md)** - FT graphics, running order, episode structure
-- **[Business Rules](docs/domain/business_rules.md)** - Validation rules for OCR hints
 - **[Visual Patterns](docs/domain/visual_patterns.md)** - Episode timing patterns
 - **[Tech Tradeoffs](docs/tech-tradeoffs.md)** - Library comparisons and alternatives
 
 ## Current Results
 
-**Test Episode**: motd_2025-26_2025-11-01 (7 matches, 84 minutes)
+**Test Episode**: motd_2026-27_2026-08-22
 
 | Metric | Result |
 |--------|--------|

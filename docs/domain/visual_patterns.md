@@ -2,8 +2,8 @@
 
 > **Last reviewed:** 2025-12-18
 
-**Episode:** motd_2025-26_2025-11-01
-**Purpose:** Document recurring visual patterns in MOTD to guide OCR implementation
+**Episode:** motd_2025-26_2025-11-01 (last season; retained as the reference timeline)
+**Purpose:** Document MOTD's recurring episode structure and typical segment durations
 
 ---
 

@@ -4,6 +4,6 @@
 - `cache/{episode_id}/` - Pipeline outputs:
   - `transcript.json` - Transcription with timestamps
   - `analysis.json` - Structured episode analysis
-- `fixtures/` - Fixture JSON files (e.g., `premier_league_2025_26.json`)
-- `teams/` - Team list JSON files (e.g., `premier_league_2025_26.json`)
-- `episodes/` - Episode manifest (episode_manifest.json)
+- `fixtures/` - Fixture JSON files (e.g., `premier_league_2026_27.json`)
+- `teams/` - Team list JSON files (e.g., `premier_league_2026_27.json`)
+- `episodes/` - Episode manifest (episode_manifest.json) — provenance only, not read by the pipeline

@@ -2,7 +2,7 @@
 
 ## What This Project Does
 
-**MOTD Analyser** - Video analysis pipeline to objectively measure coverage bias in BBC's Match of the Day. Uses LLM-based analysis to identify running order, segment boundaries, and airtime distribution from MOTD episodes (2025/26 season).
+**MOTD Analyser** - Video analysis pipeline to objectively measure coverage bias in BBC's Match of the Day. Uses LLM-based analysis to identify running order, segment boundaries, and airtime distribution from MOTD episodes (2026/27 season).
 
 **Workflow:** Run automated pipeline → Generate LLM prompt → Claude analysis → Save structured JSON
 
@@ -59,7 +59,7 @@ Commit directly to main.
 
 Fixtures come from the public Fantasy Premier League API, one file per season at
 `data/fixtures/premier_league_{season}.json`. The API only serves the season in
-progress — there is no archive endpoint, so 2025/26 stays hand-maintained.
+progress — there is no archive endpoint, so past seasons cannot be re-fetched.
 
 Club names and venues are not in the FPL payload; `fixtures sync` resolves them
 from `data/teams/premier_league.json`, keyed by three-letter club code. A newly
@@ -69,7 +69,6 @@ promoted club must be added there or the sync fails loudly.
 
 See [docs/domain/](docs/domain/) for business context:
 - [Glossary](docs/domain/README.md) - FT Graphics, Running Order, Segment Types
-- [Business Rules](docs/domain/business_rules.md) - Validation logic
 - [Visual Patterns](docs/domain/visual_patterns.md) - Episode structure, timings
 
 ## Common Commands

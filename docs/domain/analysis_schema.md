@@ -10,7 +10,7 @@ This document defines the JSON structure for LLM-analysed episode data.
 data/analysis/{episode_id}/analysis.json
 ```
 
-Example: `data/analysis/motd_2025-26_2025-11-22/analysis.json`
+Example: `data/analysis/motd_2026-27_2026-08-22/analysis.json`
 
 ## Workflow
 

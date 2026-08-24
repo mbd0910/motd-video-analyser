@@ -12,7 +12,7 @@ FIXTURES_DIR = Path("data/fixtures")
 
 
 def fixtures_path_for_season(season: str) -> Path:
-    """Path to a season's fixtures file, from a season label like "2025-26"."""
+    """Path to a season's fixtures file, from a season label like "2026-27"."""
     return FIXTURES_DIR / f"premier_league_{season.replace('-', '_')}.json"
 
 
