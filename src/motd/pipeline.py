@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 
 from motd.cache import get_or_compute, load
-from motd.episode import DEFAULT_CACHE_DIR, Episode
+from motd.episode import DEFAULT_ANALYSIS_DIR, DEFAULT_CACHE_DIR, Episode
 from motd.models import EpisodeAnalysis, Fixture, Transcript
 
 logger = logging.getLogger(__name__)
@@ -30,6 +30,7 @@ def run(
     skip_to: str | None = None,
     force: bool = False,
     cache_dir: str = str(DEFAULT_CACHE_DIR),
+    analysis_dir: str = str(DEFAULT_ANALYSIS_DIR),
 ) -> None:
     """Run the full analysis pipeline.
 
@@ -41,6 +42,7 @@ def run(
         skip_to: Stage to skip to (e.g. "analyse").
         force: Force re-processing even if cached.
         cache_dir: Base directory for cached outputs.
+        analysis_dir: Directory holding the committed analysis JSON.
     """
     pipeline_start = time.monotonic()
     logger.info("Pipeline starting")
@@ -72,7 +74,9 @@ def run(
 
     # Resolve episode identity and cache paths
     try:
-        ep = Episode.from_id(episode_id, cache_base=Path(cache_dir))
+        ep = Episode.from_id(
+            episode_id, cache_base=Path(cache_dir), analysis_base=Path(analysis_dir)
+        )
     except ValueError as exc:
         raise PipelineError(str(exc)) from exc
     ep.ensure_cache_dir()
@@ -133,9 +137,10 @@ def run(
             "analyse", _do_analyse,
             transcript=transcript, candidates=candidates, episode_id=episode_id,
         )
+        ep.analysis_path.parent.mkdir(parents=True, exist_ok=True)
         ep.analysis_path.write_text(analysis.model_dump_json(indent=2))
         logger.info(
-            "Analysis cached: %s (%d matches)",
+            "Analysis written: %s (%d matches)",
             ep.analysis_path, len(analysis.matches),
         )
     elif "publish" in active_stages:

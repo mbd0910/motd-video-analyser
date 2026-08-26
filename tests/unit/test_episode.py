@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from motd.episode import DEFAULT_CACHE_DIR, Episode
+from motd.episode import DEFAULT_ANALYSIS_DIR, DEFAULT_CACHE_DIR, Episode
 
 
 class TestFromId:
@@ -27,11 +27,15 @@ class TestFromId:
         ep = Episode.from_id("motd_2025-26_2025-11-01")
         assert ep.cache_dir == DEFAULT_CACHE_DIR / "motd_2025-26_2025-11-01"
         assert ep.transcript_path == ep.cache_dir / "transcript.json"
-        assert ep.analysis_path == ep.cache_dir / "analysis.json"
+        assert ep.analysis_path == DEFAULT_ANALYSIS_DIR / "motd_2025-26_2025-11-01.json"
 
     def test_custom_cache_base(self, tmp_path: Path) -> None:
         ep = Episode.from_id("motd_2025-26_2025-11-01", cache_base=tmp_path)
         assert ep.cache_dir == tmp_path / "motd_2025-26_2025-11-01"
+
+    def test_custom_analysis_base(self, tmp_path: Path) -> None:
+        ep = Episode.from_id("motd_2025-26_2025-11-01", analysis_base=tmp_path)
+        assert ep.analysis_path == tmp_path / "motd_2025-26_2025-11-01.json"
 
     def test_invalid_format_raises(self) -> None:
         with pytest.raises(ValueError, match="Invalid episode_id"):

@@ -28,6 +28,11 @@ effort level — reasoning does not constrain the answer block, and `minItems` a
 rejected by structured outputs. The walkthrough is kept in provenance for auditing coverage,
 but it is model prose, not an index: it can contain overlaps the array resolves.
 
+**Analyses are committed, everything else is cache.** `analyse` writes
+`data/analysis/{episode_id}.json` and that file is the source of truth: publishing and any
+downstream site read it, and it cannot be re-derived once iPlayer drops the episode and the
+transcript with it.
+
 **The candidate window is the gameweek, not the broadcast date** (`fixtures.candidates_for_broadcast`).
 An episode shows more than that day's matches: a Friday game held over to Saturday's show, or
 a round-up of Saturday action on Sunday. Deliberately wider than any one episode needs.
@@ -59,7 +64,8 @@ calls `load_dotenv()` from the working directory; real environment variables win
 ## Project Structure
 
 - `src/motd/` - Main package
-- `data/` - Videos, cache, analysis outputs (gitignored) — see `data/CLAUDE.md`
+- `data/` - Fixtures, teams and analysis outputs (committed); videos and cache
+  (gitignored) — see `data/CLAUDE.md`
 - `tests/` - Test suite
 
 ## Critical Warnings

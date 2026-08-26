@@ -150,6 +150,11 @@ Use `--help` on any command for full options.
 }
 ```
 
+`analyse` writes this to `data/analysis/{episode_id}.json`, which is committed: it is the
+record the site is built from, and re-deriving one costs an API call against a transcript
+iPlayer stops serving once the episode expires. Everything else the pipeline writes —
+video, subtitles, transcript — stays in the gitignored cache.
+
 Team names, venue and score are not repeated here — `fpl_code` joins to the fixture that
 holds them. `candidate_fpl_codes` records what the model was allowed to choose from, which
 is the one input that cannot be reconstructed later once fixtures are re-synced.
@@ -164,7 +169,7 @@ motd-video-analyser/
 ├── data/
 │   ├── teams/                   # Premier League club directory
 │   ├── fixtures/                # Season fixtures from the FPL API
-│   ├── analysis/                # Analysis results
+│   ├── analysis/                # Analysis results, one JSON per episode (committed)
 │   ├── videos/                  # Downloaded episodes (gitignored)
 │   └── cache/                   # Pipeline cache (gitignored)
 └── tests/                       # pytest test suite

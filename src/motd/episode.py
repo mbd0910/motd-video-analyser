@@ -1,4 +1,4 @@
-"""Episode resolution — derives identity and cache paths from an episode ID.
+"""Episode resolution — derives identity and file paths from an episode ID.
 
 Consolidates episode ID format, season derivation, and cache path
 construction into a single frozen dataclass. No other module needs
@@ -13,6 +13,10 @@ from datetime import date as _date
 from pathlib import Path
 
 DEFAULT_CACHE_DIR = Path("data/cache")
+# Analyses are committed, unlike everything else the pipeline writes: they are the
+# record the site is built from, and re-deriving one costs an API call against a
+# transcript iPlayer stops serving once the episode expires.
+DEFAULT_ANALYSIS_DIR = Path("data/analysis")
 
 _EPISODE_ID_RE = re.compile(r"^motd_(\d{4}-\d{2})_(\d{4}-\d{2}-\d{2})$")
 _BROADCAST_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -44,7 +48,7 @@ def season_for_date(date: str) -> str:
 
 @dataclass(frozen=True, slots=True)
 class Episode:
-    """Resolved episode identity and cache paths.
+    """Resolved episode identity, cache paths and analysis output path.
 
     Constructed via from_id() or from_broadcast_date() — never directly.
     """
@@ -61,6 +65,7 @@ class Episode:
     def from_id(
         episode_id: str,
         cache_base: Path = DEFAULT_CACHE_DIR,
+        analysis_base: Path = DEFAULT_ANALYSIS_DIR,
     ) -> Episode:
         """Resolve from an existing episode_id string.
 
@@ -81,7 +86,7 @@ class Episode:
             season=season,
             cache_dir=ep_cache,
             transcript_path=ep_cache / "transcript.json",
-            analysis_path=ep_cache / "analysis.json",
+            analysis_path=analysis_base / f"{episode_id}.json",
             subtitles_path=ep_cache / "subtitles.ttml",
         )
 
@@ -89,6 +94,7 @@ class Episode:
     def from_broadcast_date(
         broadcast_date: str,
         cache_base: Path = DEFAULT_CACHE_DIR,
+        analysis_base: Path = DEFAULT_ANALYSIS_DIR,
     ) -> Episode:
         """Derive episode identity from a broadcast date (YYYY-MM-DD).
 
@@ -105,7 +111,7 @@ class Episode:
             season=season,
             cache_dir=ep_cache,
             transcript_path=ep_cache / "transcript.json",
-            analysis_path=ep_cache / "analysis.json",
+            analysis_path=analysis_base / f"{episode_id}.json",
             subtitles_path=ep_cache / "subtitles.ttml",
         )
 
