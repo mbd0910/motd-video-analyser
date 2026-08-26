@@ -1,0 +1,138 @@
+{
+  "episode_id": "motd_2026-27_2026-08-22",
+  "broadcast_date": "2026-08-22",
+  "season": "2026-27",
+  "gameweek": 1,
+  "matches": [
+    {
+      "fpl_code": 2645198,
+      "order": 1,
+      "segments": {
+        "studio_intro": {
+          "start": "00:21",
+          "end": "01:14"
+        },
+        "highlights": {
+          "start": "01:14",
+          "end": "11:33"
+        },
+        "studio_analysis": {
+          "start": "11:33",
+          "end": "18:51"
+        }
+      },
+      "notes": "Highlights block includes pitchside interviews from 10:13."
+    },
+    {
+      "fpl_code": 2645199,
+      "order": 2,
+      "segments": {
+        "studio_intro": {
+          "start": "18:51",
+          "end": "19:03"
+        },
+        "highlights": {
+          "start": "19:03",
+          "end": "28:36"
+        },
+        "studio_analysis": {
+          "start": "28:36",
+          "end": "32:54"
+        }
+      },
+      "notes": "Post-match interviews run 27:11-28:36 inside the highlights block."
+    },
+    {
+      "fpl_code": 2645196,
+      "order": 3,
+      "segments": {
+        "studio_intro": {
+          "start": "32:54",
+          "end": "33:06"
+        },
+        "highlights": {
+          "start": "33:06",
+          "end": "42:25"
+        },
+        "studio_analysis": {
+          "start": "42:25",
+          "end": "46:53"
+        }
+      },
+      "notes": "Analysis is followed by programme trailers (46:53-47:29) before the next match."
+    },
+    {
+      "fpl_code": 2645197,
+      "order": 4,
+      "segments": {
+        "studio_intro": {
+          "start": "47:29",
+          "end": "47:41"
+        },
+        "highlights": {
+          "start": "47:41",
+          "end": "55:43"
+        },
+        "studio_analysis": {
+          "start": "55:43",
+          "end": "58:18"
+        }
+      },
+      "notes": null
+    },
+    {
+      "fpl_code": 2645200,
+      "order": 5,
+      "segments": {
+        "studio_intro": {
+          "start": "58:18",
+          "end": "58:31"
+        },
+        "highlights": {
+          "start": "58:31",
+          "end": "65:44"
+        },
+        "studio_analysis": {
+          "start": "65:44",
+          "end": "67:24"
+        }
+      },
+      "notes": null
+    },
+    {
+      "fpl_code": 2645195,
+      "order": 6,
+      "segments": {
+        "studio_intro": {
+          "start": "67:24",
+          "end": "67:35"
+        },
+        "highlights": {
+          "start": "67:35",
+          "end": "74:27"
+        },
+        "studio_analysis": {
+          "start": "74:27",
+          "end": "79:13"
+        }
+      },
+      "notes": "Friday night fixture carried over as a full package and placed last; analysis runs to the end of the programme."
+    }
+  ],
+  "provenance": {
+    "model": "claude-opus-5",
+    "prompt_version": "3",
+    "analysed_at": "2026-08-26T07:09:31Z",
+    "candidate_fpl_codes": [
+      2645195,
+      2645198,
+      2645197,
+      2645199,
+      2645200,
+      2645196
+    ],
+    "input_tokens": 677,
+    "output_tokens": 4426,
+    "walkthrough": "00:21 studio opens the new season (Lineker/Shearer/Rooney). 00:53-01:14 setup for Hull City v Manchester United, handover to Guy Mowbray. Highlights 01:14-10:13 (Ajayi, Mendy), pitchside interviews 10:13-11:33, studio analysis 11:33-18:51 (Rooney and Shearer breaking down United's passivity), ending with the podcast gag.\n18:51-19:03 studio links to Ipswich Town v Sunderland, Mark Scott at Portman Road. Highlights 19:03-27:11 (Emersonn, Angulo, Clarke late winner), interviews 27:11-28:36, studio analysis 28:36-32:54.\n32:54-33:06 studio sets up Brentford v Tottenham Hotspur, Steve Bower commentating. Highlights 33:06-41:11 (Lewis-Potter, Janelt, Kayode; Thiago penalty miss), interviews 41:11-42:25, studio analysis 42:25-46:53, then programme trailers/promos 46:53-47:29.\n47:29-47:41 studio links to Everton v Crystal Palace, commentator Steve Wilson. Highlights 47:41-54:20 (Dewsbury-Hall, Barry), interviews with Moyes and Sage 54:20-55:43, studio analysis 55:43-58:18.\n58:18-58:31 studio sets up Nottingham Forest v Leeds United, Martin Fisher on commentary. Highlights 58:31-64:43 (Stach free kick late on), interviews 64:43-65:44, studio analysis 65:44-67:24 (closing with the Joe Hart trail).\n67:24-67:35 studio introduces Friday night's opener, Arsenal v Coventry City, Jonathan Pearce commentating. Highlights 67:35-73:22 (Havertz, Tzolis, Odegaard), Lampard and Arteta interviews 73:22-74:27, studio analysis 74:27 through to the close of the programme at 79:13 with the table."
+  }
+}

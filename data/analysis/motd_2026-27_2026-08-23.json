@@ -1,0 +1,158 @@
+{
+  "episode_id": "motd_2026-27_2026-08-23",
+  "broadcast_date": "2026-08-23",
+  "season": "2026-27",
+  "gameweek": 1,
+  "matches": [
+    {
+      "fpl_code": 2645203,
+      "order": 1,
+      "segments": {
+        "studio_intro": {
+          "start": "00:50",
+          "end": "02:28"
+        },
+        "highlights": {
+          "start": "02:28",
+          "end": "12:56"
+        },
+        "studio_analysis": {
+          "start": "12:56",
+          "end": "19:51"
+        }
+      },
+      "notes": "Studio intro includes the pre-match Kevin Keegan tribute montage."
+    },
+    {
+      "fpl_code": 2645202,
+      "order": 2,
+      "segments": {
+        "studio_intro": {
+          "start": "19:51",
+          "end": "20:04"
+        },
+        "highlights": {
+          "start": "20:09",
+          "end": "29:31"
+        },
+        "studio_analysis": {
+          "start": "29:31",
+          "end": "34:30"
+        }
+      },
+      "notes": null
+    },
+    {
+      "fpl_code": 2645201,
+      "order": 3,
+      "segments": {
+        "studio_intro": {
+          "start": "34:30",
+          "end": "34:39"
+        },
+        "highlights": {
+          "start": "34:45",
+          "end": "44:26"
+        },
+        "studio_analysis": {
+          "start": "44:26",
+          "end": "48:52"
+        }
+      },
+      "notes": null
+    },
+    {
+      "fpl_code": 2645195,
+      "order": 4,
+      "segments": {
+        "studio_intro": {
+          "start": "49:24",
+          "end": "49:36"
+        },
+        "highlights": {
+          "start": "49:36",
+          "end": "50:00"
+        }
+      },
+      "notes": "First item in the round-up of goals from earlier in the weekend."
+    },
+    {
+      "fpl_code": 2645196,
+      "order": 5,
+      "segments": {
+        "highlights": {
+          "start": "50:00",
+          "end": "50:40"
+        }
+      },
+      "notes": "Goals-only round-up item."
+    },
+    {
+      "fpl_code": 2645197,
+      "order": 6,
+      "segments": {
+        "highlights": {
+          "start": "50:40",
+          "end": "50:52"
+        }
+      },
+      "notes": "Goals-only round-up item."
+    },
+    {
+      "fpl_code": 2645200,
+      "order": 7,
+      "segments": {
+        "highlights": {
+          "start": "50:52",
+          "end": "51:05"
+        }
+      },
+      "notes": "Goals-only round-up item."
+    },
+    {
+      "fpl_code": 2645199,
+      "order": 8,
+      "segments": {
+        "highlights": {
+          "start": "51:05",
+          "end": "51:36"
+        }
+      },
+      "notes": "Goals-only round-up item."
+    },
+    {
+      "fpl_code": 2645198,
+      "order": 9,
+      "segments": {
+        "highlights": {
+          "start": "51:36",
+          "end": "51:55"
+        },
+        "studio_analysis": {
+          "start": "51:55",
+          "end": "58:10"
+        }
+      },
+      "notes": "Round-up clip of the goals followed by a long studio interview with Hull assistant head coach Dean Holden about the match."
+    }
+  ],
+  "provenance": {
+    "model": "claude-opus-5",
+    "prompt_version": "3",
+    "analysed_at": "2026-08-26T07:10:28Z",
+    "candidate_fpl_codes": [
+      2645195,
+      2645198,
+      2645197,
+      2645199,
+      2645200,
+      2645196,
+      2645201,
+      2645202,
+      2645203
+    ],
+    "input_tokens": 676,
+    "output_tokens": 4468,
+    "walkthrough": "00:50–02:28 studio: welcome, Hart & Murphy, Keegan tribute montage, leading into Newcastle v Liverpool; handover at 02:28 (\"Your commentator is Guy Mowbray\"). 02:28–12:56 Newcastle v Liverpool highlights (Elanga, Gakpo, Wissa, Szoboszlai pen) plus post-match interviews to 12:56. 12:56–19:51 studio analysis of Newcastle v Liverpool (penalty, Newcastle identity, Iraola's Liverpool), ending with Keegan tribute line and \"Well deserved\". 19:51–20:04 studio intro to Manchester City v Bournemouth, handover \"Steve Wilson was at the Etihad\". 20:09–29:31 Man City v Bournemouth highlights (Tavernier, Guehi, Gvardiol) plus Rose/Maresca/Guehi interviews. 29:31–34:30 studio analysis of City v Bournemouth (Guehi in midfield, Cherki, Maresca pragmatism, Rose's side). 34:30–34:39 studio intro to Brighton v Aston Villa, handover \"Simon Brotherton watched this one\". 34:45–44:26 Brighton v Villa highlights (own goal, De Cuyper, Hinshelwood x2, Gomes red, Kostoulas) plus post-match interviews including Emery on Watkins. 44:26–48:52 studio analysis of Brighton v Villa, widening into Villa's player exodus, ending \"The big rebuild\". 48:54–49:24 BBC promos/iPlayer trails, no match footage. 49:24–49:36 studio lead-in to the round-up of the rest of the weekend's goals, \"beginning with the champions on Friday night\". 49:36–50:00 Arsenal v Coventry City goals (Havertz, second, Odegaard). 50:00–50:40 Brentford v Tottenham goals (Lewis-Potter, Janelt, Kayode). 50:40–50:52 Everton v Crystal Palace goals (Dewsbury-Hall, second). 50:52–51:05 Nottingham Forest v Leeds United (Stach, late Leeds winner). 51:05–51:36 Ipswich Town v Sunderland (Emersonn, Angulo, Clarke winner). 51:36–51:55 Hull City v Manchester United (McBurnie and the second goal). 51:55–58:10 studio: extended interview with Hull assistant head coach Dean Holden about that opening-day win, tactics, squad and owner — analysis attached to Hull v Man United. 58:10–58:40 league table rundown and sign-off."
+  }
+}
