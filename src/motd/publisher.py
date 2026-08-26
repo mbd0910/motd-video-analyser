@@ -13,7 +13,8 @@ from typing import Protocol
 
 import boto3
 
-from motd.models import EpisodeAnalysis
+from motd.models import EpisodeAnalysis, PublishedEpisode
+from motd.roster import roster_for_episode
 
 logger = logging.getLogger(__name__)
 
@@ -75,14 +76,17 @@ class CloudflareR2Client:
             return None
 
 
-def _build_index_entry(analysis: EpisodeAnalysis) -> dict[str, object]:
-    """Build an index entry from an episode analysis."""
-    return {
-        "episode_id": analysis.episode_id,
-        "broadcast_date": analysis.broadcast_date,
-        "season": analysis.season,
-        "match_count": len(analysis.matches),
+def _build_index_entry(episode: PublishedEpisode) -> dict[str, object]:
+    """Build an index entry from a published episode."""
+    entry: dict[str, object] = {
+        "episode_id": episode.episode_id,
+        "broadcast_date": episode.broadcast_date,
+        "season": episode.season,
+        "match_count": len(episode.matches),
     }
+    if episode.roster is not None:
+        entry["presenter"] = episode.roster.presenter
+    return entry
 
 
 def _update_index(
@@ -108,10 +112,13 @@ def publish(analysis: EpisodeAnalysis, client: R2Client | None = None) -> str:
     if client is None:
         client = CloudflareR2Client()
 
-    episode_key = f"{EPISODES_PREFIX}/{analysis.episode_id}.json"
+    episode = PublishedEpisode.compose(
+        analysis, roster_for_episode(analysis.episode_id, analysis.season)
+    )
+    episode_key = f"{EPISODES_PREFIX}/{episode.episode_id}.json"
 
     # Upload episode JSON
-    episode_json = analysis.model_dump_json(indent=2).encode()
+    episode_json = episode.model_dump_json(indent=2).encode()
     logger.info("Uploading %s (%d bytes)", episode_key, len(episode_json))
     client.upload(episode_key, episode_json)
 
@@ -126,7 +133,7 @@ def publish(analysis: EpisodeAnalysis, client: R2Client | None = None) -> str:
             logger.warning("Corrupted index.json in R2 — rebuilding from scratch")
             existing_index = []
 
-    entry = _build_index_entry(analysis)
+    entry = _build_index_entry(episode)
     updated_index = _update_index(existing_index, entry)
 
     index_json = json.dumps({"episodes": updated_index}, indent=2).encode()

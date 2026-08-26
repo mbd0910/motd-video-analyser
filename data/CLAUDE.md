@@ -7,5 +7,8 @@
   - `prompt.{context,task}.txt` - `analyse --dry-run` output
 - `analysis/{episode_id}.json` - Structured episode analysis. Committed: this is the
   source of truth downstream reads, and it cannot be re-derived once iPlayer drops the episode.
+- `rosters/motd_{season}.json` - Studio roster per episode (presenter, pundits, guests),
+  keyed by episode_id. Hand-entered and committed: the subtitles carry no names, so this
+  cannot be derived. Joined onto the analysis at publish time, never written into it.
 - `fixtures/` - Fixture JSON files (e.g., `premier_league_2026_27.json`)
 - `teams/` - Team list JSON files (e.g., `premier_league_2026_27.json`)

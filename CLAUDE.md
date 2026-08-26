@@ -28,6 +28,13 @@ effort level — reasoning does not constrain the answer block, and `minItems` a
 rejected by structured outputs. The walkthrough is kept in provenance for auditing coverage,
 but it is model prose, not an index: it can contain overlaps the array resolves.
 
+**The roster is metadata, not analysis.** Who presented and punditted an episode lives in
+`data/rosters/motd_{season}.json`, hand-entered — the TTML carries a four-colour speaker
+palette but no names, so it is unrecoverable from a transcript. It is never written into
+`data/analysis/`: that file is rewritten wholesale by every `analyse` run, which would
+fight a hand-edited field. `publisher` joins the two into a `PublishedEpisode` on the way
+out, so correcting a roster costs a re-publish rather than a billed re-analysis.
+
 **Analyses are committed, everything else is cache.** `analyse` writes
 `data/analysis/{episode_id}.json` and that file is the source of truth: publishing and any
 downstream site read it, and it cannot be re-derived once iPlayer drops the episode and the
@@ -43,6 +50,7 @@ a round-up of Saturday action on Sunday. Deliberately wider than any one episode
 
 **Modules** (`src/motd/`):
 - `models.py` - **Pydantic data contracts** (Transcript, EpisodeAnalysis, Fixture, etc.)
+- `roster.py` - **Studio roster** (per-episode presenter/pundits/guests, loaded per season)
 - `fixtures.py` - **Fixture loading** (FixtureProvider interface + FileFixtureProvider + candidate window)
 - `fpl.py` - **Fixture sync** (Fantasy Premier League API → season fixtures file)
 - `clubs.py` - **Club directory** (club code → canonical name, nicknames, venue)
@@ -111,6 +119,9 @@ before writing if the directory and the live payload disagree.
 - **A match can appear in two episodes.** MOTD2 round-ups revisit Saturday games covered the
   night before. Both are recorded the same way; full package versus brief second look is
   derived later from duration and earlier episodes, not stored.
+- **Subtitle colour is not an identity.** BBC marks speaker changes with a four-colour
+  palette reused across the whole programme: white is the presenter in studio but the
+  commentator during highlights. It separates voices within a stretch; it does not name them.
 - **This stage produces running order and timings only.** No interpretation, no airtime
   aggregation, no bias measurement — those come later, off the stored data.
 
@@ -123,6 +134,9 @@ Commands below assume `uv run` in front, or an activated `.venv`.
 
 **Fixture data:**
 - `python -m motd fixtures sync [--dry-run]` — refresh the current season's fixtures from the FPL API
+
+**Roster data:**
+- `python -m motd roster show SEASON` — list the recorded rosters and validate the file
 
 **Individual stages:**
 - `python -m motd download URL_OR_ID BROADCAST_DATE` (date as YYYY-MM-DD — iPlayer metadata has no date fields)

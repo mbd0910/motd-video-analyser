@@ -103,6 +103,27 @@ class AnalysisProvenance(BaseModel):
     walkthrough: str | None = None
 
 
+class EpisodeRoster(BaseModel):
+    """Who was on screen in the studio for an episode.
+
+    Hand-entered from the broadcast, not derived: the subtitles carry a four-colour
+    speaker palette but no names, so nothing here can be recovered from a transcript.
+    """
+
+    presenter: str = Field(min_length=1)
+    pundits: list[str] = Field(default_factory=list)
+    guests: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def people_are_named_once(self) -> EpisodeRoster:
+        people = [self.presenter, *self.pundits, *self.guests]
+        if any(not name.strip() for name in people):
+            raise ValueError(f"Blank name in roster: {people}")
+        if len(set(people)) != len(people):
+            raise ValueError(f"Same person listed twice: {people}")
+        return self
+
+
 class EpisodeAnalysis(BaseModel):
     """Running order and segment timings for one MOTD episode."""
 
@@ -122,3 +143,20 @@ class EpisodeAnalysis(BaseModel):
         if orders != list(range(1, len(orders) + 1)):
             raise ValueError(f"Running order must be 1..{len(orders)}, got {orders}")
         return self
+
+
+class PublishedEpisode(EpisodeAnalysis):
+    """The wire format: an analysis with its episode metadata joined in.
+
+    A separate type so `data/analysis/` stays purely what the model produced and
+    `data/rosters/` stays purely hand-entered — the two meet only on the way out,
+    which lets a roster be corrected by re-publishing rather than re-analysing.
+    """
+
+    roster: EpisodeRoster | None = None
+
+    @staticmethod
+    def compose(
+        analysis: EpisodeAnalysis, roster: EpisodeRoster | None
+    ) -> PublishedEpisode:
+        return PublishedEpisode(**analysis.model_dump(), roster=roster)

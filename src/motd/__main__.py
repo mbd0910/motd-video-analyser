@@ -320,6 +320,35 @@ def fixtures_sync(output: str | None, dry_run: bool) -> None:
     click.echo(f"Wrote {out_path}")
 
 
+@cli.group()
+def roster() -> None:
+    """Manage studio rosters (presenter, pundits, guests)."""
+
+
+@roster.command("show")
+@click.argument("season")
+def roster_show(season: str) -> None:
+    """List the recorded rosters for SEASON (e.g. 2026-27)."""
+    from motd.roster import RosterBook, RosterError, roster_path_for_season
+
+    try:
+        book = RosterBook.for_season(season)
+    except RosterError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+
+    click.echo(f"{roster_path_for_season(season)} — {len(book.episode_ids())} episodes")
+    for episode_id in book.episode_ids():
+        entry = book.get(episode_id)
+        assert entry is not None
+        line = f"  {episode_id}  {entry.presenter}"
+        if entry.pundits:
+            line += f" with {', '.join(entry.pundits)}"
+        if entry.guests:
+            line += f" (guests: {', '.join(entry.guests)})"
+        click.echo(line)
+
+
 @cli.command()
 @click.argument("video_path", required=False)
 @click.option("--url", help="BBC iPlayer URL to download and process.")

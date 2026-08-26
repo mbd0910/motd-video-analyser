@@ -6,7 +6,13 @@ import json
 
 import pytest
 
-from motd.models import EpisodeAnalysis, MatchCoverage, Segment
+from motd.models import (
+    EpisodeAnalysis,
+    EpisodeRoster,
+    MatchCoverage,
+    PublishedEpisode,
+    Segment,
+)
 from motd.publisher import (
     _build_index_entry,
     _update_index,
@@ -55,8 +61,7 @@ class FakeR2Client:
 @pytest.mark.unit
 class TestBuildIndexEntry:
     def test_extracts_metadata(self) -> None:
-        analysis = _make_analysis()
-        entry = _build_index_entry(analysis)
+        entry = _build_index_entry(PublishedEpisode.compose(_make_analysis(), None))
 
         assert entry["episode_id"] == "motd_2025-26_2025-11-01"
         assert entry["broadcast_date"] == "2025-11-01"
@@ -64,9 +69,19 @@ class TestBuildIndexEntry:
         assert entry["match_count"] == 2
 
     def test_zero_matches(self) -> None:
-        analysis = _make_analysis(num_matches=0)
-        entry = _build_index_entry(analysis)
+        entry = _build_index_entry(
+            PublishedEpisode.compose(_make_analysis(num_matches=0), None)
+        )
         assert entry["match_count"] == 0
+
+    def test_presenter_included_when_a_roster_is_known(self) -> None:
+        roster = EpisodeRoster(presenter="Mark Chapman", pundits=["Alan Shearer"])
+        entry = _build_index_entry(PublishedEpisode.compose(_make_analysis(), roster))
+        assert entry["presenter"] == "Mark Chapman"
+
+    def test_presenter_omitted_when_unrecorded(self) -> None:
+        entry = _build_index_entry(PublishedEpisode.compose(_make_analysis(), None))
+        assert "presenter" not in entry
 
 
 # -- _update_index tests --
@@ -202,3 +217,47 @@ class TestPublish:
         url = publish(analysis, client)
 
         assert url == "episodes/motd_2025-26_2025-11-01.json"
+
+
+@pytest.mark.unit
+class TestRosterJoin:
+    def test_publish_joins_the_season_roster(self, tmp_path, monkeypatch) -> None:
+        import json as _json
+
+        from motd import roster as roster_module
+
+        rosters = tmp_path / "rosters"
+        rosters.mkdir()
+        (rosters / "motd_2025_26.json").write_text(_json.dumps({
+            "season": "2025-26",
+            "episodes": {
+                "motd_2025-26_2025-11-01": {
+                    "presenter": "Mark Chapman",
+                    "pundits": ["Alan Shearer"],
+                }
+            },
+        }))
+        monkeypatch.setattr(roster_module, "ROSTERS_DIR", rosters)
+
+        client = FakeR2Client()
+        publish(_make_analysis(), client=client)
+
+        published = _json.loads(client.objects["episodes/motd_2025-26_2025-11-01.json"])
+        assert published["roster"]["presenter"] == "Mark Chapman"
+        assert published["roster"]["pundits"] == ["Alan Shearer"]
+
+        index = _json.loads(client.objects["episodes/index.json"])
+        assert index["episodes"][0]["presenter"] == "Mark Chapman"
+
+    def test_publish_survives_a_season_with_no_roster_file(self, tmp_path, monkeypatch) -> None:
+        import json as _json
+
+        from motd import roster as roster_module
+
+        monkeypatch.setattr(roster_module, "ROSTERS_DIR", tmp_path / "absent")
+
+        client = FakeR2Client()
+        publish(_make_analysis(), client=client)
+
+        published = _json.loads(client.objects["episodes/motd_2025-26_2025-11-01.json"])
+        assert published["roster"] is None
