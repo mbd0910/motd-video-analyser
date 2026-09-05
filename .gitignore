@@ -228,3 +228,6 @@ logs/
 
 # Ralph loop scratch state
 progress.txt
+
+# Working drafts (artifact sources, scratch analysis)
+drafts/
