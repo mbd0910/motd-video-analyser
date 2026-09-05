@@ -1,0 +1,162 @@
+{
+  "episode_id": "motd_2026-27_2026-08-30",
+  "broadcast_date": "2026-08-30",
+  "season": "2026-27",
+  "gameweek": 2,
+  "matches": [
+    {
+      "fpl_code": 2645207,
+      "order": 1,
+      "segments": {
+        "studio_intro": {
+          "start": "00:15",
+          "end": "01:25"
+        },
+        "highlights": {
+          "start": "01:25",
+          "end": "13:15"
+        },
+        "studio_analysis": {
+          "start": "13:15",
+          "end": "18:45"
+        }
+      },
+      "notes": null
+    },
+    {
+      "fpl_code": 2645212,
+      "order": 2,
+      "segments": {
+        "studio_intro": {
+          "start": "18:45",
+          "end": "19:00"
+        },
+        "highlights": {
+          "start": "19:00",
+          "end": "30:08"
+        },
+        "studio_analysis": {
+          "start": "30:08",
+          "end": "35:57"
+        }
+      },
+      "notes": null
+    },
+    {
+      "fpl_code": 2645210,
+      "order": 3,
+      "segments": {
+        "studio_intro": {
+          "start": "35:57",
+          "end": "36:05"
+        },
+        "highlights": {
+          "start": "36:05",
+          "end": "45:19"
+        },
+        "studio_analysis": {
+          "start": "45:19",
+          "end": "49:34"
+        }
+      },
+      "notes": null
+    },
+    {
+      "fpl_code": 2645213,
+      "order": 4,
+      "segments": {
+        "studio_intro": {
+          "start": "49:34",
+          "end": "49:49"
+        },
+        "highlights": {
+          "start": "49:49",
+          "end": "57:28"
+        },
+        "studio_analysis": {
+          "start": "57:28",
+          "end": "61:04"
+        }
+      },
+      "notes": "Boundary between Isidor's interview and studio discussion of his psychology work is blurred; analysis start is approximate."
+    },
+    {
+      "fpl_code": 2645209,
+      "order": 5,
+      "segments": {
+        "studio_intro": {
+          "start": "61:04",
+          "end": "61:14"
+        },
+        "highlights": {
+          "start": "61:14",
+          "end": "62:05"
+        }
+      },
+      "notes": "Friday night game shown as the first item in the end-of-show goals round-up."
+    },
+    {
+      "fpl_code": 2645211,
+      "order": 6,
+      "segments": {
+        "highlights": {
+          "start": "62:05",
+          "end": "62:37"
+        }
+      },
+      "notes": "Goals-only round-up item."
+    },
+    {
+      "fpl_code": 2645205,
+      "order": 7,
+      "segments": {
+        "highlights": {
+          "start": "62:37",
+          "end": "63:03"
+        }
+      },
+      "notes": "Goals-only round-up item."
+    },
+    {
+      "fpl_code": 2645208,
+      "order": 8,
+      "segments": {
+        "highlights": {
+          "start": "63:03",
+          "end": "63:15"
+        }
+      },
+      "notes": "Goals-only round-up item."
+    },
+    {
+      "fpl_code": 2645214,
+      "order": 9,
+      "segments": {
+        "highlights": {
+          "start": "63:15",
+          "end": "63:33"
+        }
+      },
+      "notes": "Goals-only round-up item, last footage before the transfer-window discussion."
+    }
+  ],
+  "provenance": {
+    "model": "claude-opus-5",
+    "prompt_version": "3",
+    "analysed_at": "2026-09-05T16:02:18Z",
+    "candidate_fpl_codes": [
+      2645209,
+      2645211,
+      2645205,
+      2645208,
+      2645214,
+      2645207,
+      2645210,
+      2645213,
+      2645212
+    ],
+    "input_tokens": 676,
+    "output_tokens": 5021,
+    "walkthrough": "00:15–01:25 studio open: host welcomes, Shay Given and Ellen White introduced, four games trailed, transfer window billed for the end; hands to Stamford Bridge with Jonathan Pearce named as commentator. | Chelsea v Brighton — handover 01:25, commentary and pitchside interviews (Alonso, Hurzeler, Chelsea player) run to 13:15; studio analysis of Alonso's system, wing-backs, Martinez 13:15–18:45. | Manchester United v Ipswich — studio setup 18:45 (\"after defeat at Hull last week...Commentary comes from Steven Wyeth\"), commentary 19:00 to interviews with Carrick, O'Neil and Bruno Fernandes ending 30:08; studio analysis of Bruno, Rashford/Mainoo and the Maguire handball/own-goal law 30:08–35:57. | Leeds United v Brentford — studio setup 35:57 (\"Next, Leeds and Brentford...Alistair Mann was at Elland Road\"), commentary 36:05 through to manager/player interviews ending 45:19; studio analysis of Brentford's first half, Farke's changes and the Brentford penalty shout 45:19–49:34. | Sunderland v Fulham — studio setup 49:34 (\"Vicki Sparks was at the Stadium of Light\"), commentary from 49:49 including Le Bris, Arbeloa and Isidor interviews to roughly 57:28; studio analysis of the substitutes, Mukiele and Arbeloa's comments 57:28–61:04. | 61:04 host throws to the rest of the weekend's goals: Crystal Palace v Manchester City round-up 61:14–62:05 (Haaland, Cherki, Foden, Donnarumma own goal); Liverpool v Nottingham Forest 62:05–62:37 (Ndoye, Isak, Forest penalty, Munoz); Bournemouth v Everton 62:37–63:03 (Scott, Tarkowski late equaliser); Coventry City v Hull City 63:03–63:15 (Liam Millar winner); Tottenham v Newcastle 63:15–63:33 (Elanga, Wissa). | 63:33 onwards: iPlayer/Monday Night Club plugs, transfer deadline discussion with the BBC's transfer correspondent, league table and sign-off to 68:57. No further match footage."
+  }
+}

@@ -2,7 +2,7 @@
   "season": "2026-27",
   "competition": "Premier League",
   "source": "https://fantasy.premierleague.com/api/fixtures/",
-  "fetched_at": "2026-08-24T19:58:59Z",
+  "fetched_at": "2026-09-05T15:58:00Z",
   "fixtures": [
     {
       "fpl_code": 2645195,
@@ -168,8 +168,11 @@
       "home_code": "FUL",
       "away_code": "CHE",
       "venue": "Craven Cottage",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 2,
+        "away": 3
+      },
+      "played": true
     },
     {
       "fpl_code": 2645209,
@@ -182,8 +185,11 @@
       "home_code": "CRY",
       "away_code": "MCI",
       "venue": "Selhurst Park",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 1,
+        "away": 4
+      },
+      "played": true
     },
     {
       "fpl_code": 2645211,
@@ -196,8 +202,11 @@
       "home_code": "LIV",
       "away_code": "NFO",
       "venue": "Anfield",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 2,
+        "away": 2
+      },
+      "played": true
     },
     {
       "fpl_code": 2645205,
@@ -210,8 +219,11 @@
       "home_code": "BOU",
       "away_code": "EVE",
       "venue": "Vitality Stadium",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 1,
+        "away": 1
+      },
+      "played": true
     },
     {
       "fpl_code": 2645208,
@@ -224,8 +236,11 @@
       "home_code": "COV",
       "away_code": "HUL",
       "venue": "Coventry Building Society Arena",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 0,
+        "away": 1
+      },
+      "played": true
     },
     {
       "fpl_code": 2645214,
@@ -238,8 +253,11 @@
       "home_code": "TOT",
       "away_code": "NEW",
       "venue": "Tottenham Hotspur Stadium",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 0,
+        "away": 2
+      },
+      "played": true
     },
     {
       "fpl_code": 2645207,
@@ -252,8 +270,11 @@
       "home_code": "CHE",
       "away_code": "BHA",
       "venue": "Stamford Bridge",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 4,
+        "away": 3
+      },
+      "played": true
     },
     {
       "fpl_code": 2645210,
@@ -266,8 +287,11 @@
       "home_code": "LEE",
       "away_code": "BRE",
       "venue": "Elland Road",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 1,
+        "away": 1
+      },
+      "played": true
     },
     {
       "fpl_code": 2645213,
@@ -280,8 +304,11 @@
       "home_code": "SUN",
       "away_code": "FUL",
       "venue": "Stadium of Light",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 1,
+        "away": 0
+      },
+      "played": true
     },
     {
       "fpl_code": 2645212,
@@ -294,8 +321,11 @@
       "home_code": "MUN",
       "away_code": "IPS",
       "venue": "Old Trafford",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 5,
+        "away": 2
+      },
+      "played": true
     },
     {
       "fpl_code": 2645206,
@@ -308,8 +338,11 @@
       "home_code": "AVL",
       "away_code": "ARS",
       "venue": "Villa Park",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 0,
+        "away": 1
+      },
+      "played": true
     },
     {
       "fpl_code": 2645221,
@@ -322,8 +355,11 @@
       "home_code": "IPS",
       "away_code": "LIV",
       "venue": "Portman Road",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 0,
+        "away": 2
+      },
+      "played": true
     },
     {
       "fpl_code": 2645223,
@@ -336,8 +372,11 @@
       "home_code": "NEW",
       "away_code": "BOU",
       "venue": "St James' Park",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 2,
+        "away": 2
+      },
+      "played": true
     },
     {
       "fpl_code": 2645217,
@@ -648,34 +687,6 @@
       "played": false
     },
     {
-      "fpl_code": 2645240,
-      "match_id": "2026-09-19-LEE-CRY",
-      "gameweek": 5,
-      "date": "2026-09-19",
-      "kickoff": "15:00",
-      "home_team": "Leeds United",
-      "away_team": "Crystal Palace",
-      "home_code": "LEE",
-      "away_code": "CRY",
-      "venue": "Elland Road",
-      "final_score": null,
-      "played": false
-    },
-    {
-      "fpl_code": 2645241,
-      "match_id": "2026-09-19-MCI-SUN",
-      "gameweek": 5,
-      "date": "2026-09-19",
-      "kickoff": "15:00",
-      "home_team": "Manchester City",
-      "away_team": "Sunderland",
-      "home_code": "MCI",
-      "away_code": "SUN",
-      "venue": "Etihad Stadium",
-      "final_score": null,
-      "played": false
-    },
-    {
       "fpl_code": 2645242,
       "match_id": "2026-09-19-NEW-HUL",
       "gameweek": 5,
@@ -714,6 +725,34 @@
       "home_code": "BOU",
       "away_code": "LIV",
       "venue": "Vitality Stadium",
+      "final_score": null,
+      "played": false
+    },
+    {
+      "fpl_code": 2645240,
+      "match_id": "2026-09-20-LEE-CRY",
+      "gameweek": 5,
+      "date": "2026-09-20",
+      "kickoff": "14:00",
+      "home_team": "Leeds United",
+      "away_team": "Crystal Palace",
+      "home_code": "LEE",
+      "away_code": "CRY",
+      "venue": "Elland Road",
+      "final_score": null,
+      "played": false
+    },
+    {
+      "fpl_code": 2645241,
+      "match_id": "2026-09-20-MCI-SUN",
+      "gameweek": 5,
+      "date": "2026-09-20",
+      "kickoff": "14:00",
+      "home_team": "Manchester City",
+      "away_team": "Sunderland",
+      "home_code": "MCI",
+      "away_code": "SUN",
+      "venue": "Etihad Stadium",
       "final_score": null,
       "played": false
     },
@@ -1068,20 +1107,6 @@
       "played": false
     },
     {
-      "fpl_code": 2645272,
-      "match_id": "2026-10-24-LIV-BHA",
-      "gameweek": 8,
-      "date": "2026-10-24",
-      "kickoff": "15:00",
-      "home_team": "Liverpool",
-      "away_team": "Brighton & Hove Albion",
-      "home_code": "LIV",
-      "away_code": "BHA",
-      "venue": "Anfield",
-      "final_score": null,
-      "played": false
-    },
-    {
       "fpl_code": 2645267,
       "match_id": "2026-10-24-CHE-TOT",
       "gameweek": 8,
@@ -1120,6 +1145,20 @@
       "home_code": "HUL",
       "away_code": "BRE",
       "venue": "MKM Stadium",
+      "final_score": null,
+      "played": false
+    },
+    {
+      "fpl_code": 2645272,
+      "match_id": "2026-10-25-LIV-BHA",
+      "gameweek": 8,
+      "date": "2026-10-25",
+      "kickoff": "14:00",
+      "home_team": "Liverpool",
+      "away_team": "Brighton & Hove Albion",
+      "home_code": "LIV",
+      "away_code": "BHA",
+      "venue": "Anfield",
       "final_score": null,
       "played": false
     },
@@ -1251,10 +1290,10 @@
     },
     {
       "fpl_code": 2645276,
-      "match_id": "2026-11-01-AVL-FUL",
+      "match_id": "2026-10-31-AVL-FUL",
       "gameweek": 9,
-      "date": "2026-11-01",
-      "kickoff": "14:00",
+      "date": "2026-10-31",
+      "kickoff": "20:00",
       "home_team": "Aston Villa",
       "away_team": "Fulham",
       "home_code": "AVL",
