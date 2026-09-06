@@ -11,6 +11,7 @@ from motd.analyser import (
     LlmResult,
     Prompt,
     _assert_highlights_do_not_overlap,
+    _assert_spans_name_the_clubs,
     _build_prompt,
     _build_schema,
     _content_blocks,
@@ -29,6 +30,7 @@ from motd.models import (
     Transcript,
     TranscriptSegment,
 )
+from motd.squads import SquadIndex
 
 ARSENAL_CHELSEA = Fixture(
     fpl_code=2645195,
@@ -86,10 +88,18 @@ SAMPLE_TRANSCRIPT = Transcript(
         TranscriptSegment(start=10.0, end=60.0, text="Guy Mowbray was at the Emirates Stadium."),
         TranscriptSegment(start=60.0, end=600.0, text="And it's a goal from Saka!"),
         TranscriptSegment(start=2700.0, end=2760.0, text="Steve Wilson was at the Amex Stadium."),
+        TranscriptSegment(start=2800.0, end=5200.0, text="Welbeck turns and shoots!"),
     ],
 )
 
 HAYSTACK = _normalise(" ".join(seg.text for seg in SAMPLE_TRANSCRIPT.segments))
+
+SQUADS = SquadIndex.from_squads({
+    "ARS": ["Saka", "Ødegaard"],
+    "CHE": ["Palmer", "Caicedo"],
+    "BHA": ["Welbeck", "Mitoma"],
+    "LEE": ["Rutter", "Gnonto"],
+})
 
 
 def located(handover: str, **spans: tuple[str, str]) -> dict:
@@ -235,11 +245,12 @@ class TestContentBlocks:
 
 
 class TestResolveLocation:
-    def test_timings_and_the_second_the_match_starts(self) -> None:
+    def test_timings_and_the_second_the_match_reaches_the_screen(self) -> None:
         coverage, start = _resolve_location(ARSENAL_REPLY, ARSENAL_CHELSEA, HAYSTACK)
         assert coverage.fpl_code == ARSENAL_CHELSEA.fpl_code
         assert set(coverage.segments) == {"studio_intro", "highlights"}
-        assert start == 0.0
+        # 00:10, where the highlights start — not 00:00, where the studio intro does.
+        assert start == 10.0
 
     def test_the_verified_quote_is_kept_as_evidence(self) -> None:
         coverage, _ = _resolve_location(ARSENAL_REPLY, ARSENAL_CHELSEA, HAYSTACK)
@@ -251,6 +262,20 @@ class TestResolveLocation:
         assert coverage.segments["highlights"].end is None
         assert coverage.notes is None
 
+    def test_position_comes_from_the_highlights_not_a_shared_intro(self) -> None:
+        # The round-up introduces every remaining match at once, so ordering on the
+        # earliest segment of any kind ties them all and loses the order between them.
+        first = located("", studio_intro=("49:00", "49:36"), highlights=("50:40", "50:48"))
+        second = located("", studio_intro=("49:00", "49:36"), highlights=("50:00", "50:40"))
+        _, first_start = _resolve_location(first, ARSENAL_CHELSEA, HAYSTACK)
+        _, second_start = _resolve_location(second, BRIGHTON_LEEDS, HAYSTACK)
+        assert second_start < first_start
+
+    def test_a_match_with_only_an_intro_falls_back_to_it(self) -> None:
+        reply = located("", studio_intro=("12:00", "12:30"))
+        _, start = _resolve_location(reply, ARSENAL_CHELSEA, HAYSTACK)
+        assert start == 720.0
+
     def test_a_match_with_no_timings_is_a_failed_run_not_an_absence(self) -> None:
         with pytest.raises(AnalysisError, match="failed run"):
             _resolve_location(located(""), ARSENAL_CHELSEA, HAYSTACK)
@@ -260,9 +285,16 @@ class TestResolveLocation:
         with pytest.raises(AnalysisError, match="not in the transcript"):
             _resolve_location(reply, ARSENAL_CHELSEA, HAYSTACK)
 
-    def test_a_quote_too_short_to_mean_anything_raises(self) -> None:
-        reply = located("the", highlights=("00:10", "45:00"))
-        with pytest.raises(AnalysisError, match="too short to verify"):
+    def test_a_match_with_no_handover_to_quote_is_accepted(self) -> None:
+        # The round-up runs matches back to back and hands over to none of them, so a
+        # missing quote is the broadcast, not a bad answer. The squad check covers it.
+        reply = located("", highlights=("00:10", "45:00"))
+        coverage, _ = _resolve_location(reply, ARSENAL_CHELSEA, HAYSTACK)
+        assert coverage.handover is None
+
+    def test_a_quote_that_is_offered_is_still_checked(self) -> None:
+        reply = located("Jon Champion was at Old Trafford.", highlights=("00:10", "45:00"))
+        with pytest.raises(AnalysisError, match="not in the transcript"):
             _resolve_location(reply, ARSENAL_CHELSEA, HAYSTACK)
 
     def test_punctuation_and_case_drift_do_not_break_verification(self) -> None:
@@ -318,12 +350,40 @@ class TestOverlapCheck:
             [self._match(1, 1, "63:06", "63:33"), self._match(2, 2, "62:05", "62:37")], []
         )
 
-    def test_two_matches_claiming_the_same_screen_time_raises(self) -> None:
-        # Each match is located by its own call, so nothing else catches this.
+    def test_disagreement_about_a_round_up_boundary_is_not_a_clash(self) -> None:
+        # Two flashes of about half a minute, timed by separate calls, disagreeing by
+        # thirteen seconds about where one ends and the next starts.
+        _assert_highlights_do_not_overlap(
+            [self._match(1, 1, "51:05", "51:36"), self._match(2, 2, "51:23", "51:50")], []
+        )
+
+    def test_two_matches_on_the_same_round_up_flash_still_raise(self) -> None:
+        with pytest.raises(AnalysisError, match="overlapping highlights"):
+            _assert_highlights_do_not_overlap(
+                [self._match(1, 1, "62:05", "62:37"), self._match(2, 2, "62:07", "62:39")], []
+            )
+
+    def test_a_flash_swallowed_by_a_full_package_raises(self) -> None:
+        with pytest.raises(AnalysisError, match="overlapping highlights"):
+            _assert_highlights_do_not_overlap(
+                [self._match(1, 1, "02:05", "12:26"), self._match(2, 2, "05:00", "05:30")], []
+            )
+
+    def test_two_packages_running_minutes_into_each_other_raise(self) -> None:
+        # Each match is located by its own call, so nothing else catches this. Five
+        # minutes is a quarter of the shorter package, but packages do not overlap.
         with pytest.raises(AnalysisError, match="overlapping highlights"):
             _assert_highlights_do_not_overlap(
                 [self._match(1, 1, "00:00", "20:00"), self._match(2, 2, "15:00", "40:00")], []
             )
+
+    def test_a_flash_overrunning_its_neighbour_is_left_to_the_squad_check(self) -> None:
+        # Round-up flashes last a second or two and the subtitle cues overlap, so
+        # thirteen seconds here is below the resolution of the source. Whether the span
+        # is the right match is checked against who is named in it instead.
+        _assert_highlights_do_not_overlap(
+            [self._match(1, 1, "50:40", "50:55"), self._match(2, 2, "50:42", "51:05")], []
+        )
 
 
 class TestTimelineShare:
@@ -364,7 +424,7 @@ class TestAnalyseWithFakeBackend:
     def test_analyse_returns_valid_analysis(self) -> None:
         analysis = analyse(
             SAMPLE_TRANSCRIPT, SAMPLE_CANDIDATES,
-            "motd_2025-26_2025-11-01", backend=replying_by_match(),
+            "motd_2025-26_2025-11-01", squads=SQUADS, backend=replying_by_match(),
         )
         assert isinstance(analysis, EpisodeAnalysis)
         assert analysis.episode_id == "motd_2025-26_2025-11-01"
@@ -377,7 +437,7 @@ class TestAnalyseWithFakeBackend:
         # order follows the clock, not the order the matches were asked about.
         analysis = analyse(
             SAMPLE_TRANSCRIPT, SAMPLE_CANDIDATES,
-            "motd_2025-26_2025-11-01", backend=replying_by_match(),
+            "motd_2025-26_2025-11-01", squads=SQUADS, backend=replying_by_match(),
         )
         assert [m.fpl_code for m in analysis.matches] == [
             ARSENAL_CHELSEA.fpl_code, BRIGHTON_LEEDS.fpl_code,
@@ -394,21 +454,21 @@ class TestAnalyseWithFakeBackend:
 
         analyse(
             SAMPLE_TRANSCRIPT, SAMPLE_CANDIDATES,
-            "motd_2025-26_2025-11-01", backend=counting,
+            "motd_2025-26_2025-11-01", squads=SQUADS, backend=counting,
         )
         assert len(tasks) == len(SAMPLE_CANDIDATES)
 
     def test_provenance_records_the_candidates_and_sums_the_calls(self) -> None:
         analysis = analyse(
             SAMPLE_TRANSCRIPT, SAMPLE_CANDIDATES,
-            "motd_2025-26_2025-11-01", backend=replying_by_match(),
+            "motd_2025-26_2025-11-01", squads=SQUADS, backend=replying_by_match(),
         )
         assert analysis.provenance is not None
         assert analysis.provenance.candidate_fpl_codes == [
             BRIGHTON_LEEDS.fpl_code, ARSENAL_CHELSEA.fpl_code,
         ]
         assert analysis.provenance.model == "fake-model"
-        assert analysis.provenance.prompt_version == "4"
+        assert analysis.provenance.prompt_version == "5"
         assert analysis.provenance.walkthrough is None
 
     def test_a_match_the_model_cannot_place_fails_the_whole_run(self) -> None:
@@ -416,18 +476,18 @@ class TestAnalyseWithFakeBackend:
         with pytest.raises(AnalysisError, match="failed run"):
             analyse(
                 SAMPLE_TRANSCRIPT, SAMPLE_CANDIDATES,
-                "motd_2025-26_2025-11-01", backend=fake_backend(located("")),
+                "motd_2025-26_2025-11-01", squads=SQUADS, backend=fake_backend(located("")),
             )
 
     def test_timings_that_leave_the_episode_unexplained_are_rejected(self) -> None:
         """One ten-minute package out of ninety minutes is not a whole show."""
         thin = located(
-            "Guy Mowbray was at the Emirates Stadium.", highlights=("02:05", "12:26")
+            "Guy Mowbray was at the Emirates Stadium.", highlights=("01:00", "09:00")
         )
         with pytest.raises(AnalysisError, match="account for only"):
             analyse(
                 SAMPLE_TRANSCRIPT, [ARSENAL_CHELSEA],
-                "motd_2025-26_2025-11-01", backend=fake_backend(thin),
+                "motd_2025-26_2025-11-01", squads=SQUADS, backend=fake_backend(thin),
             )
 
     def test_two_matches_landing_on_one_package_are_rejected(self) -> None:
@@ -437,7 +497,7 @@ class TestAnalyseWithFakeBackend:
         with pytest.raises(AnalysisError, match="overlapping highlights"):
             analyse(
                 SAMPLE_TRANSCRIPT, SAMPLE_CANDIDATES,
-                "motd_2025-26_2025-11-01", backend=fake_backend(both),
+                "motd_2025-26_2025-11-01", squads=SQUADS, backend=fake_backend(both),
             )
 
     def test_the_schema_reaching_the_backend_asks_for_one_match(self) -> None:
@@ -450,7 +510,7 @@ class TestAnalyseWithFakeBackend:
 
         analyse(
             SAMPLE_TRANSCRIPT, SAMPLE_CANDIDATES,
-            "motd_2025-26_2025-11-01", backend=capturing,
+            "motd_2025-26_2025-11-01", squads=SQUADS, backend=capturing,
         )
         assert set(captured["schema"]["properties"]) == {"handover", *SEGMENT_KEYS, "notes"}
 
@@ -461,22 +521,62 @@ class TestAnalyseWithFakeBackend:
         with pytest.raises(AnalysisError, match="LLM unavailable"):
             analyse(
                 SAMPLE_TRANSCRIPT, SAMPLE_CANDIDATES,
-                "motd_2025-26_2025-11-01", backend=failing,
+                "motd_2025-26_2025-11-01", squads=SQUADS, backend=failing,
             )
 
     def test_analyse_raises_on_invalid_episode_id(self) -> None:
         with pytest.raises(AnalysisError, match="Invalid episode_id"):
             analyse(
                 SAMPLE_TRANSCRIPT, SAMPLE_CANDIDATES, "bad_id",
-                backend=replying_by_match(),
+                squads=SQUADS, backend=replying_by_match(),
             )
 
     def test_analyse_raises_without_candidates(self) -> None:
         with pytest.raises(AnalysisError, match="No candidate fixtures"):
             analyse(
                 SAMPLE_TRANSCRIPT, [], "motd_2025-26_2025-11-01",
-                backend=replying_by_match(),
+                squads=SQUADS, backend=replying_by_match(),
             )
 
     def test_backend_satisfies_protocol(self) -> None:
         assert isinstance(replying_by_match(), LlmBackend)
+
+
+class TestSquadCheck:
+    def _match(self, fpl_code: int, start: str, end: str) -> MatchCoverage:
+        return MatchCoverage(
+            fpl_code=fpl_code, order=1,
+            segments={"highlights": {"start": start, "end": end}},
+        )
+
+    def _by_code(self) -> dict[int, Fixture]:
+        return {f.fpl_code: f for f in SAMPLE_CANDIDATES}
+
+    def test_a_span_naming_one_of_the_two_clubs_passes(self) -> None:
+        # Saka is at 01:00 in the sample transcript.
+        _assert_spans_name_the_clubs(
+            [self._match(ARSENAL_CHELSEA.fpl_code, "00:10", "09:00")],
+            self._by_code(), SAMPLE_TRANSCRIPT, SQUADS,
+        )
+
+    def test_a_span_naming_neither_club_raises(self) -> None:
+        # This is what a quote cannot catch: the quote exists in the transcript, but
+        # the timings point somewhere else entirely.
+        with pytest.raises(AnalysisError, match="the span is not this match"):
+            _assert_spans_name_the_clubs(
+                [self._match(ARSENAL_CHELSEA.fpl_code, "45:10", "46:00")],
+                self._by_code(), SAMPLE_TRANSCRIPT, SQUADS,
+            )
+
+    def test_the_error_names_who_was_actually_talked_about(self) -> None:
+        with pytest.raises(AnalysisError, match="BHA are"):
+            _assert_spans_name_the_clubs(
+                [self._match(ARSENAL_CHELSEA.fpl_code, "46:00", "80:00")],
+                self._by_code(), SAMPLE_TRANSCRIPT, SQUADS,
+            )
+
+    def test_an_untimed_match_is_left_to_the_other_checks(self) -> None:
+        _assert_spans_name_the_clubs(
+            [MatchCoverage(fpl_code=ARSENAL_CHELSEA.fpl_code, order=1)],
+            self._by_code(), SAMPLE_TRANSCRIPT, SQUADS,
+        )

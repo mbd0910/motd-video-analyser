@@ -110,8 +110,30 @@ def _build_fixture(
     }
 
 
-def fetch_fixtures(clubs: ClubDirectory) -> dict[str, Any]:
-    """Fetch the current season's fixtures and shape them into the on-disk document."""
+def _build_squads(bootstrap: dict[str, Any]) -> dict[str, list[str]]:
+    """Squad names per club code, for checking a claimed span really is that match.
+
+    Both the display name and the last word of the full name, because commentary uses
+    whichever reads naturally and the two differ often enough to matter.
+    """
+    team_codes = _team_codes(bootstrap)
+    squads: dict[str, set[str]] = {code: set() for code in team_codes.values()}
+    try:
+        for player in bootstrap["elements"]:
+            code = team_codes[player["team"]]
+            squads[code].add(player["web_name"])
+            squads[code].add(player["second_name"].split()[-1])
+    except (KeyError, IndexError, TypeError) as exc:
+        raise FplError(f"Unexpected bootstrap-static shape: {exc}") from exc
+    return {code: sorted(names) for code, names in sorted(squads.items())}
+
+
+def fetch_fixtures(clubs: ClubDirectory) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Fetch the season's fixtures and squads, shaped into their on-disk documents.
+
+    One call for both: squads come from the same bootstrap payload the fixture sync
+    already reads for club codes, so they cannot drift apart between syncs.
+    """
     bootstrap = _get(BOOTSTRAP_URL)
     raw_fixtures = _get(FIXTURES_URL)
     if not raw_fixtures:
@@ -126,15 +148,16 @@ def fetch_fixtures(clubs: ClubDirectory) -> dict[str, Any]:
     ]
     fixtures.sort(key=lambda f: (f["date"], f["kickoff"], f["match_id"]))
 
-    return {
-        "season": season_for_date(fixtures[0]["date"]),
-        "competition": "Premier League",
-        "source": FIXTURES_URL,
-        "fetched_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "fixtures": fixtures,
-    }
+    season = season_for_date(fixtures[0]["date"])
+    fetched_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    common = {"season": season, "competition": "Premier League", "fetched_at": fetched_at}
+
+    return (
+        {**common, "source": FIXTURES_URL, "fixtures": fixtures},
+        {**common, "source": BOOTSTRAP_URL, "squads": _build_squads(bootstrap)},
+    )
 
 
-def write_fixtures(document: dict[str, Any], path: Path) -> None:
+def write_document(document: dict[str, Any], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(document, indent=2, ensure_ascii=False) + "\n")

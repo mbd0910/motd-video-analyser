@@ -12,4 +12,7 @@
   keyed by episode_id. Hand-entered and committed: the subtitles carry no names, so this
   cannot be derived. Joined onto the analysis at publish time, never written into it.
 - `fixtures/` - Fixture JSON files (e.g., `premier_league_2026_27.json`)
+- `squads/` - Squad names per club code, written by the same `fixtures sync`. Committed:
+  the analyser checks a claimed span against who is named in it, and FPL serves only the
+  season in progress.
 - `teams/` - Team list JSON files (e.g., `premier_league_2026_27.json`)

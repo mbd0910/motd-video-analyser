@@ -302,10 +302,11 @@ def fixtures() -> None:
 @click.option("--output", type=click.Path(), help="Output path (derived from season if omitted).")
 @click.option("--dry-run", is_flag=True, help="Report what would change without writing.")
 def fixtures_sync(output: str | None, dry_run: bool) -> None:
-    """Fetch the current season's fixtures from the FPL API."""
+    """Fetch the current season's fixtures and squads from the FPL API."""
     from motd.clubs import ClubDirectory
     from motd.fixtures import fixtures_path_for_season
-    from motd.fpl import FplError, fetch_fixtures, write_fixtures
+    from motd.fpl import FplError, fetch_fixtures, write_document
+    from motd.squads import squads_path_for_season
 
     try:
         clubs = ClubDirectory.load()
@@ -314,24 +315,30 @@ def fixtures_sync(output: str | None, dry_run: bool) -> None:
         sys.exit(1)
 
     try:
-        document = fetch_fixtures(clubs)
+        fixtures_doc, squads_doc = fetch_fixtures(clubs)
     except (FplError, KeyError) as exc:
         click.echo(f"Error: {exc}", err=True)
         sys.exit(1)
 
-    season = document["season"]
-    all_fixtures = document["fixtures"]
+    season = fixtures_doc["season"]
+    all_fixtures = fixtures_doc["fixtures"]
     played = sum(1 for f in all_fixtures if f["played"])
-    out_path = Path(output) if output else fixtures_path_for_season(season)
+    squads = squads_doc["squads"]
+    named = sum(len(names) for names in squads.values())
+    fixtures_out = Path(output) if output else fixtures_path_for_season(season)
+    squads_out = squads_path_for_season(season)
 
     click.echo(f"Fetched {len(all_fixtures)} fixtures ({season}), {played} played")
+    click.echo(f"Fetched {named} squad names across {len(squads)} clubs")
 
     if dry_run:
-        click.echo(f"Dry run — would write {out_path}")
+        click.echo(f"Dry run — would write {fixtures_out} and {squads_out}")
         return
 
-    write_fixtures(document, out_path)
-    click.echo(f"Wrote {out_path}")
+    write_document(fixtures_doc, fixtures_out)
+    write_document(squads_doc, squads_out)
+    click.echo(f"Wrote {fixtures_out}")
+    click.echo(f"Wrote {squads_out}")
 
 
 @cli.group()

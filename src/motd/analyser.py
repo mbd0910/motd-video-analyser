@@ -25,6 +25,7 @@ from motd.models import (
     MatchCoverage,
     Transcript,
 )
+from motd.squads import SquadError, SquadIndex
 
 if TYPE_CHECKING:
     from anthropic.types import OutputConfigParam, TextBlockParam
@@ -41,16 +42,24 @@ DEFAULT_EFFORT: Effort = "xhigh"
 # Every match after the first reads the transcript from cache, so the write is paid
 # once per episode rather than once per call. 1h only helps when iterating.
 DEFAULT_CACHE_TTL: CacheTtl = "5m"
-PROMPT_VERSION = "4"
-# One match's timings, not a whole episode's — the answer is a few hundred tokens.
-MAX_TOKENS = 4096
+PROMPT_VERSION = "5"
+# The answer is a few hundred tokens, but thinking is billed against this too and a
+# match with a fuzzy boundary can spend thousands working it out.
+MAX_TOKENS = 16000
 
 # Post-match interviews fall inside the highlights run rather than standing alone.
 SEGMENT_KEYS = ("studio_intro", "highlights", "studio_analysis")
 
-# A handover quote is checked against the transcript rather than trusted, so it has to
-# be long enough that matching it means something.
+# A handover quote is checked when there is one, so it has to be long enough that
+# matching it means something. Round-up flashes have no handover at all.
 MIN_QUOTE_CHARS = 15
+
+# Two calls placing the same boundary disagree by a few seconds after a clean handover
+# and by more in the round-up, where matches pass in flashes of a second or two and the
+# subtitle cues themselves overlap. Drift is a property of the boundary, not of the
+# packages either side, so it does not scale with their length. Whether a span is the
+# right match at all is the squad check's job, not this one's.
+MAX_BOUNDARY_DRIFT_SECONDS = 20
 
 # Backstop for timings that are individually well-formed but collectively wrong. An
 # episode is match packages nearly end to end — titles, the table and trailers are the
@@ -147,6 +156,12 @@ def _call_claude(
     if response.stop_reason == "refusal":
         raise AnalysisError(f"Claude declined the request: {response.stop_details}")
 
+    if response.stop_reason == "max_tokens":
+        raise AnalysisError(
+            f"Claude hit the {MAX_TOKENS}-token ceiling and the reply is truncated. "
+            f"Raise MAX_TOKENS rather than trusting a partial answer."
+        )
+
     text = next((b.text for b in response.content if b.type == "text"), None)
     if text is None:
         raise AnalysisError(f"Claude returned no text block (stop_reason={response.stop_reason})")
@@ -171,6 +186,7 @@ def analyse(
     candidates: list[Fixture],
     episode_id: str,
     *,
+    squads: SquadIndex | None = None,
     backend: LlmBackend | None = None,
 ) -> EpisodeAnalysis:
     """Locate every candidate match in the episode and order them by when they aired.
@@ -183,14 +199,15 @@ def analyse(
         transcript: Episode transcript with timestamped segments.
         candidates: Fixtures the episode showed — see `fixtures.candidates_for_broadcast`.
         episode_id: Episode identifier (format: motd_YYYY-YY_YYYY-MM-DD).
+        squads: Squad lookup for checking spans. Defaults to the season's squads file.
         backend: LLM backend. Defaults to the Claude API.
 
     Returns:
         Validated EpisodeAnalysis.
 
     Raises:
-        AnalysisError: If any match cannot be located, or the located matches do not
-            add up to a coherent episode.
+        AnalysisError: If any match cannot be located, its span does not name either
+            club, or the located matches do not add up to a coherent episode.
     """
     if backend is None:
         backend = anthropic_backend()
@@ -202,6 +219,12 @@ def analyse(
         ep = Episode.from_id(episode_id)
     except ValueError as exc:
         raise AnalysisError(str(exc)) from exc
+
+    if squads is None:
+        try:
+            squads = SquadIndex.load(ep.season)
+        except SquadError as exc:
+            raise AnalysisError(str(exc)) from exc
 
     labels = [fixture_label(f) for f in candidates]
     if len(set(labels)) != len(labels):
@@ -234,6 +257,9 @@ def analyse(
 
     matches = _in_broadcast_order(located)
     _assert_highlights_do_not_overlap(matches, labels)
+    _assert_spans_name_the_clubs(
+        matches, {f.fpl_code: f for f in candidates}, transcript, squads
+    )
     _assert_episode_is_accounted_for(matches, transcript, episode_id)
 
     gameweeks = {f.gameweek for f in candidates if f.gameweek is not None}
@@ -409,8 +435,8 @@ def _resolve_location(
 ) -> tuple[MatchCoverage, float]:
     """One match's timings, with its handover quote checked against the transcript.
 
-    Returns the coverage alongside the second it starts, which is what puts it in the
-    running order — the model is never asked for a position. Every disagreement raises:
+    Returns the coverage alongside the second its highlights start, which is what puts
+    it in the running order — the model is never asked for a position. Every disagreement raises:
     a match that cannot be located is a broken run, not an editorial judgement, and a
     half-filled analysis is worse than none because the transcript cannot be re-fetched
     once iPlayer drops the episode.
@@ -431,18 +457,30 @@ def _resolve_location(
             f"shown, so this is a failed run rather than a match that did not air."
         )
 
+    # Checked when offered, never demanded: the round-up runs matches back to back and
+    # the studio hands over to none of them. The squad check is what holds every match
+    # to its timings — see `_assert_spans_name_the_clubs`.
     quote = _normalise(str(data.get("handover", "")))
-    if len(quote) < MIN_QUOTE_CHARS:
-        raise AnalysisError(f"{label}: handover quote too short to verify ({quote!r})")
-    if quote not in haystack:
+    if len(quote) >= MIN_QUOTE_CHARS and quote not in haystack:
         raise AnalysisError(
             f"{label}: handover quote is not in the transcript, so the timings around "
             f"it are not evidence — {quote!r}"
         )
 
-    starts = [_timestamp_seconds(s["start"]) for s in segments.values() if s["start"]]
-    starts = [s for s in starts if s is not None]
-    if not starts:
+    # Highlights first, because that is when the match is on screen. A studio intro can
+    # be shared — the round-up introduces six matches once — so the earliest segment of
+    # any kind ties every one of them together and loses the order between them.
+    start = next(
+        (
+            seconds
+            for key in ("highlights", "studio_intro", "studio_analysis")
+            if (span := segments.get(key))
+            and span["start"]
+            and (seconds := _timestamp_seconds(span["start"])) is not None
+        ),
+        None,
+    )
+    if start is None:
         raise AnalysisError(f"{label}: located but carries no usable start time")
 
     try:
@@ -457,7 +495,7 @@ def _resolve_location(
     except ValidationError as exc:
         raise AnalysisError(f"{label}: malformed coverage: {exc}") from exc
 
-    return coverage, min(starts)
+    return coverage, start
 
 
 def _in_broadcast_order(located: list[tuple[MatchCoverage, float]]) -> list[MatchCoverage]:
@@ -494,7 +532,8 @@ def _assert_highlights_do_not_overlap(matches: list[MatchCoverage], labels: list
 
     Each match is located by its own call, so nothing but this stops two of them landing
     on one package. Abutting is normal — one match's analysis runs into the next one's
-    intro — so only a genuine overlap is an error.
+    intro, and the round-up hands from one flash to the next — so only an overlap past
+    what two independent calls drift by is an error.
     """
     # Sorted by highlights, not by running order: a match is placed in the order by its
     # earliest segment of any kind, so the two sequences are not always the same.
@@ -503,13 +542,49 @@ def _assert_highlights_do_not_overlap(matches: list[MatchCoverage], labels: list
         key=lambda pair: pair[0],
     )
     for (first_span, first), (second_span, second) in zip(timed, timed[1:], strict=False):
-        if second_span[0] < first_span[1]:
+        overlap = min(first_span[1], second_span[1]) - second_span[0]
+        if overlap > MAX_BOUNDARY_DRIFT_SECONDS:
             raise AnalysisError(
                 f"Two matches claim overlapping highlights: fixture {first.fpl_code} "
                 f"({first.segments['highlights'].start}-{first.segments['highlights'].end}) "
                 f"and fixture {second.fpl_code} "
                 f"({second.segments['highlights'].start}-{second.segments['highlights'].end}). "
                 f"Candidates were {labels}."
+            )
+
+
+def _text_between(transcript: Transcript, span: tuple[float, float]) -> str:
+    start, end = span
+    return " ".join(seg.text for seg in transcript.segments if start <= seg.start <= end)
+
+
+def _assert_spans_name_the_clubs(
+    matches: list[MatchCoverage],
+    by_code: dict[int, Fixture],
+    transcript: Transcript,
+    squads: SquadIndex,
+) -> None:
+    """Check each claimed span against who is actually named in it.
+
+    A quote only proves a line exists somewhere in the transcript; this proves the
+    timings point at the right match, which is the thing being claimed. Players belong
+    to one club, so commentary over a match names that match — and it is the only
+    separator the round-up has.
+    """
+    for match in matches:
+        fixture = by_code[match.fpl_code]
+        span = _span_seconds(match, "highlights") or _span_seconds(match, "studio_analysis")
+        if span is None:
+            continue
+        named = squads.clubs_named_in(_text_between(transcript, span))
+        expected = {fixture.home_code, fixture.away_code}
+        if not named & expected:
+            raise AnalysisError(
+                f"{fixture_label(fixture)}: no {fixture.home_code} or {fixture.away_code} "
+                f"player is named between {match.segments['highlights'].start} and "
+                f"{match.segments['highlights'].end}"
+                + (f", but {', '.join(sorted(named))} are" if named else "")
+                + " — the span is not this match."
             )
 
 

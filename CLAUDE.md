@@ -32,14 +32,17 @@ verdict — `order` is the rank of the timestamps it reported, so gaps and repea
 expressible, and presence follows from having timings at all. Both were judgement slots the
 model could satisfy with a default, and defaults are what it kept reaching for.
 
-**The handover quote is checked, not trusted.** Each reply must quote the line the studio
-hands over on, verbatim; `_resolve_location` normalises punctuation and case and looks it up
-in the transcript. Asking "where is this match" biases towards finding one, and a citation
-that is really in the transcript is the cheap defence against an invented timing.
+**The squad list is what holds a match to its timings.** `_assert_spans_name_the_clubs`
+checks that the span claimed for a match names a player from one of the two clubs, using
+`data/squads/`. Players belong to one club, so this tests the timestamps rather than the
+prose — and it is the only separator the round-up has, where the studio hands over to
+nothing and matches run back to back. A handover quote is still recorded and verified
+where one exists, but it is never required: it proves a line is somewhere in the
+transcript, not that it is where the answer says it is.
 
-**A run fails whole or not at all.** A match that cannot be located, a quote that is not in
-the transcript, two matches claiming the same package, or timings covering less than
-`MIN_TIMELINE_SHARE` of the runtime all raise. Nothing is written when they do: a
+**A run fails whole or not at all.** A match that cannot be located, a span naming
+neither club, a quote that is not in the transcript, two matches claiming the same
+package, or timings covering less than `MIN_TIMELINE_SHARE` of the runtime all raise. Nothing is written when they do: a
 half-filled analysis is worse than none, because the transcript cannot be re-fetched once
 iPlayer drops the episode.
 
@@ -67,7 +70,8 @@ a round-up of Saturday action on Sunday. Deliberately wider than any one episode
 - `models.py` - **Pydantic data contracts** (Transcript, EpisodeAnalysis, Fixture, etc.)
 - `roster.py` - **Studio roster** (per-episode presenter/pundits/guests, loaded per season)
 - `fixtures.py` - **Fixture loading** (FixtureProvider interface + FileFixtureProvider + candidate window)
-- `fpl.py` - **Fixture sync** (Fantasy Premier League API → season fixtures file)
+- `squads.py` - **Squad lookup** (which clubs a stretch of commentary names)
+- `fpl.py` - **Fixture sync** (Fantasy Premier League API → season fixtures and squads)
 - `clubs.py` - **Club directory** (club code → canonical name, nicknames, venue)
 - `subtitles.py` - **Subtitles** (yt-dlp fetch + EBU-TT/TTML parse → Transcript)
 - `transcriber.py` - **Speech-to-text** (OpenAI Whisper API, chunked; standalone path)
@@ -109,8 +113,13 @@ Commit directly to main.
 ## Fixture Data
 
 Fixtures come from the public Fantasy Premier League API, one file per season at
-`data/fixtures/premier_league_{season}.json`. The API only serves the season in
+`data/fixtures/premier_league_{season}.json`, and squads from the same sync at
+`data/squads/premier_league_{season}.json`. The API only serves the season in
 progress — there is no archive endpoint, so past seasons cannot be re-fetched.
+
+Squads are a snapshot taken when the sync ran, so a January transfer moves a player
+out from under an August episode. That is tolerable because analysis happens within
+days of broadcast, and a match only needs one of its players named to check out.
 
 Club names and venues are not in the FPL payload; `fixtures sync` resolves them
 from `data/teams/premier_league.json`, keyed by three-letter club code. A newly
@@ -149,7 +158,8 @@ Commands below assume `uv run` in front, or an activated `.venv`.
 - `python -m motd run VIDEO_PATH [--url URL --date YYYY-MM-DD] [--episode-id ID] [--skip-to STAGE] [--force]`
 
 **Fixture data:**
-- `python -m motd fixtures sync [--dry-run]` — refresh the current season's fixtures from the FPL API
+- `python -m motd fixtures sync [--dry-run]` — refresh the current season's fixtures and
+  squads from the FPL API; both come from the one bootstrap payload, so they cannot drift apart
 
 **Roster data:**
 - `python -m motd roster show SEASON` — list the recorded rosters and validate the file

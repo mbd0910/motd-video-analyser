@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from motd.clubs import ClubDirectory
-from motd.fpl import FplError, _build_fixture, _team_codes, _verify_club_codes
+from motd.fpl import FplError, _build_fixture, _build_squads, _team_codes, _verify_club_codes
 
 BOOTSTRAP = {
     "teams": [
@@ -146,3 +146,34 @@ class TestClubDirectory:
             assert fixture["venue"], fixture["match_id"]
             assert directory.by_code(fixture["home_code"]).fpl_code
         assert {"COV", "HUL", "IPS"} <= directory.codes()
+
+
+class TestBuildSquads:
+    BOOTSTRAP = {
+        "teams": [{"id": 1, "short_name": "ARS", "code": 3},
+                  {"id": 2, "short_name": "CHE", "code": 8}],
+        "elements": [
+            {"team": 1, "web_name": "Saka", "second_name": "Saka"},
+            {"team": 1, "web_name": "G.Jesus", "second_name": "Jesus"},
+            {"team": 2, "web_name": "Palmer", "second_name": "Palmer"},
+        ],
+    }
+
+    def test_players_are_grouped_by_club_code(self) -> None:
+        squads = _build_squads(self.BOOTSTRAP)
+        assert squads["CHE"] == ["Palmer"]
+        assert "Saka" in squads["ARS"]
+
+    def test_both_the_display_name_and_the_surname_are_kept(self) -> None:
+        # Commentary says "Jesus" where FPL says "G.Jesus"; either has to match.
+        assert set(_build_squads(self.BOOTSTRAP)["ARS"]) == {"Saka", "G.Jesus", "Jesus"}
+
+    def test_a_club_with_no_players_still_appears(self) -> None:
+        empty = {**self.BOOTSTRAP, "elements": []}
+        assert _build_squads(empty) == {"ARS": [], "CHE": []}
+
+    def test_a_player_on_an_unknown_team_is_rejected(self) -> None:
+        stray = {**self.BOOTSTRAP,
+                 "elements": [{"team": 99, "web_name": "X", "second_name": "Ex"}]}
+        with pytest.raises(FplError, match="Unexpected bootstrap-static shape"):
+            _build_squads(stray)
