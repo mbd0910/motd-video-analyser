@@ -10,10 +10,10 @@
       "segments": {
         "studio_intro": {
           "start": "00:50",
-          "end": "02:28"
+          "end": "02:32"
         },
         "highlights": {
-          "start": "02:28",
+          "start": "02:32",
           "end": "12:56"
         },
         "studio_analysis": {
@@ -21,7 +21,8 @@
           "end": "19:51"
         }
       },
-      "notes": "Studio intro includes the pre-match Kevin Keegan tribute montage."
+      "notes": "The studio intro includes a pre-recorded Kevin Keegan tribute montage (01:18-02:23) before the handover to Guy Mowbray. Highlights run through the post-match pitchside interviews (11:35-12:56). Studio analysis closes with the brief exchange on the Keegan tribute (19:41-19:51) before the link to Man City v Bournemouth.",
+      "handover": "Your commentator is Guy Mowbray."
     },
     {
       "fpl_code": 2645202,
@@ -29,7 +30,7 @@
       "segments": {
         "studio_intro": {
           "start": "19:51",
-          "end": "20:04"
+          "end": "20:09"
         },
         "highlights": {
           "start": "20:09",
@@ -40,7 +41,8 @@
           "end": "34:30"
         }
       },
-      "notes": null
+      "notes": null,
+      "handover": "Steve Wilson was at the Etihad."
     },
     {
       "fpl_code": 2645201,
@@ -48,7 +50,7 @@
       "segments": {
         "studio_intro": {
           "start": "34:30",
-          "end": "34:39"
+          "end": "34:45"
         },
         "highlights": {
           "start": "34:45",
@@ -56,10 +58,11 @@
         },
         "studio_analysis": {
           "start": "44:26",
-          "end": "48:52"
+          "end": "48:54"
         }
       },
-      "notes": null
+      "notes": "The white-voiced question at 44:03 about Ollie Watkins is part of the pitchside post-match interviews, so it is counted within highlights; the studio resumes at 44:26 (\"We should talk about Ollie Watkins...\"). Studio analysis runs on into the Villa player-exodus discussion until the BBC listings trail begins at 48:54.",
+      "handover": "Simon Brotherton watched this one."
     },
     {
       "fpl_code": 2645195,
@@ -74,72 +77,90 @@
           "end": "50:00"
         }
       },
-      "notes": "First item in the round-up of goals from earlier in the weekend."
+      "notes": "Arsenal v Coventry appears only as the opening item of the end-of-show goals round-up (Friday night's game), running from the Calafiori/Havertz goal at 49:36 until the commentary switches voice at 50:00 for the Brentford v Tottenham goals. No separate studio build-up beyond the round-up cue line, and no post-match studio discussion of this game.",
+      "handover": "Let's look back on the rest of the goals from the Premier League's opening weekend, beginning with the champions on Friday night."
     },
     {
       "fpl_code": 2645196,
       "order": 5,
       "segments": {
+        "studio_intro": {
+          "start": "49:24",
+          "end": "49:36"
+        },
         "highlights": {
           "start": "50:00",
           "end": "50:40"
         }
       },
-      "notes": "Goals-only round-up item."
+      "notes": "Covered only as part of the end-of-show goals round-up of the opening weekend. The studio line at 49:24 launches the whole round-up package (Arsenal first, from 49:36); the Brentford v Tottenham portion is the second-voiced section from 50:00 (Sangare/Lewis-Potter/Bergvall/Kinsky/Janelt/Kayode), ending as the commentary moves to Everton's Dewsbury-Hall goal at 50:40. No dedicated studio analysis of this match.",
+      "handover": "Let's look back on the rest of the goals from the Premier League's opening weekend, beginning with the champions on Friday night."
     },
     {
       "fpl_code": 2645197,
       "order": 6,
       "segments": {
+        "studio_intro": {
+          "start": "49:24",
+          "end": "49:36"
+        },
         "highlights": {
           "start": "50:40",
-          "end": "50:52"
+          "end": "50:55"
         }
       },
-      "notes": "Goals-only round-up item."
+      "notes": "Everton v Crystal Palace is covered only as a brief clip inside the shared end-of-show round-up of the opening weekend's other goals (round-up commentary runs 49:36-51:55). The handover quoted introduces that whole round-up rather than this fixture alone. The Everton portion is the Dewsbury-Hall goal and the second goal at 50:40-50:42; the Leeds United action begins mid-line at 50:42, so the end boundary can only be placed at the next timestamped line (50:55). There is no dedicated studio build-up or post-match analysis for this match.\n",
+      "handover": "Let's look back on the rest of the goals from the Premier League's opening weekend, beginning with the champions on Friday night."
     },
     {
       "fpl_code": 2645200,
       "order": 7,
       "segments": {
         "highlights": {
-          "start": "50:52",
-          "end": "51:05"
+          "start": "50:42",
+          "end": "50:55"
         }
       },
-      "notes": "Goals-only round-up item."
+      "notes": "Nottingham Forest v Leeds appears only as a brief goal clip inside the end-of-show round-up montage of the rest of the weekend's action (Stach's goal for Leeds, 'three minutes from time'). It shares a single handover with all the other round-up matches, sits between the Everton clip and the Ipswich (Emersonn) clip, and gets no dedicated studio intro or analysis.",
+      "handover": "Let's look back on the rest of the goals from the Premier League's opening weekend, beginning with the champions on Friday night."
     },
     {
       "fpl_code": 2645199,
       "order": 8,
       "segments": {
+        "studio_intro": {
+          "start": "49:24",
+          "end": "49:36"
+        },
         "highlights": {
-          "start": "51:05",
+          "start": "50:55",
           "end": "51:36"
         }
       },
-      "notes": "Goals-only round-up item."
+      "notes": "This match (played 22 Aug) appears only inside the end-of-show goals round-up montage, sandwiched between the Forest v Leeds goal and the Hull v Man Utd goals, with no dedicated studio set-up or analysis. Its coverage begins mid-line at [50:55] with 'Emersonn up there' (the Leeds goal call precedes it in the same subtitle line) and ends mid-line in [51:23] after 'Clarke. The chance to win it! And he surely has done!' — the following words 'The corner...' already belong to Hull City v Manchester United, so the quoted end timestamp slightly overruns. The only studio words handing over are the general introduction to the round-up at [49:24].",
+      "handover": "Let's look back on the rest of the goals from the Premier League's opening weekend, beginning with the champions on Friday night."
     },
     {
       "fpl_code": 2645198,
       "order": 9,
       "segments": {
         "highlights": {
-          "start": "51:36",
-          "end": "51:55"
+          "start": "51:23",
+          "end": "51:45"
         },
         "studio_analysis": {
-          "start": "51:55",
+          "start": "51:45",
           "end": "58:10"
         }
       },
-      "notes": "Round-up clip of the goals followed by a long studio interview with Hull assistant head coach Dean Holden about the match."
+      "notes": "This match is covered inside the end-of-show round-up montage of the rest of the weekend's goals (montage runs 49:36-51:45); the Hull City portion is the final item, beginning with \"The corner. It was all the way across. McBurnie!\" at roughly 51:23 and ending with \"Hull City two, Manchester United 0!\" The studio then picks up mid-line at 51:45 (\"Fresh from that opening-day victory...\") for an extended interview with Hull assistant head coach Dean Holden about the win and the club, which continues until the presenter moves on to the league table at 58:10. No separate studio set-up for this match preceded the montage - the only studio words leading in are the round-up handover line.",
+      "handover": "Let's look back on the rest of the goals from the Premier League's opening weekend, beginning with the champions on Friday night."
     }
   ],
   "provenance": {
     "model": "claude-opus-5",
-    "prompt_version": "3",
-    "analysed_at": "2026-08-26T07:10:28Z",
+    "prompt_version": "5",
+    "analysed_at": "2026-09-06T17:24:43Z",
     "candidate_fpl_codes": [
       2645195,
       2645198,
@@ -151,8 +172,8 @@
       2645202,
       2645203
     ],
-    "input_tokens": 676,
-    "output_tokens": 4468,
-    "walkthrough": "00:50–02:28 studio: welcome, Hart & Murphy, Keegan tribute montage, leading into Newcastle v Liverpool; handover at 02:28 (\"Your commentator is Guy Mowbray\"). 02:28–12:56 Newcastle v Liverpool highlights (Elanga, Gakpo, Wissa, Szoboszlai pen) plus post-match interviews to 12:56. 12:56–19:51 studio analysis of Newcastle v Liverpool (penalty, Newcastle identity, Iraola's Liverpool), ending with Keegan tribute line and \"Well deserved\". 19:51–20:04 studio intro to Manchester City v Bournemouth, handover \"Steve Wilson was at the Etihad\". 20:09–29:31 Man City v Bournemouth highlights (Tavernier, Guehi, Gvardiol) plus Rose/Maresca/Guehi interviews. 29:31–34:30 studio analysis of City v Bournemouth (Guehi in midfield, Cherki, Maresca pragmatism, Rose's side). 34:30–34:39 studio intro to Brighton v Aston Villa, handover \"Simon Brotherton watched this one\". 34:45–44:26 Brighton v Villa highlights (own goal, De Cuyper, Hinshelwood x2, Gomes red, Kostoulas) plus post-match interviews including Emery on Watkins. 44:26–48:52 studio analysis of Brighton v Villa, widening into Villa's player exodus, ending \"The big rebuild\". 48:54–49:24 BBC promos/iPlayer trails, no match footage. 49:24–49:36 studio lead-in to the round-up of the rest of the weekend's goals, \"beginning with the champions on Friday night\". 49:36–50:00 Arsenal v Coventry City goals (Havertz, second, Odegaard). 50:00–50:40 Brentford v Tottenham goals (Lewis-Potter, Janelt, Kayode). 50:40–50:52 Everton v Crystal Palace goals (Dewsbury-Hall, second). 50:52–51:05 Nottingham Forest v Leeds United (Stach, late Leeds winner). 51:05–51:36 Ipswich Town v Sunderland (Emersonn, Angulo, Clarke winner). 51:36–51:55 Hull City v Manchester United (McBurnie and the second goal). 51:55–58:10 studio: extended interview with Hull assistant head coach Dean Holden about that opening-day win, tactics, squad and owner — analysis attached to Hull v Man United. 58:10–58:40 league table rundown and sign-off."
+    "input_tokens": 4268,
+    "output_tokens": 14996,
+    "walkthrough": null
   }
 }

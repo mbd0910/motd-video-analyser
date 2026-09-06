@@ -1,8 +1,8 @@
 {
   "season": "2026-27",
   "competition": "Premier League",
+  "fetched_at": "2026-09-06T17:09:35Z",
   "source": "https://fantasy.premierleague.com/api/fixtures/",
-  "fetched_at": "2026-09-05T15:58:00Z",
   "fixtures": [
     {
       "fpl_code": 2645195,
@@ -389,8 +389,11 @@
       "home_code": "BHA",
       "away_code": "LEE",
       "venue": "Amex Stadium",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 1,
+        "away": 1
+      },
+      "played": true
     },
     {
       "fpl_code": 2645216,
@@ -403,8 +406,11 @@
       "home_code": "BRE",
       "away_code": "SUN",
       "venue": "Gtech Community Stadium",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 1,
+        "away": 1
+      },
+      "played": true
     },
     {
       "fpl_code": 2645219,
@@ -417,8 +423,11 @@
       "home_code": "FUL",
       "away_code": "CRY",
       "venue": "Craven Cottage",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 2,
+        "away": 3
+      },
+      "played": true
     },
     {
       "fpl_code": 2645222,
@@ -431,8 +440,11 @@
       "home_code": "MCI",
       "away_code": "COV",
       "venue": "Etihad Stadium",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 1,
+        "away": 0
+      },
+      "played": true
     },
     {
       "fpl_code": 2645224,
@@ -445,8 +457,11 @@
       "home_code": "NFO",
       "away_code": "TOT",
       "venue": "City Ground",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 0,
+        "away": 0
+      },
+      "played": true
     },
     {
       "fpl_code": 2645220,
@@ -459,8 +474,11 @@
       "home_code": "HUL",
       "away_code": "AVL",
       "venue": "MKM Stadium",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 0,
+        "away": 0
+      },
+      "played": true
     },
     {
       "fpl_code": 2645218,
@@ -473,8 +491,11 @@
       "home_code": "EVE",
       "away_code": "MUN",
       "venue": "Hill Dickinson Stadium",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 2,
+        "away": 2
+      },
+      "played": true
     },
     {
       "fpl_code": 2645215,

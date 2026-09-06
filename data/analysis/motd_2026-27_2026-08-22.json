@@ -21,7 +21,8 @@
           "end": "18:51"
         }
       },
-      "notes": "Highlights block includes pitchside interviews from 10:13."
+      "notes": null,
+      "handover": "Your commentator, Guy Mowbray."
     },
     {
       "fpl_code": 2645199,
@@ -40,7 +41,8 @@
           "end": "32:54"
         }
       },
-      "notes": "Post-match interviews run 27:11-28:36 inside the highlights block."
+      "notes": "The pitchside/post-match interviews (players, Gary O'Neil, Régis Le Bris) run from 27:11 to 28:36 and are counted within the highlights segment. The studio analysis widens into Sunderland's season prospects from about 32:11 before handing on to Brentford v Tottenham at 32:54.",
+      "handover": "Mark Scott was at Portman Road."
     },
     {
       "fpl_code": 2645196,
@@ -59,7 +61,8 @@
           "end": "46:53"
         }
       },
-      "notes": "Analysis is followed by programme trailers (46:53-47:29) before the next match."
+      "notes": "Highlights include the post-match pitchside interviews (Keith Andrews, a Brentford player and Roberto De Zerbi) from 41:11 to 42:25; the studio picks up at 42:25 on De Zerbi/Andrews' 'good place' line. Studio analysis runs to 46:53, where the presenter moves on to trailing Sunday's programme.",
+      "handover": "Steve Bower was at this one."
     },
     {
       "fpl_code": 2645197,
@@ -78,7 +81,8 @@
           "end": "58:18"
         }
       },
-      "notes": null
+      "notes": "The pitchside interviews with David Moyes and Pierre Sage (from 54:20) are counted within the highlights; the studio pundits take over at 55:43 (\"He is not one to get carried away, is he?\") and run until the Nottingham Forest v Leeds intro at 58:18. The 46:53-47:29 stretch before the intro is programme trails/promos, not match coverage.",
+      "handover": "Crystal Palace's new manager Pierre Sage took his team to Everton, who'd lost their opening game in each of the last four seasons. Your commentator, Steve Wilson."
     },
     {
       "fpl_code": 2645200,
@@ -97,7 +101,8 @@
           "end": "67:24"
         }
       },
-      "notes": null
+      "notes": "The exchange at 65:34-65:44 (\"The first Leeds manager to win in the top-flight since a certain Don Revie.\" / \"You are in good company.\") reads as the tail of the pitchside interview with Daniel Farke rather than studio talk, so it is included in the highlights; the studio is unambiguously back at 65:44 with \"That was a great interview from James Trafford\". Studio analysis runs to the Arsenal v Coventry set-up at 67:24, via a brief Joe Hart/5Live-style aside at 67:18.",
+      "handover": "Commentary comes from Martin Fisher."
     },
     {
       "fpl_code": 2645195,
@@ -113,16 +118,17 @@
         },
         "studio_analysis": {
           "start": "74:27",
-          "end": "79:13"
+          "end": "78:49"
         }
       },
-      "notes": "Friday night fixture carried over as a full package and placed last; analysis runs to the end of the programme."
+      "notes": "This match was played the previous evening (Friday) and is held over as a full package, shown last in the episode. The highlights segment ends with two pitchside interviews conducted by the commentator (Frank Lampard from 73:22, then Mikel Arteta from 73:50) before the studio picks up at 74:27. Studio analysis runs to the closing table round-up at 78:49.",
+      "handover": "Jonathan Pearce was watching."
     }
   ],
   "provenance": {
     "model": "claude-opus-5",
-    "prompt_version": "3",
-    "analysed_at": "2026-08-26T07:09:31Z",
+    "prompt_version": "5",
+    "analysed_at": "2026-09-06T17:26:47Z",
     "candidate_fpl_codes": [
       2645195,
       2645198,
@@ -131,8 +137,8 @@
       2645200,
       2645196
     ],
-    "input_tokens": 677,
-    "output_tokens": 4426,
-    "walkthrough": "00:21 studio opens the new season (Lineker/Shearer/Rooney). 00:53-01:14 setup for Hull City v Manchester United, handover to Guy Mowbray. Highlights 01:14-10:13 (Ajayi, Mendy), pitchside interviews 10:13-11:33, studio analysis 11:33-18:51 (Rooney and Shearer breaking down United's passivity), ending with the podcast gag.\n18:51-19:03 studio links to Ipswich Town v Sunderland, Mark Scott at Portman Road. Highlights 19:03-27:11 (Emersonn, Angulo, Clarke late winner), interviews 27:11-28:36, studio analysis 28:36-32:54.\n32:54-33:06 studio sets up Brentford v Tottenham Hotspur, Steve Bower commentating. Highlights 33:06-41:11 (Lewis-Potter, Janelt, Kayode; Thiago penalty miss), interviews 41:11-42:25, studio analysis 42:25-46:53, then programme trailers/promos 46:53-47:29.\n47:29-47:41 studio links to Everton v Crystal Palace, commentator Steve Wilson. Highlights 47:41-54:20 (Dewsbury-Hall, Barry), interviews with Moyes and Sage 54:20-55:43, studio analysis 55:43-58:18.\n58:18-58:31 studio sets up Nottingham Forest v Leeds United, Martin Fisher on commentary. Highlights 58:31-64:43 (Stach free kick late on), interviews 64:43-65:44, studio analysis 65:44-67:24 (closing with the Joe Hart trail).\n67:24-67:35 studio introduces Friday night's opener, Arsenal v Coventry City, Jonathan Pearce commentating. Highlights 67:35-73:22 (Havertz, Tzolis, Odegaard), Lampard and Arteta interviews 73:22-74:27, studio analysis 74:27 through to the close of the programme at 79:13 with the table."
+    "input_tokens": 2850,
+    "output_tokens": 8187,
+    "walkthrough": null
   }
 }

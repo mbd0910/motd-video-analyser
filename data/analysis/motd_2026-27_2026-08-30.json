@@ -9,7 +9,7 @@
       "order": 1,
       "segments": {
         "studio_intro": {
-          "start": "00:55",
+          "start": "00:15",
           "end": "01:25"
         },
         "highlights": {
@@ -21,7 +21,7 @@
           "end": "18:45"
         }
       },
-      "notes": "This is the first match of the episode, so the studio intro doubles as the programme's opening welcome (pundits introduced, transfer-window trail) before pointing to Stamford Bridge. The handover line 'Jonathan Pearce is your commentator.' appears twice in consecutive subtitle lines (01:21 and 01:23) before commentary starts at 01:25. Highlights include the post-match pitchside interviews with both managers and a Chelsea player, which run from 11:44 to 13:15.",
+      "notes": "The handover line \"Jonathan Pearce is your commentator.\" is duplicated in the subtitles at 01:21 and 01:23; commentary proper begins at 01:25. Post-match pitchside interviews (Alonso, Hurzler, Palmer) run from 11:44 to 13:15 and are counted within the highlights; studio analysis then runs unbroken until the Manchester United v Ipswich set-up at 18:45.",
       "handover": "Jonathan Pearce is your commentator."
     },
     {
@@ -30,10 +30,10 @@
       "segments": {
         "studio_intro": {
           "start": "18:45",
-          "end": "19:00"
+          "end": "18:52"
         },
         "highlights": {
-          "start": "19:00",
+          "start": "18:52",
           "end": "30:08"
         },
         "studio_analysis": {
@@ -41,7 +41,7 @@
           "end": "35:57"
         }
       },
-      "notes": "Studio analysis runs continuously from the post-match interviews through the Bruno Fernandes praise, the Mainoo/Rashford point, the VAR/Maguire handball explanation and the Ipswich first-half chances, ending as the presenter turns to Leeds v Brentford at 35:57.",
+      "notes": "Studio intro begins at 18:45 with the reference to United's defeat at Hull and Ipswich's opening-day win, and the handover line at 18:52 credits commentator Steven Wyeth; commentary proper starts at 19:00. Highlights include the post-match pitchside interviews (Carrick, O'Neil, Bruno Fernandes) up to 30:08. Studio analysis runs continuously through the Bruno Fernandes breakdown, the Mainoo/Rashford point, the Maguire handball/own-goal VAR explainer and Ipswich's missed chances, ending as the presenter turns to Leeds v Brentford at 35:57.",
       "handover": "Commentary comes from Steven Wyeth."
     },
     {
@@ -70,10 +70,10 @@
       "segments": {
         "studio_intro": {
           "start": "49:34",
-          "end": "49:40"
+          "end": "49:49"
         },
         "highlights": {
-          "start": "49:40",
+          "start": "49:49",
           "end": "57:18"
         },
         "studio_analysis": {
@@ -81,7 +81,7 @@
           "end": "61:04"
         }
       },
-      "notes": "The post-match Isidor interview blends into studio talk mid-block: the line 'Can so she gets the assist as well. Obviously, working with a psychologist!' at ~57:18 is the presenter picking up from the interview, so that is taken as the start of studio analysis. The analysis then broadens to Fulham's start under Arbeloa and their upcoming fixtures before the show moves to the goals round-up at 61:04.",
+      "notes": "The pitchside interview with Wilson Isidor (from 56:52) runs on into the studio's response without a marked speaker change; the studio pick-up is taken at 57:18 (\"...so she gets the assist as well. Obviously, working with a psychologist!\"). Studio analysis then widens to Fulham's start under Arbeloa and their upcoming fixtures before the presenter moves on to the round-up at 61:04.",
       "handover": "Vicki Sparks was at the Stadium of Light."
     },
     {
@@ -97,7 +97,7 @@
           "end": "62:05"
         }
       },
-      "notes": "Covered only as part of the end-of-programme round-up of other matches; the Palace v City goals run from 61:14 until the round-up moves on to Liverpool v Nottingham Forest at 62:05 (new speaker). No studio analysis follows.",
+      "notes": "Covered only as part of the end-of-programme goals round-up. The Palace v City goals run from the yellow-speaker commentary at 61:14 (Semenyo/Haaland, Cherki, Donnarumma own goal, Foden, Haaland) until the cyan speaker switches to Liverpool v Forest at 62:05. No studio set-up beyond the handover line and no post-match analysis.",
       "handover": "Let's take a look at the rest of the goal is from this weekend starting at Selhurst Park on Friday night."
     },
     {
@@ -113,23 +113,19 @@
           "end": "62:37"
         }
       },
-      "notes": "This match is covered only inside the end-of-show goals round-up, which runs 61:14-63:33 and packages several earlier fixtures back to back. The single studio handover at 61:04 introduces the whole round-up (which opens with Crystal Palace v Man City); the Anfield portion is the commentary block from 62:05 ending on '2-2 ... here at Anfield' at 62:37, immediately before the Bournemouth v Everton clips. There is no separate studio analysis of this match afterwards.",
+      "notes": "Liverpool v Nottingham Forest is covered only as part of the end-of-programme goals round-up of earlier fixtures. The single studio handover at 61:04 introduces the whole round-up (which opens with Crystal Palace v Man City from Friday), so the studio intro is shared rather than specific to this match. The Anfield commentary (new voice, speaker cyan) runs from 62:05 until the next round-up item, Bournemouth v Everton, begins at 62:37. There is no post-match studio analysis of this game.",
       "handover": "Let's take a look at the rest of the goal is from this weekend starting at Selhurst Park on Friday night."
     },
     {
       "fpl_code": 2645205,
       "order": 7,
       "segments": {
-        "studio_intro": {
-          "start": "61:04",
-          "end": "61:14"
-        },
         "highlights": {
           "start": "62:37",
           "end": "63:03"
         }
       },
-      "notes": "This match appears only as a few seconds within the end-of-programme goals round-up (61:14 onwards), which covers Palace v City, Liverpool v Forest, Bournemouth v Everton, Coventry v Hull and Spurs v Newcastle in sequence. The single studio handover at 61:04 launches the whole round-up rather than this match specifically; the Bournemouth v Everton portion is the 'Tees it up, deflection, goal, Scott... Tarkowski and in added time equalises for Everton' passage. No dedicated studio analysis follows.",
+      "notes": "This match is covered only within the end-of-programme goals round-up (61:04-63:33). The handover at 61:04 introduces the whole round-up, which opens with Crystal Palace v Man City; the Bournemouth v Everton portion runs from the 'Tees it up, deflection, goal, Scott' line at 62:37 until the round-up moves on to Coventry v Hull at 63:03. There is no dedicated studio intro or post-match analysis for this fixture.",
       "handover": "Let's take a look at the rest of the goal is from this weekend starting at Selhurst Park on Friday night."
     },
     {
@@ -145,7 +141,7 @@
           "end": "63:11"
         }
       },
-      "notes": "This match is not given a package of its own — it appears only inside the combined end-of-programme round-up of goals from the rest of the weekend, which is introduced once at 61:04 and runs from 61:14 through the Palace/City, Liverpool/Forest, Bournemouth/Everton, Coventry/Hull and Spurs/Newcastle clips in sequence. The handover and studio intro logged here are therefore shared with the other round-up matches; the Coventry v Hull portion itself is the Liam Millar passage at 63:03–63:11, ending as commentary moves to Elanga and Newcastle. No studio analysis follows.",
+      "notes": "Coventry v Hull is covered only as part of the multi-match goals round-up that begins at 61:14; the studio handover at 61:04 introduces the whole round-up rather than this fixture specifically. The Hull segment is very brief (Liam Millar's goal) and the line at 63:11 runs straight from the end of it into the Tottenham v Newcastle clips, so that boundary falls mid-line. No separate studio analysis of this match follows.",
       "handover": "Let's take a look at the rest of the goal is from this weekend starting at Selhurst Park on Friday night."
     },
     {
@@ -161,14 +157,14 @@
           "end": "63:33"
         }
       },
-      "notes": "Covered only as the final item in the end-of-programme goals round-up, which is introduced once at 61:04 for all five earlier-dated matches (Palace v City, Liverpool v Forest, Bournemouth v Everton, Coventry v Hull, then Spurs v Newcastle). There is no separate handover, studio set-up or analysis for this fixture; the Newcastle goals commentary begins mid-line at 63:11 (\"It's a good ball, touched into Anthony Elanga...\") immediately after the Hull clip and runs to 63:33, when the studio returns for programme sign-off items.",
+      "notes": "This match is covered only as the final item in the end-of-programme goals round-up (61:14-63:33), which runs through several earlier-played games in sequence. The handover and studio intro quoted introduce that whole round-up block rather than this fixture alone; the Spurs v Newcastle portion (Elanga, Woltemade/Wissa) runs from within the 63:11 line to 63:33. No separate studio analysis follows - the programme moves straight to iPlayer/coming-up trails and transfer talk.",
       "handover": "Let's take a look at the rest of the goal is from this weekend starting at Selhurst Park on Friday night."
     }
   ],
   "provenance": {
     "model": "claude-opus-5",
-    "prompt_version": "4",
-    "analysed_at": "2026-09-06T16:32:02Z",
+    "prompt_version": "5",
+    "analysed_at": "2026-09-06T17:30:48Z",
     "candidate_fpl_codes": [
       2645209,
       2645211,
@@ -181,7 +177,7 @@
       2645212
     ],
     "input_tokens": 4270,
-    "output_tokens": 12709,
+    "output_tokens": 12515,
     "walkthrough": null
   }
 }
