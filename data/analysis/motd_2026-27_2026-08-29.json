@@ -1,0 +1,123 @@
+{
+  "episode_id": "motd_2026-27_2026-08-29",
+  "broadcast_date": "2026-08-29",
+  "season": "2026-27",
+  "gameweek": 2,
+  "matches": [
+    {
+      "fpl_code": 2645214,
+      "order": 1,
+      "segments": {
+        "studio_intro": {
+          "start": "01:40",
+          "end": "02:05"
+        },
+        "highlights": {
+          "start": "02:05",
+          "end": "12:26"
+        },
+        "studio_analysis": {
+          "start": "12:26",
+          "end": "16:52"
+        }
+      },
+      "notes": "The studio intro runs on from the show's opening titles montage (00:58-01:35) and the welcome to the pundits; the match-specific set-up begins at 01:54 (\"Spurs had a point to prove...\"). The pitchside interviews with both managers/players (from 11:07) are included in the highlights; studio analysis begins mid-line at 12:26 when the pundit picks up on the Newcastle manager's quote.",
+      "handover": "Steve Wilson was at the Tottenham Hotspur Stadium."
+    },
+    {
+      "fpl_code": 2645211,
+      "order": 2,
+      "segments": {
+        "studio_intro": {
+          "start": "16:52",
+          "end": "17:00"
+        },
+        "highlights": {
+          "start": "17:00",
+          "end": "27:07"
+        },
+        "studio_analysis": {
+          "start": "27:07",
+          "end": "32:52"
+        }
+      },
+      "notes": "The studio analysis runs on from tactical discussion of Forest's shape and Isak's touch map into a brief Gakpo transfer aside and then a replay-led explanation of the broken substitution board that Iraola complained about in his interview — the latter is still discussion of this match, so it is kept inside the analysis segment, which ends when the Coventry v Hull introduction begins at 32:52.",
+      "handover": "Your commentator..."
+    },
+    {
+      "fpl_code": 2645208,
+      "order": 3,
+      "segments": {
+        "studio_intro": {
+          "start": "32:52",
+          "end": "33:03"
+        },
+        "highlights": {
+          "start": "33:11",
+          "end": "40:25"
+        },
+        "studio_analysis": {
+          "start": "40:25",
+          "end": "43:32"
+        }
+      },
+      "notes": null,
+      "handover": "Guy Mowbray was at the CBS Arena."
+    },
+    {
+      "fpl_code": 2645205,
+      "order": 4,
+      "segments": {
+        "studio_intro": {
+          "start": "43:32",
+          "end": "43:44"
+        },
+        "highlights": {
+          "start": "43:44",
+          "end": "52:41"
+        },
+        "studio_analysis": {
+          "start": "52:41",
+          "end": "57:04"
+        }
+      },
+      "notes": "There is no named-commentator credit for this match; the studio hands over with the Bournemouth-v-Everton head-to-head line at 43:32 and commentary begins at 43:44. The pitchside interviews with Moyes and Rose (51:20-52:41) are counted with the highlights; the studio-introduced post-match press-conference clip about transfers (52:41-53:08) is treated as the opening of the studio analysis, which then runs through the Alex Scott and set-piece breakdowns until the Sunday MOTD trail at 57:04.",
+      "handover": "Bournemouth had more wins against Everton than any other team they've faced in the Premier League, nine in total, two of which came when Ashley was at Everton."
+    },
+    {
+      "fpl_code": 2645209,
+      "order": 5,
+      "segments": {
+        "studio_intro": {
+          "start": "57:53",
+          "end": "57:58"
+        },
+        "highlights": {
+          "start": "58:12",
+          "end": "67:08"
+        },
+        "studio_analysis": {
+          "start": "67:08",
+          "end": "69:02"
+        }
+      },
+      "notes": "Match played the previous day (28 Aug); shown last in the episode as a held-over full package introduced with \"Time for last night's action\". Post-match manager interviews (66:29–67:08) are included in the highlights segment; studio analysis of Cherki runs to 69:02, where the programme moves on to the league table.",
+      "handover": "Mark Scott was at Selhurst Park."
+    }
+  ],
+  "provenance": {
+    "model": "claude-opus-5",
+    "prompt_version": "4",
+    "analysed_at": "2026-09-06T16:25:44Z",
+    "candidate_fpl_codes": [
+      2645209,
+      2645211,
+      2645205,
+      2645208,
+      2645214
+    ],
+    "input_tokens": 2378,
+    "output_tokens": 8180,
+    "walkthrough": null
+  }
+}
