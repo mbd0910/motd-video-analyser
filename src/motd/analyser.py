@@ -1,15 +1,16 @@
-"""Analyser module — extracts running order and segment timings from a transcript.
+"""Analyser module — locates each of the gameweek's matches in an episode transcript.
 
-The model never invents an identifier. It is handed the gameweek's fixtures as
-an enumerated candidate list and constrained by a JSON schema to echo back one of
-those exact labels, which this module resolves to a fixture in code. Its only
-judgements are which candidates got screen time, in what order, and when.
+The model is never asked which matches were shown, or in what order. MOTD is the
+highlights show for every Premier League match played, so the candidate window already
+answers the first question, and the running order falls out of sorting the timestamps.
+What is left is the one thing a transcript alone can settle: where each match sits.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
@@ -37,14 +38,24 @@ DEFAULT_MODEL = "claude-opus-5"
 # Reading 80 minutes of transcript for boundaries is the kind of long analysis
 # where effort matters more than model choice; `high` stopped a third of the way in.
 DEFAULT_EFFORT: Effort = "xhigh"
-# Writing a 5m cache costs 1.25x input against 2x for 1h, so it is the cheap default
-# for a pipeline that calls once per episode. Use 1h when iterating on one episode.
+# Every match after the first reads the transcript from cache, so the write is paid
+# once per episode rather than once per call. 1h only helps when iterating.
 DEFAULT_CACHE_TTL: CacheTtl = "5m"
-PROMPT_VERSION = "3"
-MAX_TOKENS = 16000
+PROMPT_VERSION = "4"
+# One match's timings, not a whole episode's — the answer is a few hundred tokens.
+MAX_TOKENS = 4096
 
 # Post-match interviews fall inside the highlights run rather than standing alone.
 SEGMENT_KEYS = ("studio_intro", "highlights", "studio_analysis")
+
+# A handover quote is checked against the transcript rather than trusted, so it has to
+# be long enough that matching it means something.
+MIN_QUOTE_CHARS = 15
+
+# Backstop for timings that are individually well-formed but collectively wrong. An
+# episode is match packages nearly end to end — titles, the table and trailers are the
+# only gaps — so a real running order clears this comfortably.
+MIN_TIMELINE_SHARE = 0.4
 
 
 class AnalysisError(Exception):
@@ -55,10 +66,8 @@ class AnalysisError(Exception):
 class Prompt:
     """A prompt split at its cache boundary.
 
-    `context` is everything about one episode and `task` is the instructions. The
-    split is that way round because iteration holds the episode fixed and rewrites
-    the instructions — so the transcript is the reusable half, even though across a
-    season it is the half that always changes.
+    `context` is the episode and `task` is the one match being located, so the whole
+    transcript is written to cache once and read back by every match after the first.
     """
 
     context: str
@@ -153,7 +162,7 @@ def _call_claude(
 
 
 def fixture_label(fixture: Fixture) -> str:
-    """The exact string the model picks from, and the key it is resolved by."""
+    """How a match is named to the model, and in every error it raises."""
     return f"{fixture.date} {fixture.home_team} v {fixture.away_team}"
 
 
@@ -164,12 +173,15 @@ def analyse(
     *,
     backend: LlmBackend | None = None,
 ) -> EpisodeAnalysis:
-    """Extract running order and segment timings for an episode.
+    """Locate every candidate match in the episode and order them by when they aired.
+
+    One call per match: a single call asked to produce every match at once collapses to
+    one entry or none, whatever shape the answer is given, while the same model locates
+    each match correctly when that is the whole question.
 
     Args:
         transcript: Episode transcript with timestamped segments.
-        candidates: Fixtures the episode could have shown — see
-            `fixtures.candidates_for_broadcast`.
+        candidates: Fixtures the episode showed — see `fixtures.candidates_for_broadcast`.
         episode_id: Episode identifier (format: motd_YYYY-YY_YYYY-MM-DD).
         backend: LLM backend. Defaults to the Claude API.
 
@@ -177,8 +189,8 @@ def analyse(
         Validated EpisodeAnalysis.
 
     Raises:
-        AnalysisError: If episode_id parsing, LLM invocation, or response
-            resolution fails.
+        AnalysisError: If any match cannot be located, or the located matches do not
+            add up to a coherent episode.
     """
     if backend is None:
         backend = anthropic_backend()
@@ -191,25 +203,38 @@ def analyse(
     except ValueError as exc:
         raise AnalysisError(str(exc)) from exc
 
-    by_label = {fixture_label(f): f for f in candidates}
-    if len(by_label) != len(candidates):
-        raise AnalysisError(f"Candidate fixtures produce duplicate labels: {candidates}")
+    labels = [fixture_label(f) for f in candidates]
+    if len(set(labels)) != len(labels):
+        raise AnalysisError(f"Candidate fixtures produce duplicate labels: {labels}")
 
-    prompt = _build_prompt(transcript, candidates, episode_id, ep.broadcast_date, ep.season)
-    schema = _build_schema(sorted(by_label))
+    schema = _build_schema()
+    context = _build_context(transcript, candidates, episode_id, ep.broadcast_date, ep.season)
+    haystack = _normalise(" ".join(seg.text for seg in transcript.segments))
+
     logger.info(
-        "Analysing %s (%d segments, %d candidate fixtures)",
+        "Analysing %s (%d segments, %d matches to locate)",
         episode_id, len(transcript.segments), len(candidates),
     )
 
-    result = backend(prompt, schema)
-    logger.info(
-        "%s returned %s output tokens for %s input (cache: %s written, %s read)",
-        result.model, result.output_tokens, result.input_tokens,
-        result.cache_written, result.cache_read,
-    )
-    data = _parse_response(result.text)
-    matches = _resolve_matches(data, by_label)
+    located = []
+    model, input_tokens, output_tokens = "", 0, 0
+    for n, fixture in enumerate(candidates, 1):
+        label = fixture_label(fixture)
+        prompt = Prompt(context=context, task=_build_task(fixture))
+        result = backend(prompt, schema)
+        model = result.model
+        input_tokens += result.input_tokens or 0
+        output_tokens += result.output_tokens or 0
+        logger.info(
+            "  %d/%d %s — %s output tokens (cache: %s written, %s read)",
+            n, len(candidates), label, result.output_tokens,
+            result.cache_written, result.cache_read,
+        )
+        located.append(_resolve_location(_parse_response(result.text), fixture, haystack))
+
+    matches = _in_broadcast_order(located)
+    _assert_highlights_do_not_overlap(matches, labels)
+    _assert_episode_is_accounted_for(matches, transcript, episode_id)
 
     gameweeks = {f.gameweek for f in candidates if f.gameweek is not None}
     try:
@@ -220,13 +245,12 @@ def analyse(
             gameweek=gameweeks.pop() if len(gameweeks) == 1 else None,
             matches=matches,
             provenance=AnalysisProvenance(
-                model=result.model,
+                model=model,
                 prompt_version=PROMPT_VERSION,
                 analysed_at=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 candidate_fpl_codes=[f.fpl_code for f in candidates],
-                input_tokens=result.input_tokens,
-                output_tokens=result.output_tokens,
-                walkthrough=data.get("walkthrough"),
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
             ),
         )
     except ValidationError as exc:
@@ -236,59 +260,43 @@ def analyse(
     return analysis
 
 
-def _build_schema(labels: list[str]) -> dict[str, Any]:
-    """JSON schema constraining every pick to one of the candidate labels."""
+def _build_schema() -> dict[str, Any]:
+    """JSON schema for one match's location. The same every call, so it compiles once.
+
+    Absence is an empty string, never null: structured outputs cap a schema at 16
+    union-typed parameters, and nothing here needs to distinguish null from empty.
+    """
     segment_span = {
         "type": "object",
         "properties": {
-            "start": {"type": ["string", "null"]},
-            "end": {"type": ["string", "null"]},
+            "start": {"type": "string"},
+            "end": {"type": "string"},
         },
         "required": ["start", "end"],
         "additionalProperties": False,
     }
     return {
         "type": "object",
-        # Property order is generation order: the walkthrough is emitted before the
-        # array, so the array is written against a commitment already in the stream.
-        # Reasoning cannot do this job — thinking does not constrain the answer block.
+        # Property order is generation order, so the quote is written before the timings
+        # it anchors: the model finds the handover in the transcript, then times around it.
         "properties": {
-            "walkthrough": {"type": "string"},
-            "running_order": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "match": {"type": "string", "enum": labels},
-                        # Structured outputs reject `minimum`; MatchCoverage and the
-                        # contiguity check on EpisodeAnalysis enforce the range instead.
-                        "order": {"type": "integer"},
-                        "segments": {
-                            "type": "object",
-                            "properties": dict.fromkeys(SEGMENT_KEYS, segment_span),
-                            "required": list(SEGMENT_KEYS),
-                            "additionalProperties": False,
-                        },
-                        "notes": {"type": ["string", "null"]},
-                    },
-                    "required": ["match", "order", "segments", "notes"],
-                    "additionalProperties": False,
-                },
-            },
+            "handover": {"type": "string"},
+            **dict.fromkeys(SEGMENT_KEYS, segment_span),
+            "notes": {"type": "string"},
         },
-        "required": ["walkthrough", "running_order"],
+        "required": ["handover", *SEGMENT_KEYS, "notes"],
         "additionalProperties": False,
     }
 
 
-def _build_prompt(
+def _build_context(
     transcript: Transcript,
     candidates: list[Fixture],
     episode_id: str,
     broadcast_date: str,
     season: str,
-) -> Prompt:
-    """Build the analysis prompt from transcript and candidate fixtures."""
+) -> str:
+    """The half that is identical for every match, and so is read from cache."""
     transcript_lines = []
     previous_speaker = None
     for seg in transcript.segments:
@@ -307,23 +315,22 @@ def _build_prompt(
     for f in candidates:
         score = f"{f.score.home}-{f.score.away}" if f.score else "TBC"
         played = "played this day" if f.date == broadcast_date else f"played {f.date}"
-        candidate_lines.append(f'- "{fixture_label(f)}" ({score}) at {f.venue} — {played}')
+        candidate_lines.append(f"- {fixture_label(f)} ({score}) at {f.venue} — {played}")
     candidates_text = "\n".join(candidate_lines)
 
     total_seconds = int(transcript.duration_seconds)
     runtime = f"{total_seconds // 60:02d}:{total_seconds % 60:02d}"
 
-    context = f"""## Episode
+    return f"""## Episode
 - Episode ID: {episode_id}
 - Broadcast date: {broadcast_date}
 - Season: {season}
 - Running time: {runtime}
 
-## Candidate matches
-These are every fixture in the gameweek that had been played by the broadcast date.
-The episode will not have shown all of them. Some were played on an earlier date:
-those may appear as a full package held over to this episode, or as a brief round-up
-of action an earlier episode already covered — record both the same way.
+## Matches in this episode
+Every one of these was shown. A match played on an earlier date appears either as a full
+package held over, or as a brief round-up of action an earlier episode already covered —
+both are coverage, and both are timed the same way.
 
 {candidates_text}
 
@@ -334,43 +341,51 @@ marks a different voice — the handover from studio to commentary is usually on
 
 {transcript_text}"""
 
-    task = f"""You are reading a BBC Match of the Day transcript to record which matches got \
-screen time, in what order, and when.
+
+def _build_task(fixture: Fixture) -> str:
+    """The half that names the one match to locate."""
+    return f"""You are reading a BBC Match of the Day transcript to locate one match in it.
+
+## The match
+
+{fixture_label(fixture)} at {fixture.venue}
 
 ## Your task
 
-Return the matches that got screen time in this episode, in the order they appeared.
-An episode runs matches back to back for most of its {runtime}, so expect several — a
-Saturday show typically carries five to seven. Fill the two fields in the order below.
+Find where this match's coverage sits in the transcript and report only what you can
+point at. Do not judge whether it belongs in the episode — it was shown, and the only
+question is where.
 
-**`walkthrough` first.** Sweep the transcript from 00:00 to {runtime} and write one line
-per match: the two clubs, the minute the studio hands over, the minute the highlights end.
-Reach the end of the running time before you stop. This field is working-out rather than
-data — it is read to check the sweep was complete, then discarded.
+- `handover` first: the words, copied verbatim from the transcript, where the studio
+  hands over to this match. The handover takes no fixed form — it may credit the
+  commentator, or simply point at the ground ("let's go to the Emirates") — so judge it
+  by the shift from studio talk to match commentary, not by any particular phrase.
+- `studio_intro`: pundits in the studio setting the match up, ending at that handover.
+- `highlights`: match action with commentary, including any pitchside interviews.
+- `studio_analysis`: pundits discussing the match afterwards, until they move on.
 
-**`running_order` second.** The same matches, in the same order, one entry each, timed as
-below. Every match named in the walkthrough gets an entry.
+Timestamps are MM:SS from the start of the episode. Use empty strings for a boundary you
+cannot place, and for both ends of a segment that is absent. Naming a club in transfer
+talk, league-table discussion or a player's history is not coverage of this match — the
+round-up of a match played on an earlier date is, however brief.
 
-- Include a match only if the episode shows footage of it. Naming a club in transfer
-  talk, league-table discussion or a player's history is not coverage.
-- `match` must be copied exactly from the candidate list above.
-- `order` is the position in this episode's sequence, starting at 1, with no gaps.
-  A round-up of earlier matches takes its real place in that sequence.
-- Timestamps are MM:SS from the start of the episode. Use null for a boundary you
-  cannot place, and null for both ends of a segment that is absent.
+Use `notes` only for something that would otherwise be misread — an interrupted segment,
+a match shown in two parts. Leave it empty when there is nothing to flag."""
 
-Segments to time where present:
-- `studio_intro`: pundits in the studio setting up the match, ending where the programme
-  hands over to the match itself. The handover takes no fixed form — it may credit the
-  commentator, or simply point at the ground ("let's go to the Emirates") — so judge it by
-  the shift from studio talk to match commentary, not by any particular phrase.
-- `highlights`: match action with commentary, including any pitchside interviews
-- `studio_analysis`: pundits discussing the match afterwards, until they move on
 
-Use `notes` only for something that would otherwise be misread — an interrupted
-segment, a match shown in two parts. Leave it null when there is nothing to flag."""
-
-    return Prompt(context=context, task=task)
+def _build_prompt(
+    transcript: Transcript,
+    candidates: list[Fixture],
+    fixture: Fixture,
+    episode_id: str,
+    broadcast_date: str,
+    season: str,
+) -> Prompt:
+    """One match's prompt, both halves — what `analyse` sends per call."""
+    return Prompt(
+        context=_build_context(transcript, candidates, episode_id, broadcast_date, season),
+        task=_build_task(fixture),
+    )
 
 
 def _parse_response(response_text: str) -> dict[str, Any]:
@@ -384,36 +399,158 @@ def _parse_response(response_text: str) -> dict[str, Any]:
     return data
 
 
-def _resolve_matches(data: dict[str, Any], by_label: dict[str, Fixture]) -> list[MatchCoverage]:
-    """Map the model's label picks onto fixtures, rejecting anything unresolvable."""
-    picks = data.get("running_order")
-    if not isinstance(picks, list):
-        raise AnalysisError(f"Expected 'running_order' to be a list, got {type(picks).__name__}")
+def _normalise(text: str) -> str:
+    """Lowercase alphanumerics and single spaces, so a quote survives punctuation drift."""
+    return re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
 
-    matches = []
-    for pick in picks:
-        label = pick.get("match")
-        fixture = by_label.get(label)
-        if fixture is None:
+
+def _resolve_location(
+    data: dict[str, Any], fixture: Fixture, haystack: str
+) -> tuple[MatchCoverage, float]:
+    """One match's timings, with its handover quote checked against the transcript.
+
+    Returns the coverage alongside the second it starts, which is what puts it in the
+    running order — the model is never asked for a position. Every disagreement raises:
+    a match that cannot be located is a broken run, not an editorial judgement, and a
+    half-filled analysis is worse than none because the transcript cannot be re-fetched
+    once iPlayer drops the episode.
+    """
+    label = fixture_label(fixture)
+
+    segments = {}
+    for key in SEGMENT_KEYS:
+        span = data.get(key) or {}
+        if not isinstance(span, dict):
+            raise AnalysisError(f"{label}: malformed {key} {span!r}")
+        start, end = span.get("start") or None, span.get("end") or None
+        if start or end:
+            segments[key] = {"start": start, "end": end}
+    if not segments:
+        raise AnalysisError(
+            f"{label}: not found in the episode. Every match in the candidate window is "
+            f"shown, so this is a failed run rather than a match that did not air."
+        )
+
+    quote = _normalise(str(data.get("handover", "")))
+    if len(quote) < MIN_QUOTE_CHARS:
+        raise AnalysisError(f"{label}: handover quote too short to verify ({quote!r})")
+    if quote not in haystack:
+        raise AnalysisError(
+            f"{label}: handover quote is not in the transcript, so the timings around "
+            f"it are not evidence — {quote!r}"
+        )
+
+    starts = [_timestamp_seconds(s["start"]) for s in segments.values() if s["start"]]
+    starts = [s for s in starts if s is not None]
+    if not starts:
+        raise AnalysisError(f"{label}: located but carries no usable start time")
+
+    try:
+        coverage = MatchCoverage.model_validate({
+            "fpl_code": fixture.fpl_code,
+            # Overwritten once every match is in; the model never emits a position.
+            "order": 1,
+            "segments": segments,
+            "notes": data.get("notes") or None,
+            "handover": data.get("handover") or None,
+        })
+    except ValidationError as exc:
+        raise AnalysisError(f"{label}: malformed coverage: {exc}") from exc
+
+    return coverage, min(starts)
+
+
+def _in_broadcast_order(located: list[tuple[MatchCoverage, float]]) -> list[MatchCoverage]:
+    """Rank the matches by when they aired. Derived, so it cannot have gaps or repeats."""
+    return [
+        match.model_copy(update={"order": position})
+        for position, (match, _) in enumerate(sorted(located, key=lambda pair: pair[1]), 1)
+    ]
+
+
+def _timestamp_seconds(value: str) -> float | None:
+    """Seconds from a MM:SS or HH:MM:SS timestamp, or None if it is not one."""
+    parts = value.split(":")
+    if not all(part.isdigit() for part in parts) or not 2 <= len(parts) <= 3:
+        return None
+    seconds = 0.0
+    for part in parts:
+        seconds = seconds * 60 + int(part)
+    return seconds
+
+
+def _span_seconds(match: MatchCoverage, key: str) -> tuple[float, float] | None:
+    segment = match.segments.get(key)
+    if not segment or not (segment.start and segment.end):
+        return None
+    start, end = _timestamp_seconds(segment.start), _timestamp_seconds(segment.end)
+    if start is None or end is None or end <= start:
+        return None
+    return start, end
+
+
+def _assert_highlights_do_not_overlap(matches: list[MatchCoverage], labels: list[str]) -> None:
+    """Catch two matches claiming the same screen time.
+
+    Each match is located by its own call, so nothing but this stops two of them landing
+    on one package. Abutting is normal — one match's analysis runs into the next one's
+    intro — so only a genuine overlap is an error.
+    """
+    # Sorted by highlights, not by running order: a match is placed in the order by its
+    # earliest segment of any kind, so the two sequences are not always the same.
+    timed = sorted(
+        ((span, m) for m in matches if (span := _span_seconds(m, "highlights"))),
+        key=lambda pair: pair[0],
+    )
+    for (first_span, first), (second_span, second) in zip(timed, timed[1:], strict=False):
+        if second_span[0] < first_span[1]:
             raise AnalysisError(
-                f"LLM returned {label!r}, which is not a candidate. "
-                f"Candidates: {sorted(by_label)}"
+                f"Two matches claim overlapping highlights: fixture {first.fpl_code} "
+                f"({first.segments['highlights'].start}-{first.segments['highlights'].end}) "
+                f"and fixture {second.fpl_code} "
+                f"({second.segments['highlights'].start}-{second.segments['highlights'].end}). "
+                f"Candidates were {labels}."
             )
-        segments = {
-            key: span
-            for key, span in (pick.get("segments") or {}).items()
-            if span and (span.get("start") or span.get("end"))
-        }
-        try:
-            matches.append(
-                MatchCoverage.model_validate({
-                    "fpl_code": fixture.fpl_code,
-                    "order": pick.get("order"),
-                    "segments": segments,
-                    "notes": pick.get("notes"),
-                })
-            )
-        except ValidationError as exc:
-            raise AnalysisError(f"Malformed running order entry {pick}: {exc}") from exc
 
-    return matches
+
+def _timeline_share(matches: list[MatchCoverage], duration_seconds: float) -> float | None:
+    """Fraction of the episode the running order accounts for, or None if untimeable."""
+    if duration_seconds <= 0:
+        return None
+
+    spans = [span for m in matches for key in SEGMENT_KEYS if (span := _span_seconds(m, key))]
+    if not spans:
+        return None
+
+    # Segments of one match abut and a round-up can sit inside a fuller package, so the
+    # union is the only honest measure of how much screen time was accounted for.
+    covered = 0.0
+    current_start, current_end = None, None
+    for start, end in sorted(spans):
+        if current_end is None or start > current_end:
+            if current_end is not None:
+                covered += current_end - current_start
+            current_start, current_end = start, end
+        else:
+            current_end = max(current_end, end)
+    covered += current_end - current_start
+
+    return covered / duration_seconds
+
+
+def _assert_episode_is_accounted_for(
+    matches: list[MatchCoverage], transcript: Transcript, episode_id: str
+) -> None:
+    """Reject timings that are individually plausible but leave the episode unexplained."""
+    share = _timeline_share(matches, transcript.duration_seconds)
+    if share is None:
+        logger.warning("%s: running order carries no usable timings to check", episode_id)
+        return
+
+    logger.info("%s: running order accounts for %.0f%% of the episode", episode_id, share * 100)
+    if share < MIN_TIMELINE_SHARE:
+        raise AnalysisError(
+            f"{episode_id}: {len(matches)} matches account for only {share:.0%} of the "
+            f"episode, below the {MIN_TIMELINE_SHARE:.0%} floor — the timings do not add "
+            f"up to a whole show. Re-run before trusting it."
+        )

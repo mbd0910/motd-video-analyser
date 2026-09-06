@@ -172,7 +172,10 @@ def analyse(
     episode_id: str, output: str | None, force: bool, model: str | None,
     effort: str | None, cache_ttl: str, dry_run: bool,
 ) -> None:
-    """Analyse a transcript and produce structured episode analysis."""
+    """Analyse a transcript and produce structured episode analysis.
+
+    Makes one API call per match in the gameweek, so this takes a few minutes.
+    """
     from motd.analyser import (
         DEFAULT_EFFORT,
         DEFAULT_MODEL,
@@ -181,6 +184,7 @@ def analyse(
         Effort,
         _build_prompt,
         anthropic_backend,
+        fixture_label,
     )
     from motd.analyser import analyse as do_analyse
     from motd.fixtures import FileFixtureProvider, fixtures_path_for_season
@@ -222,17 +226,27 @@ def analyse(
         sys.exit(1)
 
     if dry_run:
-        prompt = _build_prompt(
-            transcript, candidates, episode_id, ep.broadcast_date, ep.season
-        )
-        # Two files rather than one: the halves land either side of the cache
-        # breakpoint, and iteration diffs the task half on its own.
+        # The context half is written once because every match shares it — that is what
+        # makes it the cached half — and the per-match halves go to one file to diff.
         ep.cache_dir.mkdir(parents=True, exist_ok=True)
-        for half, text in (("context", prompt.context), ("task", prompt.task)):
+        prompts = [
+            _build_prompt(
+                transcript, candidates, fixture, episode_id, ep.broadcast_date, ep.season
+            )
+            for fixture in candidates
+        ]
+        halves = {
+            "context": prompts[0].context,
+            "tasks": "\n\n".join(
+                f"{'=' * 70}\n{fixture_label(f)}\n{'=' * 70}\n{p.task}"
+                for f, p in zip(candidates, prompts, strict=True)
+            ),
+        }
+        for half, text in halves.items():
             half_path = ep.cache_dir / f"prompt.{half}.txt"
             half_path.write_text(text)
             click.echo(f"Prompt {half}: {half_path} ({len(text):,} chars)")
-        click.echo(f"Candidates: {len(candidates)} — no API call made")
+        click.echo(f"Matches to locate: {len(candidates)} — no API call made")
         return
 
     try:
@@ -252,7 +266,7 @@ def analyse(
     out_path.write_text(analysis.model_dump_json(indent=2))
     click.echo(
         f"Analysis saved: {out_path} "
-        f"({len(analysis.matches)} of {len(candidates)} candidates covered)"
+        f"({len(analysis.matches)} matches located of {len(candidates)})"
     )
 
 

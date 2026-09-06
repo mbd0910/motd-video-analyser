@@ -4,7 +4,8 @@
 - `cache/{episode_id}/` - Pipeline intermediates (gitignored):
   - `subtitles.ttml` - EBU-TT/TTML as iPlayer published it
   - `transcript.json` - Transcription with timestamps
-  - `prompt.{context,task}.txt` - `analyse --dry-run` output
+  - `prompt.{context,tasks}.txt` - `analyse --dry-run` output: the transcript half
+    every match shares, and the per-match halves concatenated
 - `analysis/{episode_id}.json` - Structured episode analysis. Committed: this is the
   source of truth downstream reads, and it cannot be re-derived once iPlayer drops the episode.
 - `rosters/motd_{season}.json` - Studio roster per episode (presenter, pundits, guests),

@@ -82,6 +82,9 @@ class MatchCoverage(BaseModel):
     order: int = Field(gt=0, description="Position in the episode's sequence (1-indexed)")
     segments: dict[str, Segment] = Field(default_factory=dict)
     notes: str | None = None
+    # The transcript line the studio hands over on, checked against the transcript
+    # rather than trusted: it is what makes the timings evidence instead of a claim.
+    handover: str | None = None
 
 
 class AnalysisProvenance(BaseModel):
@@ -98,8 +101,8 @@ class AnalysisProvenance(BaseModel):
     candidate_fpl_codes: list[int] = Field(default_factory=list)
     input_tokens: int | None = None
     output_tokens: int | None = None
-    # The model's sweep of the transcript, kept so a run's coverage can be audited
-    # after the fact — it names the trails and breaks that leave gaps between matches.
+    # Only on analyses from prompt version 3 and earlier, where one call produced the
+    # whole running order and its sweep of the transcript was kept to audit coverage.
     walkthrough: str | None = None
 
 

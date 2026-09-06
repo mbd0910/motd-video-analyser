@@ -135,17 +135,17 @@ Use `--help` on any command for full options.
         "highlights": {"start": "03:07", "end": "08:43"},
         "studio_analysis": {"start": "08:43", "end": "12:20"}
       },
-      "notes": null
+      "notes": null,
+      "handover": "Guy Mowbray was at the MKM Stadium."
     }
   ],
   "provenance": {
     "model": "claude-opus-5",
-    "prompt_version": "3",
+    "prompt_version": "4",
     "analysed_at": "2026-08-24T21:14:03Z",
     "candidate_fpl_codes": [2645195, 2645198, 2645197, 2645199, 2645200, 2645196],
     "input_tokens": 31204,
-    "output_tokens": 812,
-    "walkthrough": "00:21-01:14 studio set-up for Hull City v Manchester United..."
+    "output_tokens": 812
   }
 }
 ```

@@ -20,13 +20,28 @@ list and constrained by a JSON schema (`analyser._build_schema`) to echo back on
 exact labels, which `_resolve_matches` maps to a fixture in code. Everything else — team
 names, venue, score — joins in from the fixture row rather than being restated by the model.
 
-**The answer commits to the sweep before it writes it.** `_build_schema` puts a required
-`walkthrough` string ahead of `running_order`, because property order is generation order:
-the model writes out its pass over the transcript first, then fills an array it is already
-answerable to. Without it the analyser returned one or two matches out of six at every
-effort level — reasoning does not constrain the answer block, and `minItems` above 1 is
-rejected by structured outputs. The walkthrough is kept in provenance for auditing coverage,
-but it is model prose, not an index: it can contain overlaps the array resolves.
+**One call per match, and the model is asked only where.** Every attempt to get a whole
+running order from one call collapsed — an array stopped after one entry, and a required
+property per candidate was worse, returning all-unshown in four variants and exceeding the
+compiled-grammar limit above eight candidates. The same model locates each match correctly
+when that is the entire question. `analyse` therefore loops the candidates, and the prompt
+is split so the transcript is written to cache once and read back by every later call.
+
+**The model reports evidence; the analysis derives the rest.** It emits no position and no
+verdict — `order` is the rank of the timestamps it reported, so gaps and repeats are not
+expressible, and presence follows from having timings at all. Both were judgement slots the
+model could satisfy with a default, and defaults are what it kept reaching for.
+
+**The handover quote is checked, not trusted.** Each reply must quote the line the studio
+hands over on, verbatim; `_resolve_location` normalises punctuation and case and looks it up
+in the transcript. Asking "where is this match" biases towards finding one, and a citation
+that is really in the transcript is the cheap defence against an invented timing.
+
+**A run fails whole or not at all.** A match that cannot be located, a quote that is not in
+the transcript, two matches claiming the same package, or timings covering less than
+`MIN_TIMELINE_SHARE` of the runtime all raise. Nothing is written when they do: a
+half-filled analysis is worse than none, because the transcript cannot be re-fetched once
+iPlayer drops the episode.
 
 **The roster is metadata, not analysis.** Who presented and punditted an episode lives in
 `data/rosters/motd_{season}.json`, hand-entered — the TTML carries a four-colour speaker
@@ -111,9 +126,10 @@ before writing if the directory and the live payload disagree.
 
 - **Running order is editorial, not chronological.** Which match leads the show is the
   central research question; kickoff times tell you nothing about it.
-- **MOTD covers roughly 7 of the 10 Saturday fixtures.** Sky, TNT and Amazon hold rights to
-  the rest, so the analyser is handed every fixture for the broadcast date and works out
-  from the transcript which ones actually appeared.
+- **MOTD covers every match in its window.** It is the highlights show for the whole
+  division — the Sky/TNT/Amazon rights split governs live coverage, not highlights — so
+  which matches appeared is not a question to put to a model. A candidate that cannot be
+  located in the transcript is a failed run, not a match that did not air.
 - **Segment keys are `studio_intro`, `highlights`, `studio_analysis`**, defined by the
   prompt in `analyser.py`. Post-match interviews fall inside the highlights run.
 - **A match can appear in two episodes.** MOTD2 round-ups revisit Saturday games covered the
@@ -142,13 +158,14 @@ Commands below assume `uv run` in front, or an activated `.venv`.
 - `python -m motd download URL_OR_ID BROADCAST_DATE` (date as YYYY-MM-DD — iPlayer metadata has no date fields)
 - `python -m motd transcribe VIDEO_PATH [--output PATH] [--force]`
 - `python -m motd analyse EPISODE_ID [--output PATH] [--force] [--model ID] [--effort LEVEL] [--cache-ttl 5m|1h|off] [--dry-run]`
-  — `--dry-run` writes the prompt's two halves to the cache dir and makes no API call
+  — one API call per match, so a few minutes per episode; `--dry-run` writes the shared
+  context half and every per-match task half to the cache dir and makes no API call
 - `python -m motd publish EPISODE_ID`
 
 **Judging a prompt or schema change:**
 - `uv run python scripts/probe_analysis.py EPISODE_ID [EFFORT ...]` — runs the live prompt and
-  prints what `analyse` discards: thinking, token counts, emitted key order, the walkthrough.
-  Billed, one call per effort level.
+  prints what `analyse` discards: thinking, token counts, whether each handover quote
+  verified. Billed, one call per match per effort level.
 
 **Tests:**
 - `uv run pytest`
