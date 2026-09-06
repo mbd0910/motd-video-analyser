@@ -1,6 +1,9 @@
 """Pipeline orchestrator — sequences all stages of the MOTD analysis pipeline.
 
-Stages: Download (optional) → Transcribe → Analyse → Publish
+Stages: Metadata → Download → Transcribe → Analyse → Publish
+
+Metadata runs first because it supplies the broadcast date the rest of the pipeline
+keys off, which BBC publishes and nobody should have to type.
 """
 
 from __future__ import annotations
@@ -11,11 +14,11 @@ from pathlib import Path
 
 from motd.cache import get_or_compute, load
 from motd.episode import DEFAULT_ANALYSIS_DIR, DEFAULT_CACHE_DIR, Episode
-from motd.models import EpisodeAnalysis, Fixture, Transcript
+from motd.models import EpisodeAnalysis, EpisodeMetadata, Fixture, Transcript
 
 logger = logging.getLogger(__name__)
 
-STAGES = ("download", "transcribe", "analyse", "publish")
+STAGES = ("metadata", "download", "transcribe", "analyse", "publish")
 
 
 class PipelineError(Exception):
@@ -29,6 +32,7 @@ def run(
     episode_id: str | None = None,
     skip_to: str | None = None,
     force: bool = False,
+    keep_video: bool = True,
     cache_dir: str = str(DEFAULT_CACHE_DIR),
     analysis_dir: str = str(DEFAULT_ANALYSIS_DIR),
 ) -> None:
@@ -36,11 +40,12 @@ def run(
 
     Args:
         video_path: Path to a local video file (skip download).
-        url: BBC iPlayer URL (triggers download first).
-        broadcast_date: Air date (YYYY-MM-DD); required alongside url.
+        url: BBC iPlayer URL or programme id (triggers metadata and download first).
+        broadcast_date: Air date (YYYY-MM-DD); derived from BBC metadata if omitted.
         episode_id: Episode ID for re-running specific stages.
         skip_to: Stage to skip to (e.g. "analyse").
         force: Force re-processing even if cached.
+        keep_video: Download and keep the video alongside the subtitles.
         cache_dir: Base directory for cached outputs.
         analysis_dir: Directory holding the committed analysis JSON.
     """
@@ -52,15 +57,21 @@ def run(
         raise PipelineError("--skip-to requires --episode-id")
     if not video_path and not url and not skip_to:
         raise PipelineError("Provide video_path or url (or --skip-to with --episode-id)")
-    if url and not broadcast_date:
-        raise PipelineError("--url requires --date (YYYY-MM-DD)")
 
     # Determine which stages to run
-    start_stage = skip_to or ("download" if url else "transcribe")
+    start_stage = skip_to or ("metadata" if url else "transcribe")
     active_stages = STAGES[STAGES.index(start_stage):]
 
+    # --- Metadata ---
+    # Ahead of the download because it carries the broadcast date, and iPlayer's half
+    # of it stops being served once the episode's availability window closes.
+    if url and (broadcast_date is None or "metadata" in active_stages):
+        metadata = _timed("metadata", _do_fetch_metadata, url=url)
+        broadcast_date = broadcast_date or metadata.broadcast_date
+
     # --- Download ---
-    if "download" in active_stages and url:
+    if "download" in active_stages and url and keep_video:
+        assert broadcast_date is not None  # the metadata stage above guarantees it
         video_path, episode_id = _timed(
             "download", _do_download, url=url, broadcast_date=broadcast_date
         )
@@ -68,6 +79,8 @@ def run(
     # Derive episode_id from video filename if not set
     if not episode_id and video_path:
         episode_id = Path(video_path).stem
+    if not episode_id and broadcast_date:
+        episode_id = Episode.from_broadcast_date(broadcast_date).episode_id
 
     if not episode_id:
         raise PipelineError("Could not determine episode_id")
@@ -182,6 +195,23 @@ def _load_candidates(broadcast_date: str) -> list[Fixture]:
 
     provider = FileFixtureProvider(path)
     return provider.get_candidates(broadcast_date)
+
+
+def _do_fetch_metadata(url: str) -> EpisodeMetadata:
+    """Fetch BBC's record of an episode and store it."""
+    from motd.programme import ProgrammeError, fetch, save
+
+    try:
+        metadata = fetch(url)
+    except ProgrammeError as exc:
+        raise PipelineError(str(exc)) from exc
+
+    path = save(metadata)
+    logger.info(
+        "Metadata written: %s (%s, %d credits)",
+        path, metadata.broadcast_date, len(metadata.credits),
+    )
+    return metadata
 
 
 def _do_download(url: str, broadcast_date: str) -> tuple[str, str]:

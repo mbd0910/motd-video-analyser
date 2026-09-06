@@ -1,0 +1,45 @@
+{
+  "episode_id": "motd_2026-27_2026-09-05",
+  "broadcast_date": "2026-09-05",
+  "season": "2026-27",
+  "programme_pid": "m0031b9y",
+  "version_pid": "m0031b9x",
+  "title": "Match of the Day",
+  "subtitle": "05/09/2026",
+  "editorial_title": "Match of the Day (Saturday)",
+  "first_broadcast": "2026-09-05T22:30:00+01:00",
+  "duration_seconds": 5340,
+  "content_window": {
+    "start_seconds": 30.0,
+    "end_seconds": 5225.0
+  },
+  "synopsis_short": "Highlights of eight Premier League matches, including Hull City v Aston Villa.",
+  "synopsis_medium": "Gabby Logan presents highlights of eight Premier League matches, including Hull City v Aston Villa, Manchester City v Coventry, Fulham v Crystal Palace and Newcastle v Bournemouth.",
+  "synopsis_long": "Gabby Logan presents highlights of eight Premier League matches. After beating Manchester United 2-0 in their opening game of the season, newly promoted Hull City welcome Aston Villa to the MKM Stadium, whilst fellow new boys Coventry have a daunting trip to Manchester City. Two new managers go head-to-head at Craven Cottage as Alvaro Arbeloa’s Fulham take on Pierre Sage’s Crystal Palace. Elsewhere, Newcastle welcome Bournemouth to St James’ Park, Brentford host Sunderland, Brighton face Leeds, and Nottingham Forest meet Spurs. There are also highlights of Friday night’s game between Ipswich and Liverpool.",
+  "synopsis_editorial": "With Hull v Villa, Forest v Spurs and Man City v Coventry on a busy Saturday",
+  "credits": [
+    {
+      "role": "Presenter",
+      "name": "Gabby Logan"
+    },
+    {
+      "role": "Expert",
+      "name": "Danny Murphy"
+    },
+    {
+      "role": "Expert",
+      "name": "Rob Edwards"
+    },
+    {
+      "role": "Editor",
+      "name": "Richard Hughes"
+    },
+    {
+      "role": "Producer",
+      "name": "Ian Finch"
+    }
+  ],
+  "available_until": "2026-10-05T23:01:15Z",
+  "image_pid": "p0p7v7tx",
+  "fetched_at": "2026-09-06T19:48:11.311999+00:00"
+}

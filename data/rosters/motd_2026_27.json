@@ -1,22 +1,8 @@
 {
   "season": "2026-27",
   "episodes": {
-    "motd_2026-27_2026-08-22": {
-      "presenter": "Mark Chapman",
-      "pundits": ["Alan Shearer", "Wayne Rooney"]
-    },
     "motd_2026-27_2026-08-23": {
-      "presenter": "Gabby Logan",
-      "pundits": ["Danny Murphy", "Joe Hart"],
       "guests": ["Dean Holden"]
-    },
-    "motd_2026-27_2026-08-29": {
-      "presenter": "Kelly Cates",
-      "pundits": ["Ashley Williams", "Joe Hart"]
-    },
-    "motd_2026-27_2026-08-30": {
-      "presenter": "Gabby Logan",
-      "pundits": ["Shay Given", "Ellen White"]
     }
   }
 }

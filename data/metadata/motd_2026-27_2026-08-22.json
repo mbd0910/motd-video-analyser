@@ -1,0 +1,41 @@
+{
+  "episode_id": "motd_2026-27_2026-08-22",
+  "broadcast_date": "2026-08-22",
+  "season": "2026-27",
+  "programme_pid": "m0030qtm",
+  "version_pid": "m0030qtl",
+  "title": "Match of the Day",
+  "subtitle": "22/08/2026",
+  "editorial_title": "Match of the Day Saturday",
+  "first_broadcast": "2026-08-22T22:20:00+01:00",
+  "duration_seconds": 4740,
+  "content_window": {
+    "start_seconds": 30.0,
+    "end_seconds": 4634.0
+  },
+  "synopsis_short": "Highlights of the opening weekend of the 2026/27 Premier League season.",
+  "synopsis_medium": "Highlights of the opening weekend of the 2026/27 Premier League season, with all three newly promoted teams in action.",
+  "synopsis_long": "Highlights of the opening weekend of the 2026/27 Premier League season, with all three newly promoted teams in action. Hull kick off at home against Manchester United, Ipswich host Sunderland, and Coventry, back in the top-flight for the first time in 25 years, travel to champions Arsenal on Friday night. Elsewhere, Everton take on Crystal Palace, Nottingham Forest face Leeds, and Brentford meet Spurs.",
+  "synopsis_editorial": "The season starts with new boys Hull welcoming Man Utd and Coventry at champions Arsenal",
+  "credits": [
+    {
+      "role": "Presenter",
+      "name": "Mark Chapman"
+    },
+    {
+      "role": "Expert",
+      "name": "Wayne Rooney"
+    },
+    {
+      "role": "Expert",
+      "name": "Alan Shearer"
+    },
+    {
+      "role": "Editor",
+      "name": "Richard Hughes"
+    }
+  ],
+  "available_until": "2026-09-21T22:42:31Z",
+  "image_pid": "p0p5rn3d",
+  "fetched_at": "2026-09-06T19:48:08.612907+00:00"
+}

@@ -10,6 +10,7 @@ from motd.analyser import (
     LlmBackend,
     LlmResult,
     Prompt,
+    _accountable_seconds,
     _assert_highlights_do_not_overlap,
     _assert_spans_name_the_clubs,
     _build_prompt,
@@ -23,7 +24,9 @@ from motd.analyser import (
     fixture_label,
 )
 from motd.models import (
+    ContentWindow,
     EpisodeAnalysis,
+    EpisodeMetadata,
     Fixture,
     MatchCoverage,
     Score,
@@ -418,6 +421,60 @@ class TestTimelineShare:
 
     def test_a_reversed_span_is_ignored_rather_than_counted_negative(self) -> None:
         assert _timeline_share([self._match(1, ("20:00", "10:00"))], 3600) is None
+
+
+class TestAccountableSeconds:
+    """What the running order is measured against: BBC's content window if we have it."""
+
+    def _transcript(self) -> Transcript:
+        return Transcript(
+            episode_id="motd_2026-27_2026-09-05",
+            duration_seconds=5340.0,
+            segments=[TranscriptSegment(start=0.0, end=10.0, text="Welcome.")],
+        )
+
+    def _seed(self, tmp_path, monkeypatch, window: ContentWindow | None) -> None:
+        from motd import programme as programme_module
+
+        record = EpisodeMetadata(
+            episode_id="motd_2026-27_2026-09-05",
+            broadcast_date="2026-09-05",
+            season="2026-27",
+            programme_pid="m0031b9y",
+            version_pid="m0031b9x",
+            title="Match of the Day",
+            subtitle="05/09/2026",
+            first_broadcast="2026-09-05T22:30:00+01:00",
+            duration_seconds=5340,
+            content_window=window,
+            fetched_at="2026-09-06T09:00:00+00:00",
+        )
+        (tmp_path / f"{record.episode_id}.json").write_text(record.model_dump_json())
+        monkeypatch.setattr(programme_module, "METADATA_DIR", tmp_path)
+
+    def test_end_credits_stop_counting_as_unaccounted_airtime(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        self._seed(tmp_path, monkeypatch, ContentWindow(start_seconds=30.0, end_seconds=5225.0))
+        assert _accountable_seconds(
+            self._transcript(), "motd_2026-27_2026-09-05"
+        ) == pytest.approx(5195.0)
+
+    def test_falls_back_to_the_full_runtime_without_metadata(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        from motd import programme as programme_module
+
+        monkeypatch.setattr(programme_module, "METADATA_DIR", tmp_path / "absent")
+        assert _accountable_seconds(
+            self._transcript(), "motd_2026-27_2026-09-05"
+        ) == pytest.approx(5340.0)
+
+    def test_falls_back_when_metadata_carries_no_window(self, tmp_path, monkeypatch) -> None:
+        self._seed(tmp_path, monkeypatch, None)
+        assert _accountable_seconds(
+            self._transcript(), "motd_2026-27_2026-09-05"
+        ) == pytest.approx(5340.0)
 
 
 class TestAnalyseWithFakeBackend:

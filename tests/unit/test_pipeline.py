@@ -7,6 +7,7 @@ import pytest
 
 from motd.models import (
     EpisodeAnalysis,
+    EpisodeMetadata,
     Fixture,
     MatchCoverage,
     Score,
@@ -43,6 +44,19 @@ SAMPLE_FIXTURES = [
         gameweek=10,
     ),
 ]
+
+SAMPLE_METADATA = EpisodeMetadata(
+    episode_id=EPISODE_ID,
+    broadcast_date=BROADCAST_DATE,
+    season=SEASON,
+    programme_pid="m00test",
+    version_pid="m00tesu",
+    title="Match of the Day",
+    subtitle="01/11/2025",
+    first_broadcast=f"{BROADCAST_DATE}T22:30:00+00:00",
+    duration_seconds=5400,
+    fetched_at="2025-11-02T09:00:00+00:00",
+)
 
 SAMPLE_ANALYSIS = EpisodeAnalysis(
     episode_id=EPISODE_ID,
@@ -162,13 +176,15 @@ class TestPipelineFromUrl:
     @patch("motd.pipeline._load_candidates")
     @patch("motd.pipeline._do_transcribe")
     @patch("motd.pipeline._do_download")
+    @patch("motd.pipeline._do_fetch_metadata")
     def test_download_then_full_pipeline(
-        self, mock_download: MagicMock, mock_transcribe: MagicMock,
+        self, mock_metadata: MagicMock, mock_download: MagicMock, mock_transcribe: MagicMock,
         mock_fixtures: MagicMock, mock_analyse: MagicMock,
         mock_publish: MagicMock, tmp_path: Path,
     ) -> None:
         video = tmp_path / f"{EPISODE_ID}.mp4"
         video.touch()
+        mock_metadata.return_value = SAMPLE_METADATA
         mock_download.return_value = (str(video), EPISODE_ID)
         mock_transcribe.return_value = SAMPLE_TRANSCRIPT
         mock_fixtures.return_value = SAMPLE_FIXTURES
@@ -191,14 +207,16 @@ class TestPipelineFromUrl:
     @patch("motd.pipeline._do_transcribe")
     @patch("motd.pipeline._do_fetch_subtitles")
     @patch("motd.pipeline._do_download")
+    @patch("motd.pipeline._do_fetch_metadata")
     def test_download_fetches_subtitles(
-        self, mock_download: MagicMock, mock_subtitles: MagicMock,
+        self, mock_metadata: MagicMock, mock_download: MagicMock, mock_subtitles: MagicMock,
         mock_transcribe: MagicMock, mock_fixtures: MagicMock,
         mock_analyse: MagicMock, mock_publish: MagicMock, tmp_path: Path,
     ) -> None:
         video = tmp_path / f"{EPISODE_ID}.mp4"
         video.touch()
         cache_dir = tmp_path / "cache"
+        mock_metadata.return_value = SAMPLE_METADATA
         mock_download.return_value = (str(video), EPISODE_ID)
         mock_subtitles.side_effect = lambda url, destination: _seed_subtitles(cache_dir)
         mock_transcribe.return_value = SAMPLE_TRANSCRIPT
@@ -218,8 +236,9 @@ class TestPipelineFromUrl:
     @patch("motd.pipeline._do_transcribe")
     @patch("motd.pipeline._do_fetch_subtitles")
     @patch("motd.pipeline._do_download")
+    @patch("motd.pipeline._do_fetch_metadata")
     def test_cached_subtitles_not_refetched(
-        self, mock_download: MagicMock, mock_subtitles: MagicMock,
+        self, mock_metadata: MagicMock, mock_download: MagicMock, mock_subtitles: MagicMock,
         mock_transcribe: MagicMock, mock_fixtures: MagicMock,
         mock_analyse: MagicMock, mock_publish: MagicMock, tmp_path: Path,
     ) -> None:
@@ -227,6 +246,7 @@ class TestPipelineFromUrl:
         video.touch()
         cache_dir = tmp_path / "cache"
         _seed_subtitles(cache_dir)
+        mock_metadata.return_value = SAMPLE_METADATA
         mock_download.return_value = (str(video), EPISODE_ID)
         mock_transcribe.return_value = SAMPLE_TRANSCRIPT
         mock_fixtures.return_value = SAMPLE_FIXTURES
@@ -250,9 +270,62 @@ class TestPipelineValidation:
         with pytest.raises(PipelineError, match="episode.id"):
             run(skip_to="analyse")
 
-    def test_url_without_date_raises(self) -> None:
-        with pytest.raises(PipelineError, match="--date"):
-            run(url="https://www.bbc.co.uk/iplayer/episode/m00test")
+
+class TestPipelineMetadata:
+    """The metadata stage, which supplies the broadcast date nobody should type."""
+
+    @patch("motd.pipeline._do_publish")
+    @patch("motd.pipeline._do_analyse")
+    @patch("motd.pipeline._load_candidates")
+    @patch("motd.pipeline._do_transcribe")
+    @patch("motd.pipeline._do_download")
+    @patch("motd.pipeline._do_fetch_metadata")
+    def test_url_without_date_takes_the_date_from_bbc(
+        self, mock_metadata: MagicMock, mock_download: MagicMock, mock_transcribe: MagicMock,
+        mock_fixtures: MagicMock, mock_analyse: MagicMock,
+        mock_publish: MagicMock, tmp_path: Path,
+    ) -> None:
+        video = tmp_path / f"{EPISODE_ID}.mp4"
+        video.touch()
+        mock_metadata.return_value = SAMPLE_METADATA
+        mock_download.return_value = (str(video), EPISODE_ID)
+        mock_transcribe.return_value = SAMPLE_TRANSCRIPT
+        mock_fixtures.return_value = SAMPLE_FIXTURES
+        mock_analyse.return_value = SAMPLE_ANALYSIS
+        mock_publish.return_value = f"episodes/{EPISODE_ID}.json"
+
+        _seed_subtitles(tmp_path / "cache")
+
+        run_in(tmp_path, url="https://www.bbc.co.uk/iplayer/episode/m00test")
+
+        assert mock_download.call_args[1]["broadcast_date"] == BROADCAST_DATE
+
+    @patch("motd.pipeline._do_publish")
+    @patch("motd.pipeline._do_analyse")
+    @patch("motd.pipeline._load_candidates")
+    @patch("motd.pipeline._do_transcribe")
+    @patch("motd.pipeline._do_download")
+    @patch("motd.pipeline._do_fetch_metadata")
+    def test_no_video_still_transcribes_and_analyses(
+        self, mock_metadata: MagicMock, mock_download: MagicMock, mock_transcribe: MagicMock,
+        mock_fixtures: MagicMock, mock_analyse: MagicMock,
+        mock_publish: MagicMock, tmp_path: Path,
+    ) -> None:
+        mock_metadata.return_value = SAMPLE_METADATA
+        mock_transcribe.return_value = SAMPLE_TRANSCRIPT
+        mock_fixtures.return_value = SAMPLE_FIXTURES
+        mock_analyse.return_value = SAMPLE_ANALYSIS
+        mock_publish.return_value = f"episodes/{EPISODE_ID}.json"
+
+        _seed_subtitles(tmp_path / "cache")
+
+        run_in(tmp_path, url="https://www.bbc.co.uk/iplayer/episode/m00test",
+               keep_video=False)
+
+        mock_download.assert_not_called()
+        # The episode_id has to come from the date rather than a video filename.
+        mock_analyse.assert_called_once()
+        assert mock_analyse.call_args[1]["episode_id"] == EPISODE_ID
 
 
 class TestPipelineSkipTo:

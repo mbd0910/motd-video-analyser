@@ -588,9 +588,9 @@ def _assert_spans_name_the_clubs(
             )
 
 
-def _timeline_share(matches: list[MatchCoverage], duration_seconds: float) -> float | None:
+def _timeline_share(matches: list[MatchCoverage], accountable_seconds: float) -> float | None:
     """Fraction of the episode the running order accounts for, or None if untimeable."""
-    if duration_seconds <= 0:
+    if accountable_seconds <= 0:
         return None
 
     spans = [span for m in matches for key in SEGMENT_KEYS if (span := _span_seconds(m, key))]
@@ -610,14 +610,39 @@ def _timeline_share(matches: list[MatchCoverage], duration_seconds: float) -> fl
             current_end = max(current_end, end)
     covered += current_end - current_start
 
-    return covered / duration_seconds
+    return covered / accountable_seconds
+
+
+def _accountable_seconds(transcript: Transcript, episode_id: str) -> float:
+    """How much of the recording matches could have been given.
+
+    BBC marks where the programme proper starts and ends, so the opening trailer and
+    the end credits stop counting as airtime nobody accounted for. Falls back to the
+    full runtime when the episode's metadata has not been fetched.
+    """
+    from motd.programme import ProgrammeError
+    from motd.programme import load as load_metadata
+
+    try:
+        metadata = load_metadata(episode_id)
+    except ProgrammeError:
+        metadata = None
+    if metadata is None or metadata.content_window is None:
+        return transcript.duration_seconds
+
+    window = metadata.content_window
+    logger.info(
+        "%s: measuring against BBC's content window (%.0fs-%.0fs of %.0fs)",
+        episode_id, window.start_seconds, window.end_seconds, transcript.duration_seconds,
+    )
+    return window.duration_seconds
 
 
 def _assert_episode_is_accounted_for(
     matches: list[MatchCoverage], transcript: Transcript, episode_id: str
 ) -> None:
     """Reject timings that are individually plausible but leave the episode unexplained."""
-    share = _timeline_share(matches, transcript.duration_seconds)
+    share = _timeline_share(matches, _accountable_seconds(transcript, episode_id))
     if share is None:
         logger.warning("%s: running order carries no usable timings to check", episode_id)
         return

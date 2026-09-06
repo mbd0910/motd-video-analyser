@@ -4,7 +4,7 @@
 
 **MOTD Analyser** - Video analysis pipeline to objectively measure coverage bias in BBC's Match of the Day. Uses LLM-based analysis to identify running order, segment boundaries, and airtime distribution from MOTD episodes (2026/27 season).
 
-**Workflow:** Download → subtitles → transcript → Claude analysis → publish
+**Workflow:** Metadata → download → subtitles → transcript → Claude analysis → publish
 
 **User goal**: Settle football fan debates ("we're never on first!", "there's an agenda against my team") with data, not perception.
 
@@ -42,16 +42,33 @@ transcript, not that it is where the answer says it is.
 
 **A run fails whole or not at all.** A match that cannot be located, a span naming
 neither club, a quote that is not in the transcript, two matches claiming the same
-package, or timings covering less than `MIN_TIMELINE_SHARE` of the runtime all raise. Nothing is written when they do: a
+package, or timings covering less than `MIN_TIMELINE_SHARE` of the content window all raise. Nothing is written when they do: a
 half-filled analysis is worse than none, because the transcript cannot be re-fetched once
 iPlayer drops the episode.
 
-**The roster is metadata, not analysis.** Who presented and punditted an episode lives in
-`data/rosters/motd_{season}.json`, hand-entered — the TTML carries a four-colour speaker
-palette but no names, so it is unrecoverable from a transcript. It is never written into
+**The roster is metadata, not analysis.** It is unrecoverable from a transcript — the TTML
+carries a four-colour speaker palette but no names — but BBC credits it themselves, so
+`roster.from_credits` derives presenter, pundits and editor from `data/metadata/` and
+`data/rosters/motd_{season}.json` supplies only what BBC omits. Guests are the standing
+case: a visiting manager is on screen and never credited. Neither is written into
 `data/analysis/`: that file is rewritten wholesale by every `analyse` run, which would
-fight a hand-edited field. `publisher` joins the two into a `PublishedEpisode` on the way
+fight a hand-edited field. `publisher` joins them into a `PublishedEpisode` on the way
 out, so correcting a roster costs a re-publish rather than a billed re-analysis.
+
+**BBC's own record of an episode is worth keeping** (`programme.py`). `/programmes/{pid}.json`
+is a permanent catalogue — it answers years after iPlayer has dropped the video — and
+carries the broadcast date, the version pid and BBC's billing, which names the presenter
+and counts the matches. The iPlayer business layer adds what only it knows: the content
+window and the availability deadline. Stored verbatim in BBC's own vocabulary rather than
+mapped down to the roster's, because their roles do not line up with ours in either
+direction: they have no role for a guest, and they credit the **editor**, who changes week
+to week and is the one person who chose the running order.
+
+**Airtime is measured against the content window, not the file.** iPlayer publishes where
+the programme proper starts and ends (`started`/`ended` playback events), which on a typical
+episode excludes a 30-second lead-in and about two minutes of end credits.
+`MIN_TIMELINE_SHARE` is checked against that when the metadata has been fetched, and falls
+back to the full runtime when it has not.
 
 **Analyses are committed, everything else is cache.** `analyse` writes
 `data/analysis/{episode_id}.json` and that file is the source of truth: publishing and any
@@ -64,11 +81,16 @@ a round-up of Saturday action on Sunday. Deliberately wider than any one episode
 
 ## Architecture Overview
 
-**4-stage pipeline:** Download (optional) → Transcribe → Analyse → Publish
+**5-stage pipeline:** Metadata → Download → Transcribe → Analyse → Publish
+
+Metadata runs first because it carries the broadcast date the rest of the pipeline keys
+off. The video is downloaded as a matter of course even though nothing reads it yet:
+iPlayer drops an episode after 30 days and it cannot be re-fetched. `--no-video` opts out.
 
 **Modules** (`src/motd/`):
 - `models.py` - **Pydantic data contracts** (Transcript, EpisodeAnalysis, Fixture, etc.)
-- `roster.py` - **Studio roster** (per-episode presenter/pundits/guests, loaded per season)
+- `roster.py` - **Studio roster** (presenter/pundits/editor from BBC credits, guests by hand)
+- `programme.py` - **BBC metadata** (/programmes + iPlayer business layer → EpisodeMetadata)
 - `fixtures.py` - **Fixture loading** (FixtureProvider interface + FileFixtureProvider + candidate window)
 - `squads.py` - **Squad lookup** (which clubs a stretch of commentary names)
 - `fpl.py` - **Fixture sync** (Fantasy Premier League API → season fixtures and squads)
@@ -91,7 +113,7 @@ calls `load_dotenv()` from the working directory; real environment variables win
 ## Project Structure
 
 - `src/motd/` - Main package
-- `data/` - Fixtures, teams and analysis outputs (committed); videos and cache
+- `data/` - Fixtures, teams, metadata and analysis outputs (committed); videos and cache
   (gitignored) — see `data/CLAUDE.md`
 - `tests/` - Test suite
 
@@ -155,17 +177,23 @@ before writing if the directory and the live payload disagree.
 Commands below assume `uv run` in front, or an activated `.venv`.
 
 **Full pipeline:**
-- `python -m motd run VIDEO_PATH [--url URL --date YYYY-MM-DD] [--episode-id ID] [--skip-to STAGE] [--force]`
+- `python -m motd run VIDEO_PATH [--url URL] [--date YYYY-MM-DD] [--episode-id ID] [--skip-to STAGE] [--force] [--no-video]`
 
 **Fixture data:**
 - `python -m motd fixtures sync [--dry-run]` — refresh the current season's fixtures and
   squads from the FPL API; both come from the one bootstrap payload, so they cannot drift apart
 
+**Episode metadata:**
+- `python -m motd metadata fetch URL_OR_ID` — store BBC's record and credits for an episode
+- `python -m motd metadata show EPISODE_ID` — print the stored record and BBC's billing
+
 **Roster data:**
-- `python -m motd roster show SEASON` — list the recorded rosters and validate the file
+- `python -m motd roster show SEASON` — list the rosters derived from BBC's credits,
+  marking the episodes a hand-entered override touches
 
 **Individual stages:**
-- `python -m motd download URL_OR_ID BROADCAST_DATE` (date as YYYY-MM-DD — iPlayer metadata has no date fields)
+- `python -m motd download URL_OR_ID [BROADCAST_DATE]` — the date is read from BBC's
+  metadata when omitted, and that fetch is stored rather than thrown away
 - `python -m motd transcribe VIDEO_PATH [--output PATH] [--force]`
 - `python -m motd analyse EPISODE_ID [--output PATH] [--force] [--model ID] [--effort LEVEL] [--cache-ttl 5m|1h|off] [--dry-run]`
   — one API call per match, so a few minutes per episode; `--dry-run` writes the shared

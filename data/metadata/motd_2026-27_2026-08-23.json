@@ -1,0 +1,41 @@
+{
+  "episode_id": "motd_2026-27_2026-08-23",
+  "broadcast_date": "2026-08-23",
+  "season": "2026-27",
+  "programme_pid": "m0030qgb",
+  "version_pid": "m0030qg9",
+  "title": "Match of the Day",
+  "subtitle": "23/08/2026",
+  "editorial_title": "Match of the Day Sunday",
+  "first_broadcast": "2026-08-23T22:30:00+01:00",
+  "duration_seconds": 3540,
+  "content_window": {
+    "start_seconds": 30.0,
+    "end_seconds": 3422.0
+  },
+  "synopsis_short": "Highlights of the day's three matches in the Premier League.",
+  "synopsis_medium": "Highlights of the day's three matches in the Premier League: Manchester City v Bournemouth, Newcastle United v Liverpool and Brighton v Aston Villa.",
+  "synopsis_long": "Highlights of the day's matches on the opening weekend of the 2026/27 Premier League season, with new managers very much the focus. Enzo Maresca’s first league game in charge of Manchester City sees him take on Bournemouth, who are now led by Marco Rose.\n\nBournemouth’s former manager Andoni Iraola takes his Liverpool team to Newcastle, who saw Eddie Howe leave in the summer to be replaced by Matthias Jaissle. By contrast, Unai Emery is now the second-longest serving Premier League manager behind Mikel Arteta. His Aston Villa team travel to Fabian Hurzeler’s Brighton.",
+  "synopsis_editorial": "With Newcastle v Liverpool, Man City v Bournemouth and Brighton v Villa",
+  "credits": [
+    {
+      "role": "Presenter",
+      "name": "Gabby Logan"
+    },
+    {
+      "role": "Expert",
+      "name": "Danny Murphy"
+    },
+    {
+      "role": "Expert",
+      "name": "Joe Hart"
+    },
+    {
+      "role": "Editor",
+      "name": "Andy Fraser"
+    }
+  ],
+  "available_until": "2026-09-22T22:31:52Z",
+  "image_pid": "p0p5rnd1",
+  "fetched_at": "2026-09-06T19:48:09.383285+00:00"
+}

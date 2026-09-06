@@ -29,23 +29,48 @@ def cli() -> None:
     )
 
 
+def _resolve_broadcast_date(url_or_id: str, broadcast_date: str | None) -> str:
+    """The episode's air date, fetching BBC's record of it when not supplied.
+
+    The fetch is stored rather than thrown away: it is wanted anyway, and the iPlayer
+    half of it stops being served once the availability window closes.
+    """
+    if broadcast_date:
+        return broadcast_date
+
+    from motd.programme import ProgrammeError, fetch, save
+
+    try:
+        metadata = fetch(url_or_id)
+    except ProgrammeError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        click.echo("Pass the broadcast date explicitly to skip the metadata lookup.")
+        sys.exit(1)
+
+    save(metadata)
+    click.echo(f"Broadcast date from BBC: {metadata.broadcast_date} ({metadata.subtitle})")
+    return metadata.broadcast_date
+
+
 @cli.command()
 @click.argument("url_or_id")
-@click.argument("broadcast_date")
+@click.argument("broadcast_date", required=False)
 @click.option(
     "--output-dir",
     default="data/videos",
     type=click.Path(),
     help="Directory to save downloaded video.",
 )
-def download(url_or_id: str, broadcast_date: str, output_dir: str) -> None:
+def download(url_or_id: str, broadcast_date: str | None, output_dir: str) -> None:
     """Download an MOTD episode from BBC iPlayer.
 
-    URL_OR_ID is the iPlayer URL or programme ID; BROADCAST_DATE is the
-    air date as YYYY-MM-DD.
+    URL_OR_ID is the iPlayer URL or programme ID. BROADCAST_DATE (YYYY-MM-DD) is
+    optional — it is read from BBC's own metadata when omitted.
     """
     from motd.downloader import DownloadError
     from motd.downloader import download as do_download
+
+    broadcast_date = _resolve_broadcast_date(url_or_id, broadcast_date)
 
     try:
         result = do_download(url_or_id, broadcast_date, output_dir=output_dir)
@@ -59,16 +84,18 @@ def download(url_or_id: str, broadcast_date: str, output_dir: str) -> None:
 
 @cli.command()
 @click.argument("url_or_id")
-@click.argument("broadcast_date")
+@click.argument("broadcast_date", required=False)
 @click.option("--force", is_flag=True, help="Re-fetch and re-parse even if cached.")
-def subtitles(url_or_id: str, broadcast_date: str, force: bool) -> None:
+def subtitles(url_or_id: str, broadcast_date: str | None, force: bool) -> None:
     """Fetch iPlayer subtitles and build a transcript from them.
 
-    URL_OR_ID is the iPlayer URL or programme ID; BROADCAST_DATE is the
-    air date as YYYY-MM-DD.
+    URL_OR_ID is the iPlayer URL or programme ID. BROADCAST_DATE (YYYY-MM-DD) is
+    optional — it is read from BBC's own metadata when omitted.
     """
     from motd.downloader import normalise_url
     from motd.subtitles import SubtitleError, download_subtitles, parse_ttml
+
+    broadcast_date = _resolve_broadcast_date(url_or_id, broadcast_date)
 
     try:
         ep = Episode.from_broadcast_date(broadcast_date)
@@ -342,6 +369,71 @@ def fixtures_sync(output: str | None, dry_run: bool) -> None:
 
 
 @cli.group()
+def metadata() -> None:
+    """Fetch and inspect BBC's own record of an episode."""
+
+
+@metadata.command("fetch")
+@click.argument("url_or_id")
+def metadata_fetch(url_or_id: str) -> None:
+    """Fetch BBC's metadata and credits for an episode and store them.
+
+    URL_OR_ID is the iPlayer URL or programme ID.
+    """
+    from motd.programme import ProgrammeError, fetch, save
+
+    try:
+        record = fetch(url_or_id)
+    except ProgrammeError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+
+    path = save(record)
+    click.echo(f"Metadata saved: {path}")
+    click.echo(f"  {record.episode_id}  {record.editorial_title or record.title}")
+    click.echo(f"  Broadcast: {record.first_broadcast}  ({record.duration_seconds}s)")
+    if record.content_window:
+        window = record.content_window
+        click.echo(
+            f"  Content window: {window.start_seconds:.0f}s-{window.end_seconds:.0f}s "
+            f"({window.duration_seconds:.0f}s of programme)"
+        )
+    if record.available_until:
+        click.echo(f"  Available until: {record.available_until}")
+    for credit in record.credits:
+        click.echo(f"  {credit.role}: {credit.name}")
+    if not record.credits:
+        click.echo("  No credits published for this episode.")
+
+
+@metadata.command("show")
+@click.argument("episode_id")
+def metadata_show(episode_id: str) -> None:
+    """Print the stored metadata for EPISODE_ID, with BBC's billing."""
+    from motd.programme import ProgrammeError, load, metadata_path_for_episode
+
+    try:
+        record = load(episode_id)
+    except ProgrammeError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+
+    if record is None:
+        click.echo(f"Error: no metadata for {episode_id}", err=True)
+        click.echo("Run `python -m motd metadata fetch URL_OR_ID` first.")
+        sys.exit(1)
+
+    click.echo(f"{metadata_path_for_episode(episode_id)}")
+    click.echo(f"  {record.editorial_title or record.title} — {record.subtitle}")
+    click.echo(f"  Broadcast: {record.first_broadcast}")
+    click.echo(f"  Programme pid: {record.programme_pid}  version pid: {record.version_pid}")
+    for credit in record.credits:
+        click.echo(f"  {credit.role}: {credit.name}")
+    click.echo()
+    click.echo(f"  {record.synopsis_long}")
+
+
+@cli.group()
 def roster() -> None:
     """Manage studio rosters (presenter, pundits, guests)."""
 
@@ -349,38 +441,57 @@ def roster() -> None:
 @roster.command("show")
 @click.argument("season")
 def roster_show(season: str) -> None:
-    """List the recorded rosters for SEASON (e.g. 2026-27)."""
-    from motd.roster import RosterBook, RosterError, roster_path_for_season
+    """List the rosters for SEASON (e.g. 2026-27), as derived from BBC's credits."""
+    from motd.programme import METADATA_DIR
+    from motd.roster import RosterBook, RosterError, roster_for_episode
 
-    try:
-        book = RosterBook.for_season(season)
-    except RosterError as exc:
-        click.echo(f"Error: {exc}", err=True)
+    episode_ids = sorted(p.stem for p in METADATA_DIR.glob(f"motd_{season}_*.json"))
+    if not episode_ids:
+        click.echo(f"No metadata for season {season} in {METADATA_DIR}", err=True)
+        click.echo("Run `python -m motd metadata fetch URL_OR_ID` per episode.")
         sys.exit(1)
 
-    click.echo(f"{roster_path_for_season(season)} — {len(book.episode_ids())} episodes")
-    for episode_id in book.episode_ids():
-        entry = book.get(episode_id)
-        assert entry is not None
+    try:
+        overrides = RosterBook.for_season(season).episode_ids()
+    except RosterError:
+        overrides = []
+
+    click.echo(f"{season} — {len(episode_ids)} episodes with metadata")
+    for episode_id in episode_ids:
+        entry = roster_for_episode(episode_id, season)
+        if entry is None:
+            click.echo(f"  {episode_id}  (no presenter credited)")
+            continue
         line = f"  {episode_id}  {entry.presenter}"
         if entry.pundits:
             line += f" with {', '.join(entry.pundits)}"
         if entry.guests:
             line += f" (guests: {', '.join(entry.guests)})"
+        if entry.editor:
+            line += f" — editor {entry.editor}"
+        if episode_id in overrides:
+            line += " [hand-edited]"
         click.echo(line)
 
 
 @cli.command()
 @click.argument("video_path", required=False)
-@click.option("--url", help="BBC iPlayer URL to download and process.")
-@click.option("--date", "broadcast_date", help="Broadcast date (YYYY-MM-DD); required with --url.")
+@click.option("--url", help="BBC iPlayer URL or programme ID to download and process.")
+@click.option(
+    "--date", "broadcast_date",
+    help="Broadcast date (YYYY-MM-DD); read from BBC metadata when omitted.",
+)
 @click.option("--episode-id", help="Episode ID for re-running specific stages.")
 @click.option(
     "--skip-to",
-    type=click.Choice(["transcribe", "analyse", "publish"]),
+    type=click.Choice(["download", "transcribe", "analyse", "publish"]),
     help="Skip to a specific pipeline stage.",
 )
 @click.option("--force", is_flag=True, help="Force re-processing of all stages.")
+@click.option(
+    "--no-video", is_flag=True,
+    help="Skip the video download; subtitles and metadata are fetched either way.",
+)
 def run(
     video_path: str | None,
     url: str | None,
@@ -388,6 +499,7 @@ def run(
     episode_id: str | None,
     skip_to: str | None,
     force: bool,
+    no_video: bool,
 ) -> None:
     """Run the full analysis pipeline."""
     from motd.pipeline import PipelineError
@@ -401,6 +513,7 @@ def run(
             episode_id=episode_id,
             skip_to=skip_to,
             force=force,
+            keep_video=not no_video,
         )
     except PipelineError as exc:
         click.echo(f"Error: {exc}", err=True)

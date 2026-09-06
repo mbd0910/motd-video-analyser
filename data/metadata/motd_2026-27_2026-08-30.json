@@ -1,0 +1,45 @@
+{
+  "episode_id": "motd_2026-27_2026-08-30",
+  "broadcast_date": "2026-08-30",
+  "season": "2026-27",
+  "programme_pid": "m00310sp",
+  "version_pid": "m00310sn",
+  "title": "Match of the Day",
+  "subtitle": "30/08/2026",
+  "editorial_title": "Match of the Day Sunday",
+  "first_broadcast": "2026-08-30T22:30:00+01:00",
+  "duration_seconds": 4140,
+  "content_window": {
+    "start_seconds": 30.0,
+    "end_seconds": 4031.0
+  },
+  "synopsis_short": "Highlights of four Premier League matches, including Manchester United v Ipswich.",
+  "synopsis_medium": "Highlights of four Premier League matches, including Manchester United’s first home game of the season against newly promoted Ipswich. Xabi Alonso's Chelsea take on Brighton at Stamford Bridge.",
+  "synopsis_long": "Gabby Logan presents highlights of four Premier League matches, including Manchester United’s first home game of the season against newly promoted Ipswich. Xabi Alonso’s Chelsea take on Brighton at Stamford Bridge, Brentford go to Leeds, and Sunderland host Fulham at the Stadium of Light.",
+  "synopsis_editorial": "With Man Utd v Ipswich, Chelsea v Brighton, Leeds v Brentford and Sunderland v Fulham",
+  "credits": [
+    {
+      "role": "Presenter",
+      "name": "Gabby Logan"
+    },
+    {
+      "role": "Expert",
+      "name": "Ellen White"
+    },
+    {
+      "role": "Expert",
+      "name": "Shay Given"
+    },
+    {
+      "role": "Editor",
+      "name": "Jamie Gavin"
+    },
+    {
+      "role": "Producer",
+      "name": "Ian Finch"
+    }
+  ],
+  "available_until": "2026-09-29T22:40:54Z",
+  "image_pid": "p0p6j3jz",
+  "fetched_at": "2026-09-06T19:48:10.922388+00:00"
+}

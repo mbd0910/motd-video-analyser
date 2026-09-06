@@ -106,16 +106,102 @@ class AnalysisProvenance(BaseModel):
     walkthrough: str | None = None
 
 
+class Credit(BaseModel):
+    """One role/contributor pair as BBC publishes it.
+
+    Kept in BBC's own vocabulary rather than mapped down to the roster's: their
+    "Expert" is only approximately a pundit, and roles the roster has no slot for
+    — Editor above all, which changes week to week — are the point of storing this.
+    """
+
+    role: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+
+
+class ContentWindow(BaseModel):
+    """Where the programme proper sits inside the recording.
+
+    An episode file opens on a trailer and closes on end credits, neither of which
+    is airtime any match could have been given.
+    """
+
+    start_seconds: float = Field(ge=0.0)
+    end_seconds: float = Field(gt=0.0)
+
+    @model_validator(mode="after")
+    def window_runs_forwards(self) -> ContentWindow:
+        if self.end_seconds <= self.start_seconds:
+            msg = f"end ({self.end_seconds}) must be > start ({self.start_seconds})"
+            raise ValueError(msg)
+        return self
+
+    @property
+    def duration_seconds(self) -> float:
+        return self.end_seconds - self.start_seconds
+
+
+class EpisodeMetadata(BaseModel):
+    """BBC's own record of an episode, stored as published.
+
+    Committed rather than cached, though `/programmes` serves it indefinitely: it is
+    the provenance for a derived roster, and a claim about editorial bias should carry
+    the broadcaster's own billing alongside it.
+    """
+
+    episode_id: str
+    broadcast_date: str
+    season: str
+    programme_pid: str
+    # What yt-dlp actually downloads: the episode pid addresses the programme, this
+    # addresses the recording, and only this one appears in the media selection.
+    version_pid: str
+    title: str
+    subtitle: str
+    editorial_title: str | None = None
+    first_broadcast: str
+    duration_seconds: int = Field(gt=0)
+    content_window: ContentWindow | None = None
+    synopsis_short: str = ""
+    synopsis_medium: str = ""
+    synopsis_long: str = ""
+    synopsis_editorial: str | None = None
+    credits: list[Credit] = Field(default_factory=list)
+    available_until: str | None = None
+    image_pid: str | None = None
+    fetched_at: str
+
+    def named_for_role(self, role: str) -> list[str]:
+        """Everyone credited in a role, in the order BBC lists them."""
+        return [credit.name for credit in self.credits if credit.role.lower() == role.lower()]
+
+
+class RosterOverride(BaseModel):
+    """The hand-entered half of a roster: what BBC's credits do not carry.
+
+    Guests are the standing case — a visiting manager is on screen but never
+    credited — and the rest are escape hatches for a credit that is wrong or absent.
+    """
+
+    presenter: str | None = Field(default=None, min_length=1)
+    pundits: list[str] | None = None
+    guests: list[str] = Field(default_factory=list)
+    editor: str | None = Field(default=None, min_length=1)
+
+
 class EpisodeRoster(BaseModel):
     """Who was on screen in the studio for an episode.
 
-    Hand-entered from the broadcast, not derived: the subtitles carry a four-colour
-    speaker palette but no names, so nothing here can be recovered from a transcript.
+    Derived from BBC's credits and overlaid with `data/rosters/`, which supplies the
+    guests they never credit. Nothing here is recoverable from a transcript: the
+    subtitles carry a four-colour speaker palette but no names.
     """
 
     presenter: str = Field(min_length=1)
     pundits: list[str] = Field(default_factory=list)
     guests: list[str] = Field(default_factory=list)
+    # Not on screen, but the person who chose the running order — the variable a
+    # study of editorial bias would most want to test against.
+    editor: str | None = Field(default=None, min_length=1)
 
     @model_validator(mode="after")
     def people_are_named_once(self) -> EpisodeRoster:

@@ -220,22 +220,73 @@ class TestPublish:
 
 
 @pytest.mark.unit
+def _seed_metadata(tmp_path, monkeypatch, credits: list[tuple[str, str]]):
+    """Stand BBC's record of the episode up on disk, as `metadata fetch` would."""
+    from motd import programme as programme_module
+    from motd.models import Credit, EpisodeMetadata
+
+    metadata_dir = tmp_path / "metadata"
+    metadata_dir.mkdir()
+    record = EpisodeMetadata(
+        episode_id="motd_2025-26_2025-11-01",
+        broadcast_date="2025-11-01",
+        season="2025-26",
+        programme_pid="m00test",
+        version_pid="m00tesu",
+        title="Match of the Day",
+        subtitle="01/11/2025",
+        first_broadcast="2025-11-01T22:30:00+00:00",
+        duration_seconds=5400,
+        credits=[Credit(role=role, name=name) for role, name in credits],
+        fetched_at="2025-11-02T09:00:00+00:00",
+    )
+    (metadata_dir / f"{record.episode_id}.json").write_text(record.model_dump_json())
+    monkeypatch.setattr(programme_module, "METADATA_DIR", metadata_dir)
+    return metadata_dir
+
+
 class TestRosterJoin:
-    def test_publish_joins_the_season_roster(self, tmp_path, monkeypatch) -> None:
+    def test_publish_joins_the_roster_derived_from_bbc_credits(
+        self, tmp_path, monkeypatch
+    ) -> None:
         import json as _json
 
         from motd import roster as roster_module
 
+        _seed_metadata(tmp_path, monkeypatch, [
+            ("Presenter", "Mark Chapman"),
+            ("Expert", "Alan Shearer"),
+            ("Editor", "Richard Hughes"),
+        ])
+        monkeypatch.setattr(roster_module, "ROSTERS_DIR", tmp_path / "absent")
+
+        client = FakeR2Client()
+        publish(_make_analysis(), client=client)
+
+        published = _json.loads(client.objects["episodes/motd_2025-26_2025-11-01.json"])
+        assert published["roster"]["presenter"] == "Mark Chapman"
+        assert published["roster"]["pundits"] == ["Alan Shearer"]
+        assert published["roster"]["editor"] == "Richard Hughes"
+
+        index = _json.loads(client.objects["episodes/index.json"])
+        assert index["episodes"][0]["presenter"] == "Mark Chapman"
+
+    def test_hand_entered_guests_are_layered_onto_the_credits(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        import json as _json
+
+        from motd import roster as roster_module
+
+        _seed_metadata(tmp_path, monkeypatch, [
+            ("Presenter", "Mark Chapman"),
+            ("Expert", "Alan Shearer"),
+        ])
         rosters = tmp_path / "rosters"
         rosters.mkdir()
         (rosters / "motd_2025_26.json").write_text(_json.dumps({
             "season": "2025-26",
-            "episodes": {
-                "motd_2025-26_2025-11-01": {
-                    "presenter": "Mark Chapman",
-                    "pundits": ["Alan Shearer"],
-                }
-            },
+            "episodes": {"motd_2025-26_2025-11-01": {"guests": ["Dean Holden"]}},
         }))
         monkeypatch.setattr(roster_module, "ROSTERS_DIR", rosters)
 
@@ -244,16 +295,15 @@ class TestRosterJoin:
 
         published = _json.loads(client.objects["episodes/motd_2025-26_2025-11-01.json"])
         assert published["roster"]["presenter"] == "Mark Chapman"
-        assert published["roster"]["pundits"] == ["Alan Shearer"]
+        assert published["roster"]["guests"] == ["Dean Holden"]
 
-        index = _json.loads(client.objects["episodes/index.json"])
-        assert index["episodes"][0]["presenter"] == "Mark Chapman"
-
-    def test_publish_survives_a_season_with_no_roster_file(self, tmp_path, monkeypatch) -> None:
+    def test_publish_survives_an_episode_with_no_metadata(self, tmp_path, monkeypatch) -> None:
         import json as _json
 
+        from motd import programme as programme_module
         from motd import roster as roster_module
 
+        monkeypatch.setattr(programme_module, "METADATA_DIR", tmp_path / "absent")
         monkeypatch.setattr(roster_module, "ROSTERS_DIR", tmp_path / "absent")
 
         client = FakeR2Client()

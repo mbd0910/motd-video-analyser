@@ -5,8 +5,16 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from motd.models import EpisodeAnalysis, EpisodeRoster, MatchCoverage, PublishedEpisode
-from motd.roster import RosterBook, RosterError, roster_path_for_season
+from motd.models import (
+    Credit,
+    EpisodeAnalysis,
+    EpisodeMetadata,
+    EpisodeRoster,
+    MatchCoverage,
+    PublishedEpisode,
+    RosterOverride,
+)
+from motd.roster import RosterBook, RosterError, from_credits, roster_path_for_season
 
 VALID = {
     "season": "2026-27",
@@ -97,9 +105,94 @@ class TestRosterBook:
             RosterBook.load(write_roster(tmp_path, payload))
 
     def test_invalid_entry_names_the_episode(self, tmp_path) -> None:
-        payload = {"season": "2026-27", "episodes": {"motd_2026-27_2026-08-22": {}}}
+        payload = {
+            "season": "2026-27",
+            "episodes": {"motd_2026-27_2026-08-22": {"pundits": "Alan Shearer"}},
+        }
         with pytest.raises(RosterError, match="motd_2026-27_2026-08-22"):
             RosterBook.load(write_roster(tmp_path, payload))
+
+    def test_guests_only_entry_is_valid(self, tmp_path) -> None:
+        """The common case now BBC supplies the rest: a guest they never credit."""
+        payload = {
+            "season": "2026-27",
+            "episodes": {"motd_2026-27_2026-08-23": {"guests": ["Dean Holden"]}},
+        }
+        book = RosterBook.load(write_roster(tmp_path, payload))
+        entry = book.get("motd_2026-27_2026-08-23")
+        assert entry is not None
+        assert entry.guests == ["Dean Holden"]
+        assert entry.presenter is None
+
+
+def _metadata(credits: list[tuple[str, str]]) -> EpisodeMetadata:
+    return EpisodeMetadata(
+        episode_id="motd_2026-27_2026-08-23",
+        broadcast_date="2026-08-23",
+        season="2026-27",
+        programme_pid="m0030qgb",
+        version_pid="m0030qga",
+        title="Match of the Day",
+        subtitle="23/08/2026",
+        first_broadcast="2026-08-23T22:30:00+01:00",
+        duration_seconds=3540,
+        credits=[Credit(role=role, name=name) for role, name in credits],
+        fetched_at="2026-08-24T09:00:00+00:00",
+    )
+
+
+BBC_CREDITS = [
+    ("Presenter", "Gabby Logan"),
+    ("Expert", "Danny Murphy"),
+    ("Expert", "Joe Hart"),
+    ("Editor", "Andy Fraser"),
+    ("Producer", "Ian Finch"),
+]
+
+
+class TestRosterFromCredits:
+    """Deriving a roster from BBC's credits, overlaid with the hand-entered file."""
+
+    def test_expert_becomes_pundit_and_editor_is_carried(self) -> None:
+        roster = from_credits(_metadata(BBC_CREDITS))
+        assert roster is not None
+        assert roster.presenter == "Gabby Logan"
+        assert roster.pundits == ["Danny Murphy", "Joe Hart"]
+        assert roster.editor == "Andy Fraser"
+
+    def test_producer_is_not_a_pundit(self) -> None:
+        roster = from_credits(_metadata(BBC_CREDITS))
+        assert roster is not None
+        assert "Ian Finch" not in roster.pundits
+
+    def test_guests_come_only_from_the_hand_entered_file(self) -> None:
+        """BBC credits no guests at all, so nothing derived can supply one."""
+        assert from_credits(_metadata(BBC_CREDITS)).guests == []
+        roster = from_credits(
+            _metadata(BBC_CREDITS), RosterOverride(guests=["Dean Holden"])
+        )
+        assert roster is not None
+        assert roster.guests == ["Dean Holden"]
+
+    def test_override_replaces_a_wrong_credit(self) -> None:
+        roster = from_credits(
+            _metadata(BBC_CREDITS),
+            RosterOverride(presenter="Mark Chapman", pundits=["Alan Shearer"]),
+        )
+        assert roster is not None
+        assert roster.presenter == "Mark Chapman"
+        assert roster.pundits == ["Alan Shearer"]
+
+    def test_no_presenter_credited_yields_no_roster(self) -> None:
+        assert from_credits(_metadata([("Editor", "Andy Fraser")])) is None
+
+    def test_a_presenter_also_credited_as_expert_is_not_doubled(self) -> None:
+        """EpisodeRoster rejects a repeated name, so the derivation must not create one."""
+        roster = from_credits(
+            _metadata([("Presenter", "Gabby Logan"), ("Expert", "Gabby Logan")])
+        )
+        assert roster is not None
+        assert roster.pundits == []
 
 
 class TestRosterPath:
