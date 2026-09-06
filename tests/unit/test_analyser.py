@@ -10,12 +10,12 @@ from motd.analyser import (
     LlmBackend,
     LlmResult,
     Prompt,
-    _accountable_seconds,
     _assert_highlights_do_not_overlap,
     _assert_spans_name_the_clubs,
     _build_prompt,
     _build_schema,
     _content_blocks,
+    _content_bounds,
     _normalise,
     _parse_response,
     _resolve_location,
@@ -401,29 +401,42 @@ class TestTimelineShare:
 
     def test_abutting_segments_of_one_match_are_not_double_counted(self) -> None:
         match = self._match(1, ("00:00", "10:00"), ("10:00", "20:00"))
-        assert _timeline_share([match], 2400) == pytest.approx(0.5)
+        assert _timeline_share([match], (0.0, 2400)) == pytest.approx(0.5)
 
     def test_a_round_up_inside_a_fuller_package_is_counted_once(self) -> None:
         first = self._match(1, ("00:00", "20:00"))
         second = self._match(2, ("10:00", "30:00"))
-        assert _timeline_share([first, second], 3600) == pytest.approx(0.5)
+        assert _timeline_share([first, second], (0.0, 3600)) == pytest.approx(0.5)
 
     def test_a_gap_between_matches_is_not_counted(self) -> None:
         first = self._match(1, ("00:00", "10:00"))
         second = self._match(2, ("50:00", "60:00"))
-        assert _timeline_share([first, second], 3600) == pytest.approx(1 / 3)
+        assert _timeline_share([first, second], (0.0, 3600)) == pytest.approx(1 / 3)
 
     def test_untimed_matches_give_no_answer_rather_than_zero(self) -> None:
-        assert _timeline_share([self._match(1)], 3600) is None
+        assert _timeline_share([self._match(1)], (0.0, 3600)) is None
 
     def test_a_transcript_of_unknown_length_gives_no_answer(self) -> None:
-        assert _timeline_share([self._match(1, ("00:00", "10:00"))], 0) is None
+        assert _timeline_share([self._match(1, ("00:00", "10:00"))], (0.0, 0.0)) is None
 
     def test_a_reversed_span_is_ignored_rather_than_counted_negative(self) -> None:
-        assert _timeline_share([self._match(1, ("20:00", "10:00"))], 3600) is None
+        assert _timeline_share([self._match(1, ("20:00", "10:00"))], (0.0, 3600)) is None
+
+    def test_a_studio_intro_over_the_trailer_cannot_exceed_the_whole_show(self) -> None:
+        """The show opens straight into studio, so the span starts before the window."""
+        match = self._match(1, ("00:00", "30:30"))
+        assert _timeline_share([match], (30.0, 1830.0)) == pytest.approx(1.0)
+
+    def test_airtime_past_the_window_is_clipped_not_counted(self) -> None:
+        match = self._match(1, ("00:00", "30:00"))
+        assert _timeline_share([match], (0.0, 900.0)) == pytest.approx(1.0)
+
+    def test_a_span_entirely_outside_the_window_is_dropped(self) -> None:
+        match = self._match(1, ("00:00", "10:00"))
+        assert _timeline_share([match], (1200.0, 3600.0)) is None
 
 
-class TestAccountableSeconds:
+class TestContentBounds:
     """What the running order is measured against: BBC's content window if we have it."""
 
     def _transcript(self) -> Transcript:
@@ -456,9 +469,7 @@ class TestAccountableSeconds:
         self, tmp_path, monkeypatch
     ) -> None:
         self._seed(tmp_path, monkeypatch, ContentWindow(start_seconds=30.0, end_seconds=5225.0))
-        assert _accountable_seconds(
-            self._transcript(), "motd_2026-27_2026-09-05"
-        ) == pytest.approx(5195.0)
+        assert _content_bounds(self._transcript(), "motd_2026-27_2026-09-05") == (30.0, 5225.0)
 
     def test_falls_back_to_the_full_runtime_without_metadata(
         self, tmp_path, monkeypatch
@@ -466,15 +477,11 @@ class TestAccountableSeconds:
         from motd import programme as programme_module
 
         monkeypatch.setattr(programme_module, "METADATA_DIR", tmp_path / "absent")
-        assert _accountable_seconds(
-            self._transcript(), "motd_2026-27_2026-09-05"
-        ) == pytest.approx(5340.0)
+        assert _content_bounds(self._transcript(), "motd_2026-27_2026-09-05") == (0.0, 5340.0)
 
     def test_falls_back_when_metadata_carries_no_window(self, tmp_path, monkeypatch) -> None:
         self._seed(tmp_path, monkeypatch, None)
-        assert _accountable_seconds(
-            self._transcript(), "motd_2026-27_2026-09-05"
-        ) == pytest.approx(5340.0)
+        assert _content_bounds(self._transcript(), "motd_2026-27_2026-09-05") == (0.0, 5340.0)
 
 
 class TestAnalyseWithFakeBackend:

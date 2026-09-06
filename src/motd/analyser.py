@@ -588,12 +588,28 @@ def _assert_spans_name_the_clubs(
             )
 
 
-def _timeline_share(matches: list[MatchCoverage], accountable_seconds: float) -> float | None:
-    """Fraction of the episode the running order accounts for, or None if untimeable."""
+def _timeline_share(
+    matches: list[MatchCoverage], bounds: tuple[float, float]
+) -> float | None:
+    """Fraction of the episode the running order accounts for, or None if untimeable.
+
+    Spans are clipped to `bounds` before being counted, so a studio intro that starts
+    on the trailer cannot explain more of the show than the show contains.
+    """
+    lower, upper = bounds
+    accountable_seconds = upper - lower
     if accountable_seconds <= 0:
         return None
 
-    spans = [span for m in matches for key in SEGMENT_KEYS if (span := _span_seconds(m, key))]
+    spans = []
+    for match in matches:
+        for key in SEGMENT_KEYS:
+            span = _span_seconds(match, key)
+            if not span:
+                continue
+            start, end = max(span[0], lower), min(span[1], upper)
+            if end > start:
+                spans.append((start, end))
     if not spans:
         return None
 
@@ -613,12 +629,12 @@ def _timeline_share(matches: list[MatchCoverage], accountable_seconds: float) ->
     return covered / accountable_seconds
 
 
-def _accountable_seconds(transcript: Transcript, episode_id: str) -> float:
-    """How much of the recording matches could have been given.
+def _content_bounds(transcript: Transcript, episode_id: str) -> tuple[float, float]:
+    """The stretch of the recording matches could have been given, as (start, end).
 
     BBC marks where the programme proper starts and ends, so the opening trailer and
-    the end credits stop counting as airtime nobody accounted for. Falls back to the
-    full runtime when the episode's metadata has not been fetched.
+    the end credits count towards neither the airtime accounted for nor the airtime
+    available. Falls back to the whole recording when the metadata has not been fetched.
     """
     from motd.programme import ProgrammeError
     from motd.programme import load as load_metadata
@@ -628,21 +644,21 @@ def _accountable_seconds(transcript: Transcript, episode_id: str) -> float:
     except ProgrammeError:
         metadata = None
     if metadata is None or metadata.content_window is None:
-        return transcript.duration_seconds
+        return 0.0, transcript.duration_seconds
 
     window = metadata.content_window
     logger.info(
         "%s: measuring against BBC's content window (%.0fs-%.0fs of %.0fs)",
         episode_id, window.start_seconds, window.end_seconds, transcript.duration_seconds,
     )
-    return window.duration_seconds
+    return window.start_seconds, window.end_seconds
 
 
 def _assert_episode_is_accounted_for(
     matches: list[MatchCoverage], transcript: Transcript, episode_id: str
 ) -> None:
     """Reject timings that are individually plausible but leave the episode unexplained."""
-    share = _timeline_share(matches, _accountable_seconds(transcript, episode_id))
+    share = _timeline_share(matches, _content_bounds(transcript, episode_id))
     if share is None:
         logger.warning("%s: running order carries no usable timings to check", episode_id)
         return
