@@ -600,11 +600,11 @@ def _timeline_share(matches: list[MatchCoverage], accountable_seconds: float) ->
     # Segments of one match abut and a round-up can sit inside a fuller package, so the
     # union is the only honest measure of how much screen time was accounted for.
     covered = 0.0
-    current_start, current_end = None, None
-    for start, end in sorted(spans):
-        if current_end is None or start > current_end:
-            if current_end is not None:
-                covered += current_end - current_start
+    ordered = sorted(spans)
+    current_start, current_end = ordered[0]
+    for start, end in ordered[1:]:
+        if start > current_end:
+            covered += current_end - current_start
             current_start, current_end = start, end
         else:
             current_end = max(current_end, end)
