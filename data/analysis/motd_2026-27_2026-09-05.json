@@ -1,0 +1,186 @@
+{
+  "episode_id": "motd_2026-27_2026-09-05",
+  "broadcast_date": "2026-09-05",
+  "season": "2026-27",
+  "gameweek": 3,
+  "matches": [
+    {
+      "fpl_code": 2645219,
+      "order": 1,
+      "segments": {
+        "studio_intro": {
+          "start": "00:53",
+          "end": "01:11"
+        },
+        "highlights": {
+          "start": "01:11",
+          "end": "12:06"
+        },
+        "studio_analysis": {
+          "start": "12:06",
+          "end": "16:00"
+        }
+      },
+      "notes": "This is the opening match of the episode; the studio intro runs from the presenter's welcome to the day's fixtures (00:53) into the commentary handover. The manager/player interviews at 11:04-12:06 are pitchside and treated as part of the highlights package; studio analysis begins at 12:06 and ends as the presenter turns to Newcastle v Bournemouth at 16:00.",
+      "handover": "Simon Brotherton was watching."
+    },
+    {
+      "fpl_code": 2645223,
+      "order": 2,
+      "segments": {
+        "studio_intro": {
+          "start": "16:00",
+          "end": "16:21"
+        },
+        "highlights": {
+          "start": "16:21",
+          "end": "24:04"
+        },
+        "studio_analysis": {
+          "start": "24:04",
+          "end": "27:20"
+        }
+      },
+      "notes": "The studio intro is a single continuous link from the presenter that begins mid-line at 16:00 (\"OK, well, it was four points from two games for Newcastle...\") immediately after the Fulham v Palace analysis, and ends with the commentator credit. Highlights include the post-match manager/player interviews from 22:55. Studio analysis runs on into the light-hearted 'Murphy on Murphy' clip before the presenter turns to Man City v Coventry at 27:20.",
+      "handover": "Commentary comes from Tom Gayle."
+    },
+    {
+      "fpl_code": 2645222,
+      "order": 3,
+      "segments": {
+        "studio_intro": {
+          "start": "27:20",
+          "end": "27:29"
+        },
+        "highlights": {
+          "start": "27:29",
+          "end": "36:04"
+        },
+        "studio_analysis": {
+          "start": "36:04",
+          "end": "39:47"
+        }
+      },
+      "notes": null,
+      "handover": "Steve Bower was at the Etihad."
+    },
+    {
+      "fpl_code": 2645217,
+      "order": 4,
+      "segments": {
+        "studio_intro": {
+          "start": "39:47",
+          "end": "39:51"
+        },
+        "highlights": {
+          "start": "39:51",
+          "end": "48:24"
+        },
+        "studio_analysis": {
+          "start": "48:24",
+          "end": "49:57"
+        }
+      },
+      "notes": null,
+      "handover": "Commentary comes from Jonathan Pearce."
+    },
+    {
+      "fpl_code": 2645216,
+      "order": 5,
+      "segments": {
+        "studio_intro": {
+          "start": "50:36",
+          "end": "50:45"
+        },
+        "highlights": {
+          "start": "50:45",
+          "end": "57:41"
+        },
+        "studio_analysis": {
+          "start": "57:41",
+          "end": "58:57"
+        }
+      },
+      "notes": null,
+      "handover": "Chris Wise was at the Gtech Community Stadium."
+    },
+    {
+      "fpl_code": 2645224,
+      "order": 6,
+      "segments": {
+        "studio_intro": {
+          "start": "58:57",
+          "end": "59:11"
+        },
+        "highlights": {
+          "start": "59:11",
+          "end": "67:33"
+        },
+        "studio_analysis": {
+          "start": "67:33",
+          "end": "69:39"
+        }
+      },
+      "notes": null,
+      "handover": "Guy Mowbray was at the City Ground."
+    },
+    {
+      "fpl_code": 2645220,
+      "order": 7,
+      "segments": {
+        "studio_intro": {
+          "start": "69:39",
+          "end": "69:52"
+        },
+        "highlights": {
+          "start": "69:52",
+          "end": "77:14"
+        },
+        "studio_analysis": {
+          "start": "77:14",
+          "end": "79:44"
+        }
+      },
+      "notes": "The subtitle line beginning at 76:53 runs a post-match answer (\"Maybe an expectation to fight for a Champions League place... collect the points\") straight into the studio's promoted-teams stat (\"...that is why it's been a remarkable start and look at that, these are promoted teams...\") without a speaker change, so the highlights/studio boundary falls mid-line at roughly 77:14.",
+      "handover": "Conor McNamara was at the MKM Stadium."
+    },
+    {
+      "fpl_code": 2645221,
+      "order": 8,
+      "segments": {
+        "studio_intro": {
+          "start": "79:44",
+          "end": "79:53"
+        },
+        "highlights": {
+          "start": "79:53",
+          "end": "85:57"
+        },
+        "studio_analysis": {
+          "start": "85:57",
+          "end": "87:49"
+        }
+      },
+      "notes": "This match was played the previous evening (Friday) and is shown last in the episode as \"last night's action\". The post-match interviews with both managers run to 85:57 — the host's question at 85:26 about Isak is put to Liverpool's manager, not to the studio pundits, so it is counted within the highlights package; studio analysis proper begins with the Joe Hart question at 85:57 and ends when the host moves on to the league table at 87:49.",
+      "handover": "James Fielden was at Portman Road."
+    }
+  ],
+  "provenance": {
+    "model": "claude-opus-5",
+    "prompt_version": "5",
+    "analysed_at": "2026-09-06T19:55:55Z",
+    "candidate_fpl_codes": [
+      2645221,
+      2645223,
+      2645217,
+      2645216,
+      2645219,
+      2645222,
+      2645224,
+      2645220
+    ],
+    "input_tokens": 3791,
+    "output_tokens": 8990,
+    "walkthrough": null
+  }
+}
