@@ -1,7 +1,7 @@
 {
   "season": "2026-27",
   "competition": "Premier League",
-  "fetched_at": "2026-09-06T17:09:35Z",
+  "fetched_at": "2026-09-14T08:13:16Z",
   "source": "https://fantasy.premierleague.com/api/fixtures/",
   "fixtures": [
     {
@@ -508,8 +508,11 @@
       "home_code": "ARS",
       "away_code": "CHE",
       "venue": "Emirates Stadium",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 2,
+        "away": 1
+      },
+      "played": true
     },
     {
       "fpl_code": 2645226,
@@ -522,8 +525,11 @@
       "home_code": "AVL",
       "away_code": "NFO",
       "venue": "Villa Park",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 1,
+        "away": 2
+      },
+      "played": true
     },
     {
       "fpl_code": 2645225,
@@ -536,8 +542,11 @@
       "home_code": "BOU",
       "away_code": "BRE",
       "venue": "Vitality Stadium",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 2,
+        "away": 2
+      },
+      "played": true
     },
     {
       "fpl_code": 2645227,
@@ -550,8 +559,11 @@
       "home_code": "CHE",
       "away_code": "HUL",
       "venue": "Stamford Bridge",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 2,
+        "away": 2
+      },
+      "played": true
     },
     {
       "fpl_code": 2645229,
@@ -564,8 +576,11 @@
       "home_code": "CRY",
       "away_code": "IPS",
       "venue": "Selhurst Park",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 2,
+        "away": 3
+      },
+      "played": true
     },
     {
       "fpl_code": 2645231,
@@ -578,8 +593,11 @@
       "home_code": "LIV",
       "away_code": "FUL",
       "venue": "Anfield",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 0,
+        "away": 0
+      },
+      "played": true
     },
     {
       "fpl_code": 2645234,
@@ -592,8 +610,11 @@
       "home_code": "TOT",
       "away_code": "EVE",
       "venue": "Tottenham Hotspur Stadium",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 0,
+        "away": 0
+      },
+      "played": true
     },
     {
       "fpl_code": 2645233,
@@ -606,8 +627,11 @@
       "home_code": "SUN",
       "away_code": "ARS",
       "venue": "Stadium of Light",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 0,
+        "away": 2
+      },
+      "played": true
     },
     {
       "fpl_code": 2645228,
@@ -620,8 +644,11 @@
       "home_code": "COV",
       "away_code": "BHA",
       "venue": "Coventry Building Society Arena",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 0,
+        "away": 5
+      },
+      "played": true
     },
     {
       "fpl_code": 2645232,
@@ -634,8 +661,11 @@
       "home_code": "MUN",
       "away_code": "MCI",
       "venue": "Old Trafford",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 0,
+        "away": 1
+      },
+      "played": true
     },
     {
       "fpl_code": 2645230,
@@ -2336,40 +2366,12 @@
       "match_id": "2026-12-26-AVL-LEE",
       "gameweek": 17,
       "date": "2026-12-26",
-      "kickoff": "15:00",
+      "kickoff": "12:30",
       "home_team": "Aston Villa",
       "away_team": "Leeds United",
       "home_code": "AVL",
       "away_code": "LEE",
       "venue": "Villa Park",
-      "final_score": null,
-      "played": false
-    },
-    {
-      "fpl_code": 2645356,
-      "match_id": "2026-12-26-COV-CHE",
-      "gameweek": 17,
-      "date": "2026-12-26",
-      "kickoff": "15:00",
-      "home_team": "Coventry City",
-      "away_team": "Chelsea",
-      "home_code": "COV",
-      "away_code": "CHE",
-      "venue": "Coventry Building Society Arena",
-      "final_score": null,
-      "played": false
-    },
-    {
-      "fpl_code": 2645357,
-      "match_id": "2026-12-26-CRY-ARS",
-      "gameweek": 17,
-      "date": "2026-12-26",
-      "kickoff": "15:00",
-      "home_team": "Crystal Palace",
-      "away_team": "Arsenal",
-      "home_code": "CRY",
-      "away_code": "ARS",
-      "venue": "Selhurst Park",
       "final_score": null,
       "played": false
     },
@@ -2402,20 +2404,6 @@
       "played": false
     },
     {
-      "fpl_code": 2645360,
-      "match_id": "2026-12-26-HUL-LIV",
-      "gameweek": 17,
-      "date": "2026-12-26",
-      "kickoff": "15:00",
-      "home_team": "Hull City",
-      "away_team": "Liverpool",
-      "home_code": "HUL",
-      "away_code": "LIV",
-      "venue": "MKM Stadium",
-      "final_score": null,
-      "played": false
-    },
-    {
       "fpl_code": 2645361,
       "match_id": "2026-12-26-IPS-BRE",
       "gameweek": 17,
@@ -2426,34 +2414,6 @@
       "home_code": "IPS",
       "away_code": "BRE",
       "venue": "Portman Road",
-      "final_score": null,
-      "played": false
-    },
-    {
-      "fpl_code": 2645362,
-      "match_id": "2026-12-26-MUN-NFO",
-      "gameweek": 17,
-      "date": "2026-12-26",
-      "kickoff": "15:00",
-      "home_team": "Manchester United",
-      "away_team": "Nottingham Forest",
-      "home_code": "MUN",
-      "away_code": "NFO",
-      "venue": "Old Trafford",
-      "final_score": null,
-      "played": false
-    },
-    {
-      "fpl_code": 2645363,
-      "match_id": "2026-12-26-NEW-MCI",
-      "gameweek": 17,
-      "date": "2026-12-26",
-      "kickoff": "15:00",
-      "home_team": "Newcastle United",
-      "away_team": "Manchester City",
-      "home_code": "NEW",
-      "away_code": "MCI",
-      "venue": "St James' Park",
       "final_score": null,
       "played": false
     },
@@ -2472,16 +2432,114 @@
       "played": false
     },
     {
-      "fpl_code": 2645365,
-      "match_id": "2026-12-30-AVL-LIV",
-      "gameweek": 18,
-      "date": "2026-12-30",
-      "kickoff": "20:00",
-      "home_team": "Aston Villa",
+      "fpl_code": 2645360,
+      "match_id": "2026-12-26-HUL-LIV",
+      "gameweek": 17,
+      "date": "2026-12-26",
+      "kickoff": "17:30",
+      "home_team": "Hull City",
       "away_team": "Liverpool",
-      "home_code": "AVL",
+      "home_code": "HUL",
       "away_code": "LIV",
-      "venue": "Villa Park",
+      "venue": "MKM Stadium",
+      "final_score": null,
+      "played": false
+    },
+    {
+      "fpl_code": 2645363,
+      "match_id": "2026-12-26-NEW-MCI",
+      "gameweek": 17,
+      "date": "2026-12-26",
+      "kickoff": "20:00",
+      "home_team": "Newcastle United",
+      "away_team": "Manchester City",
+      "home_code": "NEW",
+      "away_code": "MCI",
+      "venue": "St James' Park",
+      "final_score": null,
+      "played": false
+    },
+    {
+      "fpl_code": 2645356,
+      "match_id": "2026-12-27-COV-CHE",
+      "gameweek": 17,
+      "date": "2026-12-27",
+      "kickoff": "14:00",
+      "home_team": "Coventry City",
+      "away_team": "Chelsea",
+      "home_code": "COV",
+      "away_code": "CHE",
+      "venue": "Coventry Building Society Arena",
+      "final_score": null,
+      "played": false
+    },
+    {
+      "fpl_code": 2645362,
+      "match_id": "2026-12-27-MUN-NFO",
+      "gameweek": 17,
+      "date": "2026-12-27",
+      "kickoff": "16:30",
+      "home_team": "Manchester United",
+      "away_team": "Nottingham Forest",
+      "home_code": "MUN",
+      "away_code": "NFO",
+      "venue": "Old Trafford",
+      "final_score": null,
+      "played": false
+    },
+    {
+      "fpl_code": 2645357,
+      "match_id": "2026-12-27-CRY-ARS",
+      "gameweek": 17,
+      "date": "2026-12-27",
+      "kickoff": "19:00",
+      "home_team": "Crystal Palace",
+      "away_team": "Arsenal",
+      "home_code": "CRY",
+      "away_code": "ARS",
+      "venue": "Selhurst Park",
+      "final_score": null,
+      "played": false
+    },
+    {
+      "fpl_code": 2645370,
+      "match_id": "2026-12-29-HUL-LEE",
+      "gameweek": 18,
+      "date": "2026-12-29",
+      "kickoff": "19:30",
+      "home_team": "Hull City",
+      "away_team": "Leeds United",
+      "home_code": "HUL",
+      "away_code": "LEE",
+      "venue": "MKM Stadium",
+      "final_score": null,
+      "played": false
+    },
+    {
+      "fpl_code": 2645374,
+      "match_id": "2026-12-29-TOT-BHA",
+      "gameweek": 18,
+      "date": "2026-12-29",
+      "kickoff": "19:30",
+      "home_team": "Tottenham Hotspur",
+      "away_team": "Brighton & Hove Albion",
+      "home_code": "TOT",
+      "away_code": "BHA",
+      "venue": "Tottenham Hotspur Stadium",
+      "final_score": null,
+      "played": false
+    },
+    {
+      "fpl_code": 2645368,
+      "match_id": "2026-12-29-EVE-MCI",
+      "gameweek": 18,
+      "date": "2026-12-29",
+      "kickoff": "20:15",
+      "home_team": "Everton",
+      "away_team": "Manchester City",
+      "home_code": "EVE",
+      "away_code": "MCI",
+      "venue": "Hill Dickinson Stadium",
       "final_score": null,
       "played": false
     },
@@ -2490,7 +2548,7 @@
       "match_id": "2026-12-30-COV-BRE",
       "gameweek": 18,
       "date": "2026-12-30",
-      "kickoff": "20:00",
+      "kickoff": "19:30",
       "home_team": "Coventry City",
       "away_team": "Brentford",
       "home_code": "COV",
@@ -2504,7 +2562,7 @@
       "match_id": "2026-12-30-CRY-BOU",
       "gameweek": 18,
       "date": "2026-12-30",
-      "kickoff": "20:00",
+      "kickoff": "19:30",
       "home_team": "Crystal Palace",
       "away_team": "Bournemouth",
       "home_code": "CRY",
@@ -2514,25 +2572,11 @@
       "played": false
     },
     {
-      "fpl_code": 2645368,
-      "match_id": "2026-12-30-EVE-MCI",
-      "gameweek": 18,
-      "date": "2026-12-30",
-      "kickoff": "20:00",
-      "home_team": "Everton",
-      "away_team": "Manchester City",
-      "home_code": "EVE",
-      "away_code": "MCI",
-      "venue": "Hill Dickinson Stadium",
-      "final_score": null,
-      "played": false
-    },
-    {
       "fpl_code": 2645369,
       "match_id": "2026-12-30-FUL-ARS",
       "gameweek": 18,
       "date": "2026-12-30",
-      "kickoff": "20:00",
+      "kickoff": "19:30",
       "home_team": "Fulham",
       "away_team": "Arsenal",
       "home_code": "FUL",
@@ -2542,39 +2586,11 @@
       "played": false
     },
     {
-      "fpl_code": 2645370,
-      "match_id": "2026-12-30-HUL-LEE",
-      "gameweek": 18,
-      "date": "2026-12-30",
-      "kickoff": "20:00",
-      "home_team": "Hull City",
-      "away_team": "Leeds United",
-      "home_code": "HUL",
-      "away_code": "LEE",
-      "venue": "MKM Stadium",
-      "final_score": null,
-      "played": false
-    },
-    {
-      "fpl_code": 2645371,
-      "match_id": "2026-12-30-IPS-CHE",
-      "gameweek": 18,
-      "date": "2026-12-30",
-      "kickoff": "20:00",
-      "home_team": "Ipswich Town",
-      "away_team": "Chelsea",
-      "home_code": "IPS",
-      "away_code": "CHE",
-      "venue": "Portman Road",
-      "final_score": null,
-      "played": false
-    },
-    {
       "fpl_code": 2645372,
       "match_id": "2026-12-30-MUN-SUN",
       "gameweek": 18,
       "date": "2026-12-30",
-      "kickoff": "20:00",
+      "kickoff": "19:30",
       "home_team": "Manchester United",
       "away_team": "Sunderland",
       "home_code": "MUN",
@@ -2588,7 +2604,7 @@
       "match_id": "2026-12-30-NEW-NFO",
       "gameweek": 18,
       "date": "2026-12-30",
-      "kickoff": "20:00",
+      "kickoff": "19:30",
       "home_team": "Newcastle United",
       "away_team": "Nottingham Forest",
       "home_code": "NEW",
@@ -2598,16 +2614,58 @@
       "played": false
     },
     {
-      "fpl_code": 2645374,
-      "match_id": "2026-12-30-TOT-BHA",
+      "fpl_code": 2645365,
+      "match_id": "2026-12-30-AVL-LIV",
       "gameweek": 18,
       "date": "2026-12-30",
+      "kickoff": "20:15",
+      "home_team": "Aston Villa",
+      "away_team": "Liverpool",
+      "home_code": "AVL",
+      "away_code": "LIV",
+      "venue": "Villa Park",
+      "final_score": null,
+      "played": false
+    },
+    {
+      "fpl_code": 2645371,
+      "match_id": "2026-12-30-IPS-CHE",
+      "gameweek": 18,
+      "date": "2026-12-30",
+      "kickoff": "20:15",
+      "home_team": "Ipswich Town",
+      "away_team": "Chelsea",
+      "home_code": "IPS",
+      "away_code": "CHE",
+      "venue": "Portman Road",
+      "final_score": null,
+      "played": false
+    },
+    {
+      "fpl_code": 2645380,
+      "match_id": "2027-01-01-LEE-EVE",
+      "gameweek": 19,
+      "date": "2027-01-01",
       "kickoff": "20:00",
-      "home_team": "Tottenham Hotspur",
-      "away_team": "Brighton & Hove Albion",
-      "home_code": "TOT",
-      "away_code": "BHA",
-      "venue": "Tottenham Hotspur Stadium",
+      "home_team": "Leeds United",
+      "away_team": "Everton",
+      "home_code": "LEE",
+      "away_code": "EVE",
+      "venue": "Elland Road",
+      "final_score": null,
+      "played": false
+    },
+    {
+      "fpl_code": 2645378,
+      "match_id": "2027-01-02-BHA-MUN",
+      "gameweek": 19,
+      "date": "2027-01-02",
+      "kickoff": "12:30",
+      "home_team": "Brighton & Hove Albion",
+      "away_team": "Manchester United",
+      "home_code": "BHA",
+      "away_code": "MUN",
+      "venue": "Amex Stadium",
       "final_score": null,
       "played": false
     },
@@ -2626,34 +2684,6 @@
       "played": false
     },
     {
-      "fpl_code": 2645378,
-      "match_id": "2027-01-02-BHA-MUN",
-      "gameweek": 19,
-      "date": "2027-01-02",
-      "kickoff": "15:00",
-      "home_team": "Brighton & Hove Albion",
-      "away_team": "Manchester United",
-      "home_code": "BHA",
-      "away_code": "MUN",
-      "venue": "Amex Stadium",
-      "final_score": null,
-      "played": false
-    },
-    {
-      "fpl_code": 2645375,
-      "match_id": "2027-01-02-BOU-AVL",
-      "gameweek": 19,
-      "date": "2027-01-02",
-      "kickoff": "15:00",
-      "home_team": "Bournemouth",
-      "away_team": "Aston Villa",
-      "home_code": "BOU",
-      "away_code": "AVL",
-      "venue": "Vitality Stadium",
-      "final_score": null,
-      "played": false
-    },
-    {
       "fpl_code": 2645377,
       "match_id": "2027-01-02-BRE-CRY",
       "gameweek": 19,
@@ -2668,34 +2698,6 @@
       "played": false
     },
     {
-      "fpl_code": 2645379,
-      "match_id": "2027-01-02-CHE-NEW",
-      "gameweek": 19,
-      "date": "2027-01-02",
-      "kickoff": "15:00",
-      "home_team": "Chelsea",
-      "away_team": "Newcastle United",
-      "home_code": "CHE",
-      "away_code": "NEW",
-      "venue": "Stamford Bridge",
-      "final_score": null,
-      "played": false
-    },
-    {
-      "fpl_code": 2645380,
-      "match_id": "2027-01-02-LEE-EVE",
-      "gameweek": 19,
-      "date": "2027-01-02",
-      "kickoff": "15:00",
-      "home_team": "Leeds United",
-      "away_team": "Everton",
-      "home_code": "LEE",
-      "away_code": "EVE",
-      "venue": "Elland Road",
-      "final_score": null,
-      "played": false
-    },
-    {
       "fpl_code": 2645381,
       "match_id": "2027-01-02-LIV-COV",
       "gameweek": 19,
@@ -2706,20 +2708,6 @@
       "home_code": "LIV",
       "away_code": "COV",
       "venue": "Anfield",
-      "final_score": null,
-      "played": false
-    },
-    {
-      "fpl_code": 2645382,
-      "match_id": "2027-01-02-MCI-TOT",
-      "gameweek": 19,
-      "date": "2027-01-02",
-      "kickoff": "15:00",
-      "home_team": "Manchester City",
-      "away_team": "Tottenham Hotspur",
-      "home_code": "MCI",
-      "away_code": "TOT",
-      "venue": "Etihad Stadium",
       "final_score": null,
       "played": false
     },
@@ -2752,11 +2740,53 @@
       "played": false
     },
     {
+      "fpl_code": 2645375,
+      "match_id": "2027-01-02-BOU-AVL",
+      "gameweek": 19,
+      "date": "2027-01-02",
+      "kickoff": "17:30",
+      "home_team": "Bournemouth",
+      "away_team": "Aston Villa",
+      "home_code": "BOU",
+      "away_code": "AVL",
+      "venue": "Vitality Stadium",
+      "final_score": null,
+      "played": false
+    },
+    {
+      "fpl_code": 2645379,
+      "match_id": "2027-01-03-CHE-NEW",
+      "gameweek": 19,
+      "date": "2027-01-03",
+      "kickoff": "14:00",
+      "home_team": "Chelsea",
+      "away_team": "Newcastle United",
+      "home_code": "CHE",
+      "away_code": "NEW",
+      "venue": "Stamford Bridge",
+      "final_score": null,
+      "played": false
+    },
+    {
+      "fpl_code": 2645382,
+      "match_id": "2027-01-03-MCI-TOT",
+      "gameweek": 19,
+      "date": "2027-01-03",
+      "kickoff": "16:30",
+      "home_team": "Manchester City",
+      "away_team": "Tottenham Hotspur",
+      "home_code": "MCI",
+      "away_code": "TOT",
+      "venue": "Etihad Stadium",
+      "final_score": null,
+      "played": false
+    },
+    {
       "fpl_code": 2645385,
-      "match_id": "2027-01-06-ARS-BRE",
+      "match_id": "2027-01-05-ARS-BRE",
       "gameweek": 20,
-      "date": "2027-01-06",
-      "kickoff": "20:00",
+      "date": "2027-01-05",
+      "kickoff": "19:30",
       "home_team": "Arsenal",
       "away_team": "Brentford",
       "home_code": "ARS",
@@ -2767,10 +2797,10 @@
     },
     {
       "fpl_code": 2645386,
-      "match_id": "2027-01-06-BHA-BOU",
+      "match_id": "2027-01-05-BHA-BOU",
       "gameweek": 20,
-      "date": "2027-01-06",
-      "kickoff": "20:00",
+      "date": "2027-01-05",
+      "kickoff": "19:30",
       "home_team": "Brighton & Hove Albion",
       "away_team": "Bournemouth",
       "home_code": "BHA",
@@ -2780,25 +2810,11 @@
       "played": false
     },
     {
-      "fpl_code": 2645387,
-      "match_id": "2027-01-06-CRY-CHE",
-      "gameweek": 20,
-      "date": "2027-01-06",
-      "kickoff": "20:00",
-      "home_team": "Crystal Palace",
-      "away_team": "Chelsea",
-      "home_code": "CRY",
-      "away_code": "CHE",
-      "venue": "Selhurst Park",
-      "final_score": null,
-      "played": false
-    },
-    {
       "fpl_code": 2645388,
-      "match_id": "2027-01-06-EVE-AVL",
+      "match_id": "2027-01-05-EVE-AVL",
       "gameweek": 20,
-      "date": "2027-01-06",
-      "kickoff": "20:00",
+      "date": "2027-01-05",
+      "kickoff": "19:30",
       "home_team": "Everton",
       "away_team": "Aston Villa",
       "home_code": "EVE",
@@ -2808,11 +2824,53 @@
       "played": false
     },
     {
+      "fpl_code": 2645393,
+      "match_id": "2027-01-05-NFO-HUL",
+      "gameweek": 20,
+      "date": "2027-01-05",
+      "kickoff": "19:30",
+      "home_team": "Nottingham Forest",
+      "away_team": "Hull City",
+      "home_code": "NFO",
+      "away_code": "HUL",
+      "venue": "City Ground",
+      "final_score": null,
+      "played": false
+    },
+    {
+      "fpl_code": 2645394,
+      "match_id": "2027-01-05-SUN-LIV",
+      "gameweek": 20,
+      "date": "2027-01-05",
+      "kickoff": "20:15",
+      "home_team": "Sunderland",
+      "away_team": "Liverpool",
+      "home_code": "SUN",
+      "away_code": "LIV",
+      "venue": "Stadium of Light",
+      "final_score": null,
+      "played": false
+    },
+    {
+      "fpl_code": 2645387,
+      "match_id": "2027-01-06-CRY-CHE",
+      "gameweek": 20,
+      "date": "2027-01-06",
+      "kickoff": "19:30",
+      "home_team": "Crystal Palace",
+      "away_team": "Chelsea",
+      "home_code": "CRY",
+      "away_code": "CHE",
+      "venue": "Selhurst Park",
+      "final_score": null,
+      "played": false
+    },
+    {
       "fpl_code": 2645389,
       "match_id": "2027-01-06-FUL-TOT",
       "gameweek": 20,
       "date": "2027-01-06",
-      "kickoff": "20:00",
+      "kickoff": "19:30",
       "home_team": "Fulham",
       "away_team": "Tottenham Hotspur",
       "home_code": "FUL",
@@ -2826,7 +2884,7 @@
       "match_id": "2027-01-06-IPS-COV",
       "gameweek": 20,
       "date": "2027-01-06",
-      "kickoff": "20:00",
+      "kickoff": "19:30",
       "home_team": "Ipswich Town",
       "away_team": "Coventry City",
       "home_code": "IPS",
@@ -2840,7 +2898,7 @@
       "match_id": "2027-01-06-LEE-MCI",
       "gameweek": 20,
       "date": "2027-01-06",
-      "kickoff": "20:00",
+      "kickoff": "20:15",
       "home_team": "Leeds United",
       "away_team": "Manchester City",
       "home_code": "LEE",
@@ -2851,43 +2909,15 @@
     },
     {
       "fpl_code": 2645392,
-      "match_id": "2027-01-06-MUN-NEW",
+      "match_id": "2027-01-07-MUN-NEW",
       "gameweek": 20,
-      "date": "2027-01-06",
+      "date": "2027-01-07",
       "kickoff": "20:00",
       "home_team": "Manchester United",
       "away_team": "Newcastle United",
       "home_code": "MUN",
       "away_code": "NEW",
       "venue": "Old Trafford",
-      "final_score": null,
-      "played": false
-    },
-    {
-      "fpl_code": 2645393,
-      "match_id": "2027-01-06-NFO-HUL",
-      "gameweek": 20,
-      "date": "2027-01-06",
-      "kickoff": "20:00",
-      "home_team": "Nottingham Forest",
-      "away_team": "Hull City",
-      "home_code": "NFO",
-      "away_code": "HUL",
-      "venue": "City Ground",
-      "final_score": null,
-      "played": false
-    },
-    {
-      "fpl_code": 2645394,
-      "match_id": "2027-01-06-SUN-LIV",
-      "gameweek": 20,
-      "date": "2027-01-06",
-      "kickoff": "20:00",
-      "home_team": "Sunderland",
-      "away_team": "Liverpool",
-      "home_code": "SUN",
-      "away_code": "LIV",
-      "venue": "Stadium of Light",
       "final_score": null,
       "played": false
     },
