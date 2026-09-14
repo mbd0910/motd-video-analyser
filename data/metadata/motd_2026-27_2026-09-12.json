@@ -1,0 +1,45 @@
+{
+  "episode_id": "motd_2026-27_2026-09-12",
+  "broadcast_date": "2026-09-12",
+  "season": "2026-27",
+  "programme_pid": "m0031mnx",
+  "version_pid": "m0031mnw",
+  "title": "Match of the Day",
+  "subtitle": "12/09/2026",
+  "editorial_title": "Match of the Day (Saturday)",
+  "first_broadcast": "2026-09-12T23:15:00+01:00",
+  "duration_seconds": 5040,
+  "content_window": {
+    "start_seconds": 30.0,
+    "end_seconds": 4926.0
+  },
+  "synopsis_short": "Highlights of seven Premier League matches, including Arsenal's trip to Sunderland.",
+  "synopsis_medium": "Highlights of seven Premier League matches, including Sunderland at home to champions Arsenal, Liverpool against Fulham, now managed by former Red Alvaro Arbeloa, and Hull's visit to Chelsea.",
+  "synopsis_long": "Highlights of seven Premier League matches, including champions Arsenal who travel to Sunderland. Last season’s match at the Stadium of Light finished 2-2 after a 94th-minute equaliser from Sunderland’s Brian Brobbey. \n\nLiverpool face a Fulham side managed by former Reds defender Alvaro Arbeloa. Newly promoted Hull face a tough trip to Chelsea, whilst fellow new boys Ipswich go to Crystal Palace. Elsewhere, Spurs host Everton, Bournemouth meet Brentford, and Aston Villa welcome Nottingham Forest to Villa Park.",
+  "synopsis_editorial": "With Sunderland v Arsenal, Chelsea v Hull, Spurs v Everton and Liverpool v Fulham",
+  "credits": [
+    {
+      "role": "Presenter",
+      "name": "Kelly Cates"
+    },
+    {
+      "role": "Expert",
+      "name": "Ashley Williams"
+    },
+    {
+      "role": "Expert",
+      "name": "Thomas Frank"
+    },
+    {
+      "role": "Editor",
+      "name": "Rich Hughes"
+    },
+    {
+      "role": "Director",
+      "name": "Colm Harty"
+    }
+  ],
+  "available_until": "2026-10-12T23:25:35Z",
+  "image_pid": "p0p956gm",
+  "fetched_at": "2026-09-14T08:14:00.341585+00:00"
+}

@@ -1,0 +1,45 @@
+{
+  "episode_id": "motd_2026-27_2026-09-13",
+  "broadcast_date": "2026-09-13",
+  "season": "2026-27",
+  "programme_pid": "m0031mp6",
+  "version_pid": "m0031mp5",
+  "title": "Match of the Day",
+  "subtitle": "13/09/2026",
+  "editorial_title": "Match of the Day (Sunday)",
+  "first_broadcast": "2026-09-13T22:30:00+01:00",
+  "duration_seconds": 2940,
+  "content_window": {
+    "start_seconds": 30.0,
+    "end_seconds": 2824.0
+  },
+  "synopsis_short": "Highlights of two Premier League matches, including the Manchester derby at Old Trafford.",
+  "synopsis_medium": "Highlights of two Premier League matches, including the Manchester derby from Old Trafford. In the other game, newly promoted Coventry welcome Brighton to the CBS Arena.",
+  "synopsis_long": "Highlights of two Premier League matches, including the Manchester derby from Old Trafford. Michael Carrick made a dream start as Manchester United head coach with a 2-0 win over Manchester City back in January. \n\nIn the other game, newly promoted Coventry welcome Brighton to the CBS Arena. Frank Lampard’s team, who are back in the Premier League for the first time in 25 years, lost their first home game of the season against fellow new boys Hull.",
+  "synopsis_editorial": "With the Manchester derby and Coventry looking for their first win at home to Brighton",
+  "credits": [
+    {
+      "role": "Presenter",
+      "name": "Mark Chapman"
+    },
+    {
+      "role": "Expert",
+      "name": "Wayne Rooney"
+    },
+    {
+      "role": "Expert",
+      "name": "Danny Murphy"
+    },
+    {
+      "role": "Editor",
+      "name": "Andy Fraser"
+    },
+    {
+      "role": "Director",
+      "name": "Graham Bennett"
+    }
+  ],
+  "available_until": "2026-10-13T22:21:25Z",
+  "image_pid": "p0p956vk",
+  "fetched_at": "2026-09-14T08:14:03.182278+00:00"
+}

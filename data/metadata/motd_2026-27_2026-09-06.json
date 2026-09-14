@@ -1,0 +1,45 @@
+{
+  "episode_id": "motd_2026-27_2026-09-06",
+  "broadcast_date": "2026-09-06",
+  "season": "2026-27",
+  "programme_pid": "m0031bf4",
+  "version_pid": "m0031bf3",
+  "title": "Match of the Day",
+  "subtitle": "06/09/2026",
+  "editorial_title": "Match of the Day (Sunday)",
+  "first_broadcast": "2026-09-06T22:30:00+01:00",
+  "duration_seconds": 3240,
+  "content_window": {
+    "start_seconds": 30.0,
+    "end_seconds": 3121.0
+  },
+  "synopsis_short": "Highlights of Chelsea v Arsenal and Everton v Manchester United.",
+  "synopsis_medium": "Highlights of the day's two Premier League games – Chelsea v Arsenal and Everton v Manchester United – and August's Goal of the Month.",
+  "synopsis_long": "Mark Chapman presents highlights of the day's two Premier League games as well as August’s Goal of the Month. Champions Arsenal face Xabi Alonso’s new-look Chelsea in a London derby, whilst Manchester United travel to Everton having won on their only previous visit to the Hill Dickinson Stadium.",
+  "synopsis_editorial": "With Arsenal v Chelsea and Everton v Man Utd, plus Goal of the Month",
+  "credits": [
+    {
+      "role": "Presenter",
+      "name": "Mark Chapman"
+    },
+    {
+      "role": "Expert",
+      "name": "Wayne Rooney"
+    },
+    {
+      "role": "Expert",
+      "name": "Ashley Young"
+    },
+    {
+      "role": "Editor",
+      "name": "Andy Fraser"
+    },
+    {
+      "role": "Producer",
+      "name": "Ian Finch"
+    }
+  ],
+  "available_until": "2026-10-06T22:26:57Z",
+  "image_pid": "p0p7vbl6",
+  "fetched_at": "2026-09-14T08:14:07.309676+00:00"
+}
