@@ -1,7 +1,7 @@
 {
   "season": "2026-27",
   "competition": "Premier League",
-  "fetched_at": "2026-09-14T08:13:16Z",
+  "fetched_at": "2026-09-20T10:24:59Z",
   "source": "https://fantasy.premierleague.com/api/fixtures/",
   "fixtures": [
     {
@@ -678,8 +678,11 @@
       "home_code": "LEE",
       "away_code": "NEW",
       "venue": "Elland Road",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 4,
+        "away": 1
+      },
+      "played": true
     },
     {
       "fpl_code": 2645236,
@@ -692,8 +695,11 @@
       "home_code": "BRE",
       "away_code": "CHE",
       "venue": "Gtech Community Stadium",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 3,
+        "away": 0
+      },
+      "played": true
     },
     {
       "fpl_code": 2645244,
@@ -706,8 +712,11 @@
       "home_code": "TOT",
       "away_code": "AVL",
       "venue": "Tottenham Hotspur Stadium",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 2,
+        "away": 3
+      },
+      "played": true
     },
     {
       "fpl_code": 2645237,
@@ -720,8 +729,11 @@
       "home_code": "BHA",
       "away_code": "ARS",
       "venue": "Amex Stadium",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 3,
+        "away": 0
+      },
+      "played": true
     },
     {
       "fpl_code": 2645238,
@@ -734,8 +746,11 @@
       "home_code": "EVE",
       "away_code": "IPS",
       "venue": "Hill Dickinson Stadium",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 1,
+        "away": 0
+      },
+      "played": true
     },
     {
       "fpl_code": 2645242,
@@ -748,8 +763,11 @@
       "home_code": "NEW",
       "away_code": "HUL",
       "venue": "St James' Park",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 2,
+        "away": 1
+      },
+      "played": true
     },
     {
       "fpl_code": 2645243,
@@ -762,8 +780,11 @@
       "home_code": "NFO",
       "away_code": "COV",
       "venue": "City Ground",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 0,
+        "away": 1
+      },
+      "played": true
     },
     {
       "fpl_code": 2645235,

@@ -1,7 +1,7 @@
 {
   "season": "2026-27",
   "competition": "Premier League",
-  "fetched_at": "2026-09-14T08:13:16Z",
+  "fetched_at": "2026-09-20T10:24:59Z",
   "source": "https://fantasy.premierleague.com/api/bootstrap-static/",
   "squads": {
     "ARS": [
@@ -91,7 +91,8 @@
       "Suzuki",
       "Torres",
       "Wan-Bissaka",
-      "Watkins"
+      "Watkins",
+      "Wright"
     ],
     "BHA": [
       "Amarilla",
@@ -185,12 +186,14 @@
     "BRE": [
       "Ajer",
       "Anthony",
+      "Balcombe",
       "Berg",
       "Carvalho",
       "Collins",
       "Damsgaard",
       "Dasilva",
       "Diouf",
+      "Fredrick",
       "Furo",
       "Gomes",
       "Henry",
@@ -250,6 +253,7 @@
       "Mheuka",
       "Mukinayi",
       "Neto",
+      "Nicoll-Jazuli",
       "Palestra",
       "Palmer",
       "Paz",
@@ -689,16 +693,20 @@
       "Lira",
       "Livramento",
       "Miley",
+      "Mills",
       "Murphy",
       "N.Gonzalez",
       "Neave",
       "Osula",
+      "Pivas",
       "Pope",
       "Ramsey",
+      "Salia",
       "Schär",
       "Shahar",
       "Steur",
       "Thiaw",
+      "Thompson",
       "Touré",
       "Willock",
       "Wissa",
