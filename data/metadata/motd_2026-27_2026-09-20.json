@@ -1,0 +1,45 @@
+{
+  "episode_id": "motd_2026-27_2026-09-20",
+  "broadcast_date": "2026-09-20",
+  "season": "2026-27",
+  "programme_pid": "m0031yfv",
+  "version_pid": "m0031yfr",
+  "title": "Match of the Day",
+  "subtitle": "20/09/2026",
+  "editorial_title": "Match of the Day (Sunday)",
+  "first_broadcast": "2026-09-20T22:30:00+01:00",
+  "duration_seconds": 4140,
+  "content_window": {
+    "start_seconds": 30.0,
+    "end_seconds": 4024.0
+  },
+  "synopsis_short": "Highlights of Sunday’s Premier League games, including Liverpool's trip to Bournemouth.",
+  "synopsis_medium": "Kelly Cates presents highlights of Sunday’s four Premier League games, including new Liverpool boss Andoni Iraola’s return to his former side, Bournemouth.",
+  "synopsis_long": "Kelly Cates presents highlights of Sunday’s four Premier League games, including new Liverpool boss Andoni Iraola’s return to his former side, Bournemouth. Elsewhere, Manchester City look to continue their good start to the season at home to Sunderland, Manchester United travel to Fulham, whilst Leeds entertain Crystal Palace.",
+  "synopsis_editorial": "With Man City v Sunderland and Andoni Iraola’s return to Bournemouth with Liverpool",
+  "credits": [
+    {
+      "role": "Presenter",
+      "name": "Kelly Cates"
+    },
+    {
+      "role": "Expert",
+      "name": "Joe Hart"
+    },
+    {
+      "role": "Expert",
+      "name": "Rob Edwards"
+    },
+    {
+      "role": "Editor",
+      "name": "Andy Fraser"
+    },
+    {
+      "role": "Producer",
+      "name": "Sarah Williams"
+    }
+  ],
+  "available_until": "2026-10-20T22:42:08Z",
+  "image_pid": "p0pb8hm9",
+  "fetched_at": "2026-09-21T14:42:55.950749+00:00"
+}

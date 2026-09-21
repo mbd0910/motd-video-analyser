@@ -1,7 +1,7 @@
 {
   "season": "2026-27",
   "competition": "Premier League",
-  "fetched_at": "2026-09-20T10:24:59Z",
+  "fetched_at": "2026-09-21T14:40:36Z",
   "source": "https://fantasy.premierleague.com/api/fixtures/",
   "fixtures": [
     {
@@ -797,8 +797,11 @@
       "home_code": "BOU",
       "away_code": "LIV",
       "venue": "Vitality Stadium",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 0,
+        "away": 1
+      },
+      "played": true
     },
     {
       "fpl_code": 2645240,
@@ -811,8 +814,11 @@
       "home_code": "LEE",
       "away_code": "CRY",
       "venue": "Elland Road",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 0,
+        "away": 0
+      },
+      "played": true
     },
     {
       "fpl_code": 2645241,
@@ -825,8 +831,11 @@
       "home_code": "MCI",
       "away_code": "SUN",
       "venue": "Etihad Stadium",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 5,
+        "away": 3
+      },
+      "played": true
     },
     {
       "fpl_code": 2645239,
@@ -839,8 +848,11 @@
       "home_code": "FUL",
       "away_code": "MUN",
       "venue": "Craven Cottage",
-      "final_score": null,
-      "played": false
+      "final_score": {
+        "home": 1,
+        "away": 1
+      },
+      "played": true
     },
     {
       "fpl_code": 2645245,
