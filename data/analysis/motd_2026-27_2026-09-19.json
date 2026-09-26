@@ -1,0 +1,144 @@
+{
+  "episode_id": "motd_2026-27_2026-09-19",
+  "broadcast_date": "2026-09-19",
+  "season": "2026-27",
+  "gameweek": 5,
+  "matches": [
+    {
+      "fpl_code": 2645237,
+      "order": 1,
+      "segments": {
+        "studio_intro": {
+          "start": "00:55",
+          "end": "01:08"
+        },
+        "highlights": {
+          "start": "01:23",
+          "end": "11:15"
+        },
+        "studio_analysis": {
+          "start": "11:15",
+          "end": "15:14"
+        }
+      },
+      "notes": null,
+      "handover": "Your commentator at the Amex, Mark Scott."
+    },
+    {
+      "fpl_code": 2645244,
+      "order": 2,
+      "segments": {
+        "studio_intro": {
+          "start": "15:14",
+          "end": "15:18"
+        },
+        "highlights": {
+          "start": "15:24",
+          "end": "26:22"
+        },
+        "studio_analysis": {
+          "start": "26:22",
+          "end": "31:31"
+        }
+      },
+      "notes": null,
+      "handover": "Conor McNamara was at the Tottenham Hotspur Stadium."
+    },
+    {
+      "fpl_code": 2645242,
+      "order": 3,
+      "segments": {
+        "studio_intro": {
+          "start": "31:31",
+          "end": "32:19"
+        },
+        "highlights": {
+          "start": "32:28",
+          "end": "41:49"
+        },
+        "studio_analysis": {
+          "start": "41:49",
+          "end": "44:58"
+        }
+      },
+      "notes": "The studio set-up (31:31-32:19) includes a short clip of Newcastle's midweek defeat at Leeds (31:41-32:16, 'Elland Road under the lights... A nightmare evening for Newcastle') before the handover to St James' Park. Highlights run continuously into the post-match pitchside interviews (40:20-41:49) before the studio picks up analysis.",
+      "handover": "Steven Wyeth was at St James' Park."
+    },
+    {
+      "fpl_code": 2645243,
+      "order": 4,
+      "segments": {
+        "studio_intro": {
+          "start": "45:47",
+          "end": "46:01"
+        },
+        "highlights": {
+          "start": "46:01",
+          "end": "54:40"
+        },
+        "studio_analysis": {
+          "start": "54:40",
+          "end": "57:13"
+        }
+      },
+      "notes": "The studio intro proper begins at 45:47 (\"Darren Huckerby scored a hat-trick...\"); the preceding 44:58-45:47 is a trailer for Sunday's Match of the Day and other BBC coverage, not this match. Highlights include the post-match manager and Jay Da Silva pitchside interviews, which run to 54:40 before the studio picks up.",
+      "handover": "Simon Brotherton was at the City Ground."
+    },
+    {
+      "fpl_code": 2645238,
+      "order": 5,
+      "segments": {
+        "studio_intro": {
+          "start": "57:13",
+          "end": "57:23"
+        },
+        "highlights": {
+          "start": "57:23",
+          "end": "66:28"
+        },
+        "studio_analysis": {
+          "start": "66:28",
+          "end": "68:26"
+        }
+      },
+      "notes": "Post-match interviews with both managers and a player (from 65:12) are counted as part of the highlights package; the final manager answer about the VAR/offside decision runs to 66:28, when the studio host picks it up.",
+      "handover": "Vicki Sparks was at Hill Dickinson Stadium."
+    },
+    {
+      "fpl_code": 2645236,
+      "order": 6,
+      "segments": {
+        "studio_intro": {
+          "start": "68:26",
+          "end": "68:36"
+        },
+        "highlights": {
+          "start": "68:36",
+          "end": "75:24"
+        },
+        "studio_analysis": {
+          "start": "75:24",
+          "end": "77:47"
+        }
+      },
+      "notes": "Highlights segment includes the post-match pitchside interviews (from 74:36) before the studio picks up at 75:24; studio analysis runs to 'Thank you. A quick look at the table.' at 77:47, after which the programme moves to the league table and sign-off.",
+      "handover": "Steve Wilson was at the G-Tech Community Stadium."
+    }
+  ],
+  "provenance": {
+    "model": "claude-opus-5",
+    "prompt_version": "5",
+    "analysed_at": "2026-09-26T16:23:25Z",
+    "candidate_fpl_codes": [
+      2645236,
+      2645244,
+      2645237,
+      2645238,
+      2645242,
+      2645243
+    ],
+    "input_tokens": 2856,
+    "output_tokens": 6573,
+    "walkthrough": null
+  }
+}
