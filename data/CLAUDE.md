@@ -6,8 +6,10 @@
   - `transcript.json` - Transcription with timestamps
   - `prompt.{context,tasks}.txt` - `analyse --dry-run` output: the transcript half
     every match shares, and the per-match halves concatenated
-- `analysis/{episode_id}.json` - Structured episode analysis. Committed: this is the
-  source of truth downstream reads, and it cannot be re-derived once iPlayer drops the episode.
+- `analysis/{episode_id}.json` - Structured episode analysis: the running order with its
+  segment timings, plus the `interludes` that account for what the matches do not.
+  Committed: this is the source of truth downstream reads, and it cannot be re-derived once
+  iPlayer drops the episode. Analyses written before prompt version 6 carry no interludes.
 - `metadata/{episode_id}.json` - BBC's own record of an episode: broadcast date, version
   pid, synopses, credits, content window, availability deadline. Committed, and stored in
   BBC's vocabulary rather than mapped down to ours. `/programmes` serves it indefinitely,

@@ -87,6 +87,20 @@ class MatchCoverage(BaseModel):
     handover: str | None = None
 
 
+class Interlude(BaseModel):
+    """A stretch of an episode that belongs to no match.
+
+    The complement of the running order: titles, trailers, the table. Carries a quote
+    from inside its own window for the same reason a match carries a handover — the
+    label is only evidence if it can be pointed at.
+    """
+
+    start: str
+    end: str
+    kind: str
+    quote: str
+
+
 class AnalysisProvenance(BaseModel):
     """What produced an analysis, and what it was allowed to choose from.
 
@@ -221,6 +235,8 @@ class EpisodeAnalysis(BaseModel):
     season: str
     gameweek: int | None = Field(default=None, gt=0)
     matches: list[MatchCoverage] = Field(default_factory=list)
+    # Absent on analyses from prompt version 5 and earlier, which recorded only matches.
+    interludes: list[Interlude] = Field(default_factory=list)
     provenance: AnalysisProvenance | None = None
 
     @model_validator(mode="after")

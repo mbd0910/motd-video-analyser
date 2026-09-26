@@ -40,6 +40,18 @@ nothing and matches run back to back. A handover quote is still recorded and ver
 where one exists, but it is never required: it proves a line is somewhere in the
 transcript, not that it is where the answer says it is.
 
+**The complement is asked for too, one stretch at a time.** An episode is not only its
+matches — titles, a mid-show trailer, the closing table — and none of that is recoverable
+from a running order that records only where matches sit. `_uncovered_spans` derives those
+stretches in code from the spans already merged for the coverage check, so the model is
+never asked to find them or to say how many there are; a second pass then puts each one to
+it as its own call, the same shape that made the match pass work. It returns a `kind` from
+a closed vocabulary and a quote, and the quote is checked against the text *between those
+two timestamps* rather than the whole transcript — a line lifted from elsewhere would pass
+the weaker test and prove nothing about the stretch it labels. A hole under
+`MIN_INTERLUDE_SECONDS` is boundary drift between the two calls either side of it rather
+than anything that was on screen, and is not asked about.
+
 **A run fails whole or not at all.** A match that cannot be located, a span naming
 neither club, a quote that is not in the transcript, two matches claiming the same
 package, or timings covering less than `MIN_TIMELINE_SHARE` of the content window all raise. Nothing is written when they do: a
@@ -171,6 +183,9 @@ before writing if the directory and the live payload disagree.
   commentator during highlights. It separates voices within a stretch; it does not name them.
 - **This stage produces running order and timings only.** No interpretation, no airtime
   aggregation, no bias measurement — those come later, off the stored data.
+- **Interlude kinds are `titles`, `trailer`, `league_table`, `sign_off`, `other`**, defined
+  by `INTERLUDE_KINDS`. `other` is deliberately in the vocabulary: an admitted gap in the
+  labels is a better record than a stretched one.
 
 ## Common Commands
 
@@ -196,8 +211,11 @@ Commands below assume `uv run` in front, or an activated `.venv`.
   metadata when omitted, and that fetch is stored rather than thrown away
 - `python -m motd transcribe VIDEO_PATH [--output PATH] [--force]`
 - `python -m motd analyse EPISODE_ID [--output PATH] [--force] [--model ID] [--effort LEVEL] [--cache-ttl 5m|1h|off] [--dry-run]`
-  — one API call per match, so a few minutes per episode; `--dry-run` writes the shared
-  context half and every per-match task half to the cache dir and makes no API call
+  — one API call per match, then one per stretch the matches leave unaccounted for, so a
+  few minutes per episode; `--dry-run` writes the shared context half and every per-match
+  task half to the cache dir and makes no API call. The interlude tasks cannot be
+  previewed that way: their windows are derived from the running order, which does not
+  exist until the match pass has run.
 - `python -m motd publish EPISODE_ID`
 
 **Judging a prompt or schema change:**

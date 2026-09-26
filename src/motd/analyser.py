@@ -22,6 +22,7 @@ from motd.models import (
     AnalysisProvenance,
     EpisodeAnalysis,
     Fixture,
+    Interlude,
     MatchCoverage,
     Transcript,
 )
@@ -42,13 +43,21 @@ DEFAULT_EFFORT: Effort = "xhigh"
 # Every match after the first reads the transcript from cache, so the write is paid
 # once per episode rather than once per call. 1h only helps when iterating.
 DEFAULT_CACHE_TTL: CacheTtl = "5m"
-PROMPT_VERSION = "5"
+PROMPT_VERSION = "6"
 # The answer is a few hundred tokens, but thinking is billed against this too and a
 # match with a fuzzy boundary can spend thousands working it out.
 MAX_TOKENS = 16000
 
 # Post-match interviews fall inside the highlights run rather than standing alone.
 SEGMENT_KEYS = ("studio_intro", "highlights", "studio_analysis")
+
+# What occupies an episode when no match does. `other` is deliberately present: a
+# stretched label is a worse record than an admitted gap in the vocabulary.
+INTERLUDE_KINDS = ("titles", "trailer", "league_table", "sign_off", "other")
+
+# Below this, a hole between two matches is boundary drift between the calls that
+# placed it, not something that was on screen — see `_uncovered_spans`.
+MIN_INTERLUDE_SECONDS = 20.0
 
 # A handover quote is checked when there is one, so it has to be long enough that
 # matching it means something. Round-up flashes have no handover at all.
@@ -188,6 +197,7 @@ def analyse(
     *,
     squads: SquadIndex | None = None,
     backend: LlmBackend | None = None,
+    interlude_backend: LlmBackend | None = None,
 ) -> EpisodeAnalysis:
     """Locate every candidate match in the episode and order them by when they aired.
 
@@ -201,6 +211,8 @@ def analyse(
         episode_id: Episode identifier (format: motd_YYYY-YY_YYYY-MM-DD).
         squads: Squad lookup for checking spans. Defaults to the season's squads file.
         backend: LLM backend. Defaults to the Claude API.
+        interlude_backend: Backend for the interlude pass, which asks a narrower
+            question and can be run at a lower effort. Defaults to `backend`.
 
     Returns:
         Validated EpisodeAnalysis.
@@ -211,6 +223,8 @@ def analyse(
     """
     if backend is None:
         backend = anthropic_backend()
+    if interlude_backend is None:
+        interlude_backend = backend
 
     if not candidates:
         raise AnalysisError(f"No candidate fixtures for {episode_id}")
@@ -262,6 +276,12 @@ def analyse(
     )
     _assert_episode_is_accounted_for(matches, transcript, episode_id)
 
+    interludes, interlude_in, interlude_out = _locate_interludes(
+        matches, transcript, episode_id, context, interlude_backend
+    )
+    input_tokens += interlude_in
+    output_tokens += interlude_out
+
     gameweeks = {f.gameweek for f in candidates if f.gameweek is not None}
     try:
         analysis = EpisodeAnalysis(
@@ -270,6 +290,7 @@ def analyse(
             season=ep.season,
             gameweek=gameweeks.pop() if len(gameweeks) == 1 else None,
             matches=matches,
+            interludes=interludes,
             provenance=AnalysisProvenance(
                 model=model,
                 prompt_version=PROMPT_VERSION,
@@ -282,7 +303,10 @@ def analyse(
     except ValidationError as exc:
         raise AnalysisError(f"LLM response failed validation: {exc}") from exc
 
-    logger.info("Analysis complete: %d matches in running order", len(analysis.matches))
+    logger.info(
+        "Analysis complete: %d matches in running order, %d interludes",
+        len(analysis.matches), len(analysis.interludes),
+    )
     return analysis
 
 
@@ -313,6 +337,122 @@ def _build_schema() -> dict[str, Any]:
         "required": ["handover", *SEGMENT_KEYS, "notes"],
         "additionalProperties": False,
     }
+
+
+def _build_interlude_schema() -> dict[str, Any]:
+    """JSON schema for one interlude. Closed over `INTERLUDE_KINDS`, so the label is
+    chosen from a fixed vocabulary rather than invented."""
+    return {
+        "type": "object",
+        # Quote before kind, for the same reason handover precedes the timings: the
+        # model finds the evidence first, then says what it shows.
+        "properties": {
+            "quote": {"type": "string"},
+            "kind": {"type": "string", "enum": list(INTERLUDE_KINDS)},
+        },
+        "required": ["quote", "kind"],
+        "additionalProperties": False,
+    }
+
+
+def _build_interlude_task(span: tuple[float, float]) -> str:
+    """The half that names the one stretch to identify.
+
+    The window is computed from the running order, never asked for: the model is given
+    two timestamps and reads between them, which is the whole question.
+    """
+    start, end = _format_timestamp(span[0]), _format_timestamp(span[1])
+    return f"""You are reading a BBC Match of the Day transcript. One stretch of this episode
+belongs to none of the matches it showed.
+
+## The stretch
+
+{start} to {end}
+
+## Your task
+
+Say what occupies it, and quote the transcript to show it.
+
+- `quote` first: one line copied verbatim from between those two timestamps. It must
+  come from inside the stretch — a line from anywhere else proves nothing about it.
+- `kind`: which of these it is.
+  - `titles` — the opening sequence, or the programme's own branding
+  - `trailer` — promotion of other programmes, other channels, or later coverage
+  - `league_table` — the table, or a summary of where clubs stand
+  - `sign_off` — closing words to the viewer
+  - `other` — anything else
+
+Choose `other` rather than stretching one of the named kinds to fit."""
+
+
+def _format_timestamp(seconds: float) -> str:
+    """Seconds as MM:SS, matching how timestamps are written into the transcript."""
+    total = int(seconds)
+    return f"{total // 60:02d}:{total % 60:02d}"
+
+
+def _resolve_interlude(
+    data: dict[str, Any], span: tuple[float, float], transcript: Transcript
+) -> Interlude:
+    """One interlude, with its quote checked against the stretch it describes.
+
+    The quote is matched against the text between the two timestamps rather than the
+    whole transcript, which is what makes it evidence for this stretch: a line lifted
+    from elsewhere in the episode would pass the weaker test and prove nothing.
+    """
+    start, end = _format_timestamp(span[0]), _format_timestamp(span[1])
+    window = f"{start}-{end}"
+
+    kind = str(data.get("kind", ""))
+    if kind not in INTERLUDE_KINDS:
+        raise AnalysisError(f"{window}: {kind!r} is not one of {list(INTERLUDE_KINDS)}")
+
+    quote = _normalise(str(data.get("quote", "")))
+    if len(quote) < MIN_QUOTE_CHARS:
+        raise AnalysisError(
+            f"{window}: quote is too short to mean anything — {data.get('quote')!r}"
+        )
+    if quote not in _normalise(_text_between(transcript, span)):
+        raise AnalysisError(
+            f"{window}: quote is not in that stretch of the transcript, so it is not "
+            f"evidence for what is — {data.get('quote')!r}"
+        )
+
+    return Interlude(start=start, end=end, kind=kind, quote=str(data.get("quote", "")))
+
+
+def _locate_interludes(
+    matches: list[MatchCoverage],
+    transcript: Transcript,
+    episode_id: str,
+    context: str,
+    backend: LlmBackend,
+) -> tuple[list[Interlude], int, int]:
+    """Identify every stretch the running order leaves unaccounted for.
+
+    One call per stretch, sharing the cached transcript with the match pass, so these
+    read from cache rather than paying for it again.
+    """
+    gaps = _uncovered_spans(matches, _content_bounds(transcript, episode_id))
+    if not gaps:
+        logger.info("%s: running order leaves no stretch unaccounted for", episode_id)
+        return [], 0, 0
+
+    schema = _build_interlude_schema()
+    interludes, input_tokens, output_tokens = [], 0, 0
+    for n, span in enumerate(gaps, 1):
+        prompt = Prompt(context=context, task=_build_interlude_task(span))
+        result = backend(prompt, schema)
+        input_tokens += result.input_tokens or 0
+        output_tokens += result.output_tokens or 0
+        interlude = _resolve_interlude(_parse_response(result.text), span, transcript)
+        logger.info(
+            "  %d/%d %s-%s — %s (%s output tokens)",
+            n, len(gaps), interlude.start, interlude.end, interlude.kind,
+            result.output_tokens,
+        )
+        interludes.append(interlude)
+    return interludes, input_tokens, output_tokens
 
 
 def _build_context(
@@ -601,6 +741,24 @@ def _timeline_share(
     if accountable_seconds <= 0:
         return None
 
+    merged = _merged_spans(matches, bounds)
+    if not merged:
+        return None
+
+    covered = sum(end - start for start, end in merged)
+    return covered / accountable_seconds
+
+
+def _merged_spans(
+    matches: list[MatchCoverage], bounds: tuple[float, float]
+) -> list[tuple[float, float]]:
+    """Every claimed segment, clipped to `bounds` and merged into disjoint stretches.
+
+    Segments of one match abut and a round-up can sit inside a fuller package, so the
+    union is the only honest measure of how much screen time was accounted for — and
+    the only honest basis for what was left over.
+    """
+    lower, upper = bounds
     spans = []
     for match in matches:
         for key in SEGMENT_KEYS:
@@ -611,22 +769,40 @@ def _timeline_share(
             if end > start:
                 spans.append((start, end))
     if not spans:
-        return None
+        return []
 
-    # Segments of one match abut and a round-up can sit inside a fuller package, so the
-    # union is the only honest measure of how much screen time was accounted for.
-    covered = 0.0
+    merged = []
     ordered = sorted(spans)
     current_start, current_end = ordered[0]
     for start, end in ordered[1:]:
         if start > current_end:
-            covered += current_end - current_start
+            merged.append((current_start, current_end))
             current_start, current_end = start, end
         else:
             current_end = max(current_end, end)
-    covered += current_end - current_start
+    merged.append((current_start, current_end))
+    return merged
 
-    return covered / accountable_seconds
+
+def _uncovered_spans(
+    matches: list[MatchCoverage], bounds: tuple[float, float]
+) -> list[tuple[float, float]]:
+    """The complement of the running order inside `bounds`, longest-first.
+
+    Only stretches past `MIN_INTERLUDE_SECONDS` are returned. Two calls place a shared
+    boundary a few seconds apart, so a shorter hole is drift between the match either
+    side of it rather than anything that was on screen.
+    """
+    lower, upper = bounds
+    gaps = []
+    cursor = lower
+    for start, end in _merged_spans(matches, bounds):
+        if start - cursor >= MIN_INTERLUDE_SECONDS:
+            gaps.append((cursor, start))
+        cursor = max(cursor, end)
+    if upper - cursor >= MIN_INTERLUDE_SECONDS:
+        gaps.append((cursor, upper))
+    return gaps
 
 
 def _content_bounds(transcript: Transcript, episode_id: str) -> tuple[float, float]:

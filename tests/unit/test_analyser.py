@@ -5,6 +5,7 @@ import json
 import pytest
 
 from motd.analyser import (
+    INTERLUDE_KINDS,
     SEGMENT_KEYS,
     AnalysisError,
     LlmBackend,
@@ -18,8 +19,10 @@ from motd.analyser import (
     _content_bounds,
     _normalise,
     _parse_response,
+    _resolve_interlude,
     _resolve_location,
     _timeline_share,
+    _uncovered_spans,
     analyse,
     fixture_label,
 )
@@ -92,6 +95,7 @@ SAMPLE_TRANSCRIPT = Transcript(
         TranscriptSegment(start=60.0, end=600.0, text="And it's a goal from Saka!"),
         TranscriptSegment(start=2700.0, end=2760.0, text="Steve Wilson was at the Amex Stadium."),
         TranscriptSegment(start=2800.0, end=5200.0, text="Welbeck turns and shoots!"),
+        TranscriptSegment(start=5300.0, end=5380.0, text="From all of us, good night."),
     ],
 )
 
@@ -133,6 +137,19 @@ REPLIES_BY_LABEL = {
 }
 
 
+SIGN_OFF_REPLY = {"quote": "From all of us, good night.", "kind": "sign_off"}
+
+# The task half of an interlude call, which names no fixture.
+INTERLUDE_MARKER = "belongs to none of the matches"
+
+
+def reply_for(task: str) -> dict:
+    """The canned reply for whichever question the task half is asking."""
+    if INTERLUDE_MARKER in task:
+        return SIGN_OFF_REPLY
+    return next(r for label, r in REPLIES_BY_LABEL.items() if label in task)
+
+
 def fake_backend(*replies: dict) -> LlmBackend:
     """A backend that answers each call in turn, ignoring the schema."""
     queued = list(replies)
@@ -150,7 +167,7 @@ def replying_by_match() -> LlmBackend:
     """A backend that answers whichever match the task half names."""
 
     def backend(prompt: Prompt, schema: dict) -> LlmResult:
-        reply = next(r for label, r in REPLIES_BY_LABEL.items() if label in prompt.task)
+        reply = reply_for(prompt.task)
         return LlmResult(
             text=json.dumps(reply), model="fake-model", input_tokens=10, output_tokens=5
         )
@@ -513,14 +530,14 @@ class TestAnalyseWithFakeBackend:
 
         def counting(prompt: Prompt, schema: dict) -> LlmResult:
             tasks.append(prompt.task)
-            reply = next(r for label, r in REPLIES_BY_LABEL.items() if label in prompt.task)
-            return LlmResult(text=json.dumps(reply), model="fake-model")
+            return LlmResult(text=json.dumps(reply_for(prompt.task)), model="fake-model")
 
         analyse(
             SAMPLE_TRANSCRIPT, SAMPLE_CANDIDATES,
             "motd_2025-26_2025-11-01", squads=SQUADS, backend=counting,
         )
-        assert len(tasks) == len(SAMPLE_CANDIDATES)
+        match_tasks = [t for t in tasks if INTERLUDE_MARKER not in t]
+        assert len(match_tasks) == len(SAMPLE_CANDIDATES)
 
     def test_provenance_records_the_candidates_and_sums_the_calls(self) -> None:
         analysis = analyse(
@@ -532,7 +549,7 @@ class TestAnalyseWithFakeBackend:
             BRIGHTON_LEEDS.fpl_code, ARSENAL_CHELSEA.fpl_code,
         ]
         assert analysis.provenance.model == "fake-model"
-        assert analysis.provenance.prompt_version == "5"
+        assert analysis.provenance.prompt_version == "6"
         assert analysis.provenance.walkthrough is None
 
     def test_a_match_the_model_cannot_place_fails_the_whole_run(self) -> None:
@@ -568,9 +585,9 @@ class TestAnalyseWithFakeBackend:
         captured: dict[str, dict] = {}
 
         def capturing(prompt: Prompt, schema: dict) -> LlmResult:
-            captured["schema"] = schema
-            reply = next(r for label, r in REPLIES_BY_LABEL.items() if label in prompt.task)
-            return LlmResult(text=json.dumps(reply), model="fake-model")
+            if INTERLUDE_MARKER not in prompt.task:
+                captured["schema"] = schema
+            return LlmResult(text=json.dumps(reply_for(prompt.task)), model="fake-model")
 
         analyse(
             SAMPLE_TRANSCRIPT, SAMPLE_CANDIDATES,
@@ -644,3 +661,165 @@ class TestSquadCheck:
             [MatchCoverage(fpl_code=ARSENAL_CHELSEA.fpl_code, order=1)],
             self._by_code(), SAMPLE_TRANSCRIPT, SQUADS,
         )
+
+
+class TestUncoveredSpans:
+    """The complement of the running order — what the matches leave unexplained."""
+
+    def _match(self, code: int, *spans: tuple[str, str]) -> MatchCoverage:
+        segments = {
+            key: {"start": start, "end": end}
+            for key, (start, end) in zip(SEGMENT_KEYS, spans, strict=False)
+        }
+        return MatchCoverage(fpl_code=code, order=code, segments=segments)
+
+    def test_a_gap_between_two_matches_is_returned(self) -> None:
+        first = self._match(1, ("00:00", "10:00"))
+        second = self._match(2, ("20:00", "30:00"))
+        assert _uncovered_spans([first, second], (0.0, 1800.0)) == [(600.0, 1200.0)]
+
+    def test_a_gap_shorter_than_the_floor_is_drift_not_content(self) -> None:
+        """Two calls place a shared boundary seconds apart; that is not a stretch."""
+        first = self._match(1, ("00:00", "10:00"))
+        second = self._match(2, ("10:05", "30:00"))
+        assert _uncovered_spans([first, second], (0.0, 1800.0)) == []
+
+    def test_the_stretch_before_the_first_match_is_returned(self) -> None:
+        match = self._match(1, ("05:00", "30:00"))
+        assert _uncovered_spans([match], (0.0, 1800.0)) == [(0.0, 300.0)]
+
+    def test_the_stretch_after_the_last_match_is_returned(self) -> None:
+        match = self._match(1, ("00:00", "25:00"))
+        assert _uncovered_spans([match], (0.0, 1800.0)) == [(1500.0, 1800.0)]
+
+    def test_it_measures_from_the_window_not_the_file(self) -> None:
+        """Titles before the content window are not airtime any match could have had."""
+        match = self._match(1, ("00:30", "30:00"))
+        assert _uncovered_spans([match], (30.0, 1800.0)) == []
+
+    def test_an_episode_with_no_holes_yields_nothing(self) -> None:
+        match = self._match(1, ("00:00", "30:00"))
+        assert _uncovered_spans([match], (0.0, 1800.0)) == []
+
+    def test_overlapping_matches_do_not_manufacture_a_gap(self) -> None:
+        first = self._match(1, ("00:00", "20:00"))
+        second = self._match(2, ("10:00", "30:00"))
+        assert _uncovered_spans([first, second], (0.0, 1800.0)) == []
+
+
+class TestResolveInterlude:
+    """A label is only evidence if the quote behind it comes from the right stretch."""
+
+    TRANSCRIPT = Transcript(
+        episode_id="motd_2025-26_2025-11-01",
+        duration_seconds=1800.0,
+        segments=[
+            TranscriptSegment(start=10.0, end=60.0, text="And it's a goal from Saka!"),
+            TranscriptSegment(start=600.0, end=640.0, text="Four games in Sunday's Match of the Day."),
+            TranscriptSegment(start=650.0, end=690.0, text="5 Live will be across the action from 2pm."),
+        ],
+    )
+
+    def test_a_quote_from_inside_the_stretch_is_accepted(self) -> None:
+        data = {"quote": "5 Live will be across the action from 2pm.", "kind": "trailer"}
+        interlude = _resolve_interlude(data, (600.0, 700.0), self.TRANSCRIPT)
+        assert interlude.kind == "trailer"
+        assert interlude.start == "10:00"
+        assert interlude.end == "11:40"
+
+    def test_a_quote_from_elsewhere_in_the_episode_is_rejected(self) -> None:
+        """The weaker test — is it in the transcript — would pass this and prove nothing."""
+        data = {"quote": "And it's a goal from Saka!", "kind": "trailer"}
+        with pytest.raises(AnalysisError, match="not in that stretch"):
+            _resolve_interlude(data, (600.0, 700.0), self.TRANSCRIPT)
+
+    def test_a_kind_outside_the_vocabulary_is_rejected(self) -> None:
+        data = {"quote": "5 Live will be across the action from 2pm.", "kind": "adverts"}
+        with pytest.raises(AnalysisError, match="not one of"):
+            _resolve_interlude(data, (600.0, 700.0), self.TRANSCRIPT)
+
+    def test_a_quote_too_short_to_mean_anything_is_rejected(self) -> None:
+        data = {"quote": "5 Live", "kind": "trailer"}
+        with pytest.raises(AnalysisError, match="too short"):
+            _resolve_interlude(data, (600.0, 700.0), self.TRANSCRIPT)
+
+    def test_punctuation_drift_does_not_break_the_match(self) -> None:
+        data = {"quote": "5 Live will be across the action from 2pm", "kind": "trailer"}
+        assert _resolve_interlude(data, (600.0, 700.0), self.TRANSCRIPT).kind == "trailer"
+
+    def test_every_kind_in_the_vocabulary_resolves(self) -> None:
+        for kind in INTERLUDE_KINDS:
+            data = {"quote": "5 Live will be across the action from 2pm.", "kind": kind}
+            assert _resolve_interlude(data, (600.0, 700.0), self.TRANSCRIPT).kind == kind
+
+
+class TestInterludesInAnalyse:
+    def test_the_stretch_after_the_last_match_is_recorded(self) -> None:
+        analysis = analyse(
+            SAMPLE_TRANSCRIPT, SAMPLE_CANDIDATES,
+            "motd_2025-26_2025-11-01", squads=SQUADS, backend=replying_by_match(),
+        )
+        assert [(i.start, i.end, i.kind) for i in analysis.interludes] == [
+            ("88:00", "90:00", "sign_off")
+        ]
+
+    def test_an_interlude_quote_from_elsewhere_fails_the_whole_run(self) -> None:
+        """Same standard as a handover: a quote that is not where it is claimed is not evidence."""
+
+        def lifting(prompt: Prompt, schema: dict) -> LlmResult:
+            if INTERLUDE_MARKER in prompt.task:
+                reply = {"quote": "And it's a goal from Saka!", "kind": "sign_off"}
+            else:
+                reply = reply_for(prompt.task)
+            return LlmResult(text=json.dumps(reply), model="fake-model")
+
+        with pytest.raises(AnalysisError, match="not in that stretch"):
+            analyse(
+                SAMPLE_TRANSCRIPT, SAMPLE_CANDIDATES,
+                "motd_2025-26_2025-11-01", squads=SQUADS, backend=lifting,
+            )
+
+    def test_the_interlude_schema_offers_only_the_known_kinds(self) -> None:
+        captured: dict[str, dict] = {}
+
+        def capturing(prompt: Prompt, schema: dict) -> LlmResult:
+            if INTERLUDE_MARKER in prompt.task:
+                captured["schema"] = schema
+            return LlmResult(text=json.dumps(reply_for(prompt.task)), model="fake-model")
+
+        analyse(
+            SAMPLE_TRANSCRIPT, SAMPLE_CANDIDATES,
+            "motd_2025-26_2025-11-01", squads=SQUADS, backend=capturing,
+        )
+        assert set(captured["schema"]["properties"]) == {"quote", "kind"}
+        assert captured["schema"]["properties"]["kind"]["enum"] == list(INTERLUDE_KINDS)
+
+    def test_the_interlude_pass_can_run_on_its_own_backend(self) -> None:
+        """It asks a narrower question, so it need not be billed at the same effort."""
+        seen: list[str] = []
+
+        def cheap(prompt: Prompt, schema: dict) -> LlmResult:
+            seen.append(prompt.task)
+            return LlmResult(text=json.dumps(SIGN_OFF_REPLY), model="cheap-model")
+
+        analyse(
+            SAMPLE_TRANSCRIPT, SAMPLE_CANDIDATES,
+            "motd_2025-26_2025-11-01", squads=SQUADS,
+            backend=replying_by_match(), interlude_backend=cheap,
+        )
+        assert len(seen) == 1
+        assert INTERLUDE_MARKER in seen[0]
+
+    def test_the_interlude_pass_shares_the_cached_transcript(self) -> None:
+        """Both passes send the same context half, so the second reads it from cache."""
+        contexts: list[str] = []
+
+        def recording(prompt: Prompt, schema: dict) -> LlmResult:
+            contexts.append(prompt.context)
+            return LlmResult(text=json.dumps(reply_for(prompt.task)), model="fake-model")
+
+        analyse(
+            SAMPLE_TRANSCRIPT, SAMPLE_CANDIDATES,
+            "motd_2025-26_2025-11-01", squads=SQUADS, backend=recording,
+        )
+        assert len(set(contexts)) == 1
